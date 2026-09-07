@@ -1,0 +1,17 @@
+[
+  {
+    "id": "zrshuiwu",
+    "name": "ZRShuiwu",
+    "apiType": "openai-completions",
+    "apiKey": "sk-hXhSQhXpgsXmBRTGNn0jUsBaIj0SIovHQ9wVwEyGkE9z1zKs",
+    "baseUrl": "https://newapi.zrshuiwu.com/v1",
+    "enable": true,
+    "websites": {
+      "official": "https://newapi.zrshuiwu.com",
+      "apiKey": "",
+      "docs": "",
+      "models": "",
+      "defaultBaseUrl": "https://newapi.zrshuiwu.com/v1"
+    }
+  }
+]

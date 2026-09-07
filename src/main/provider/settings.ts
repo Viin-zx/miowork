@@ -1,6 +1,7 @@
 import type { SystemPrompt } from '@shared/types/prompt'
 import type {
   LLM_PROVIDER,
+  LLM_PROVIDER_BASE,
   MODEL_META,
   ModelConfig,
   ModelRouteConfig,
@@ -23,6 +24,7 @@ import {
   resolveModelVision
 } from '@shared/modelConfigDefaults'
 import { DEFAULT_PROVIDERS } from '@/provider/defaults'
+import defaultProvidersConfig from '../../../resources/default-providers.json'
 import path from 'path'
 import { app } from 'electron'
 import fs from 'fs'
@@ -71,19 +73,34 @@ import {
 import { resolveDeepSeekResponsesRoute } from './deepseekResponsesAdapter'
 
 // Create interface for model storage
-const defaultProviders = DEFAULT_PROVIDERS.map((provider) => ({
-  id: provider.id,
-  name: provider.name,
-  apiType: provider.apiType,
-  apiKey: provider.apiKey,
-  baseUrl: provider.baseUrl,
-  enable: provider.enable,
-  websites: provider.websites,
-  models: provider.models ?? [],
-  customModels: provider.customModels ?? [],
-  enabledModels: provider.enabledModels ?? [],
-  disabledModels: provider.disabledModels ?? []
-}))
+const defaultProviders = [
+  ...DEFAULT_PROVIDERS.map((provider) => ({
+    id: provider.id,
+    name: provider.name,
+    apiType: provider.apiType,
+    apiKey: provider.apiKey,
+    baseUrl: provider.baseUrl,
+    enable: provider.enable,
+    websites: provider.websites,
+    models: provider.models ?? [],
+    customModels: provider.customModels ?? [],
+    enabledModels: provider.enabledModels ?? [],
+    disabledModels: provider.disabledModels ?? []
+  })),
+  ...(defaultProvidersConfig as LLM_PROVIDER_BASE[]).map((provider) => ({
+    id: provider.id,
+    name: provider.name,
+    apiType: provider.apiType,
+    apiKey: provider.apiKey,
+    baseUrl: provider.baseUrl,
+    enable: provider.enable,
+    websites: provider.websites,
+    models: provider.models ?? [],
+    customModels: provider.customModels ?? [],
+    enabledModels: provider.enabledModels ?? [],
+    disabledModels: provider.disabledModels ?? []
+  }))
+]
 
 const PROVIDERS_STORE_KEY = 'providers'
 const DEPRECATED_BUILTIN_PROVIDER_IDS = ['qwenlm', 'laoshi'] as const
