@@ -171,7 +171,7 @@ export class DeepChatAgentRepository {
         id: BUILTIN_DEEPCHAT_AGENT_ID,
         agentType: 'deepchat',
         source: 'builtin',
-        name: defaults?.name?.trim() || 'DeepChat',
+        name: defaults?.name?.trim() || 'MioWork',
         enabled: true,
         protected: true,
         icon: sanitizeString(defaults?.icon),

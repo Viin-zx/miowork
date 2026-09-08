@@ -336,11 +336,11 @@ export class CliLauncherService {
     const resolvedDirectory = path.resolve(directory)
     const appRoot = resolveCliAppRoot(resolvedDirectory)
     const hostCandidates = [
-      path.join(appRoot, 'MacOS', 'DeepChat'),
+      path.join(appRoot, 'MacOS', 'MioWork'),
       path.join(appRoot, 'deepchat.bin'),
-      path.join(appRoot, 'DeepChat.exe'),
-      path.join(appRoot, 'DeepChat'),
-      path.join(appRoot, 'deepchat'),
+      path.join(appRoot, 'MioWork.exe'),
+      path.join(appRoot, 'MioWork'),
+      path.join(appRoot, 'miochat'),
       path.join(
         appRoot,
         'node_modules',

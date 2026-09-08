@@ -1,5 +1,5 @@
 appId: com.wefonk.deepchat
-productName: DeepChat
+productName: MioWork
 directories:
   buildResources: build
 files:
@@ -84,7 +84,7 @@ electronLanguages:
   - he-IL
   - he
 win:
-  executableName: DeepChat
+  executableName: MioWork
 nsis:
   artifactName: ${name}-${version}-windows-${arch}.${ext}
   shortcutName: ${productName}

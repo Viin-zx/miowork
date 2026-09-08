@@ -517,19 +517,18 @@ describe('Settings App', () => {
 
     await flushPromises()
 
-    const providerSidebarItem = wrapper.find('[data-testid="settings-tab-model-providers"]')
+    const displaySidebarItem = wrapper.find('[data-testid="settings-tab-appearance"]')
 
-    expect(providerSidebarItem.exists()).toBe(true)
+    expect(displaySidebarItem.exists()).toBe(true)
 
-    await providerSidebarItem.trigger('click')
+    await displaySidebarItem.trigger('click')
 
-    expect(push).toHaveBeenCalledWith('/provider')
-    expect(push).not.toHaveBeenCalledWith('/provider/:providerId?')
-    expect(providerSidebarItem.attributes('aria-busy')).toBe('true')
+    expect(push).toHaveBeenCalledWith('/display')
+    expect(displaySidebarItem.attributes('aria-busy')).toBe('true')
 
     resolvePush?.()
     await flushPromises()
-    expect(providerSidebarItem.attributes('aria-busy')).toBe('false')
+    expect(displaySidebarItem.attributes('aria-busy')).toBe('false')
   })
 
   it('navigates to the requested settings route when a navigate event arrives', async () => {

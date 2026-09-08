@@ -1,0 +1,9 @@
+{
+  "title": "Welcome to MioWork",
+  "description": "Please sign in to continue",
+  "username": "Username",
+  "password": "Password",
+  "submit": "Sign in",
+  "submitting": "Signing in…",
+  "error": "Incorrect username or password. Please try again."
+}

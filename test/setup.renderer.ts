@@ -382,6 +382,14 @@ const getDefaultDeepchatInvokeResult = (
           typeof payload.modelId === 'string' ? payload.modelId : undefined
         )
       }
+    case 'auth.getStatus':
+      return {
+        authenticated: true
+      }
+    case 'auth.login':
+      return {
+        ok: true
+      }
     default:
       return {}
   }

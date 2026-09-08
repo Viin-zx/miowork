@@ -91,9 +91,7 @@
       This installer is not compatible with your system architecture.$\r$\n\
       Your system: $1$\r$\n\
       App architecture: $3$\r$\n$\r$\n\
-      Please download the correct version from:$\r$\n\
-      https://deepchat.thinkinai.xyz/"
-    ExecShell "open" "https://deepchat.thinkinai.xyz/"
+      Please download the correct version for your system."
     Abort
   ${EndIf}
 

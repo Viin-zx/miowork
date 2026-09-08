@@ -1,0 +1,9 @@
+{
+  "title": "欢迎使用 MioWork",
+  "description": "请登录后继续使用",
+  "username": "用户名",
+  "password": "密码",
+  "submit": "登录",
+  "submitting": "登录中…",
+  "error": "用户名或密码错误，请重试"
+}

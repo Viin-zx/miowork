@@ -111,6 +111,8 @@ import { createRemoteRoutes } from '../remote/routes'
 import { createSchedulerRoutes } from '../scheduler/routes'
 import { createMemoryRoutes } from '../memory/routes'
 import { createDesktopRoutes } from '../desktop/routes'
+import { AuthService } from '../auth/authService'
+import { createAuthRoutes } from '../auth/routes'
 import { createFileRoutes } from '../file/routes'
 import { createKnowledgeRoutes } from '../knowledge/routes'
 import { KnowledgeSettings } from '@/knowledge/settings'
@@ -2822,6 +2824,8 @@ export async function createMainProcessControl(dependencies: {
         })
       }
     })
+    const authService = new AuthService()
+    const authRoutes = createAuthRoutes(authService)
     const fileRoutes = createFileRoutes(fileService)
     const ocrRoutes = createOcrRoutes({ runtime: ocrRuntimeService })
     const toolchainRoutes = createToolchainRoutes({
@@ -3057,6 +3061,7 @@ export async function createMainProcessControl(dependencies: {
         schedulerRoutes,
         memoryRoutes,
         desktopRoutes,
+        authRoutes,
         fileRoutes,
         ocrRoutes,
         toolchainRoutes,

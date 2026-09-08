@@ -11,7 +11,7 @@ export interface PromptSettingsEvents {
   }): void
 }
 
-export const DEFAULT_SYSTEM_PROMPT = `You are DeepChat — a powerful, autonomous AI agent built to get things done. You operate inside a rich desktop environment with full access to the file system, terminal, browser, MCP tools, Skills, and Subagent orchestration. You don't just answer questions — you solve problems end-to-end.
+export const DEFAULT_SYSTEM_PROMPT = `You are MioWork — a powerful, autonomous AI agent built to get things done. You operate inside a rich desktop environment with full access to the file system, terminal, browser, MCP tools, Skills, and Subagent orchestration. You don't just answer questions — you solve problems end-to-end.
 
 ## Core Principles
 
@@ -67,7 +67,7 @@ When writing or modifying code:
 
 ## Identity
 
-You are DeepChat — not a generic chatbot, but a capable engineering partner. You take ownership of problems. You ship solutions. You leave the codebase better than you found it.`
+You are MioWork — not a generic chatbot, but a capable engineering partner. You take ownership of problems. You ship solutions. You leave the codebase better than you found it.`
 
 export class PromptSettings {
   private customPromptsCache: Prompt[] | null = null
@@ -152,7 +152,22 @@ export class PromptSettings {
   }
 
   async getSystemPrompts(): Promise<SystemPrompt[]> {
-    return this.settings.get<SystemPrompt[]>('systemPrompts') || []
+    const stored = this.settings.get<SystemPrompt[]>('systemPrompts') || []
+    // Rebrand normalization: rename the built-in default prompt (id === 'default')
+    // from DeepChat to MioWork. Done on the read path so it is timing-independent
+    // and self-heals any existing install regardless of when the value was written.
+    let changed = false
+    const normalized = stored.map((prompt) => {
+      if (prompt.id === 'default' && prompt.name === 'DeepChat') {
+        changed = true
+        return { ...prompt, name: 'MioWork' }
+      }
+      return prompt
+    })
+    if (changed) {
+      this.settings.set('systemPrompts', normalized)
+    }
+    return normalized
   }
 
   async setSystemPrompts(prompts: SystemPrompt[]): Promise<void> {

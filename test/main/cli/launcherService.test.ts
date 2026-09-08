@@ -34,10 +34,10 @@ async function createFixture(platform: NodeJS.Platform = 'darwin') {
   await writeFile(path.join(cliDirectory, 'deepchat.mjs'), 'console.log("deepchat")\n')
   const electronHost =
     platform === 'darwin'
-      ? path.join(appRoot, 'MacOS', 'DeepChat')
+      ? path.join(appRoot, 'MacOS', 'MioWork')
       : platform === 'win32'
-        ? path.join(appRoot, 'DeepChat.exe')
-        : path.join(appRoot, 'deepchat')
+        ? path.join(appRoot, 'MioWork.exe')
+        : path.join(appRoot, 'miochat')
   await mkdir(path.dirname(electronHost), { recursive: true })
   await writeFile(electronHost, 'fixture electron\n', { mode: 0o755 })
   let currentCliDirectory: string | null = cliDirectory
@@ -306,7 +306,7 @@ describe('CliLauncherService', () => {
     await writeFile(path.join(nextCliDirectory, 'deepchat'), '#!/bin/sh\n', { mode: 0o755 })
     await writeFile(path.join(nextCliDirectory, 'deepchat.mjs'), 'console.log("v2")\n')
     await mkdir(path.join(nextAppRoot, 'MacOS'), { recursive: true })
-    await writeFile(path.join(nextAppRoot, 'MacOS', 'DeepChat'), 'fixture electron v2\n', {
+    await writeFile(path.join(nextAppRoot, 'MacOS', 'MioWork'), 'fixture electron v2\n', {
       mode: 0o755
     })
     fixture.setCliDirectory(nextCliDirectory)
@@ -415,7 +415,7 @@ describe('CliLauncherService', () => {
     const nextCliDirectory = path.join(nextAppRoot, 'resources', 'app.asar.unpacked', 'cli')
     await mkdir(nextCliDirectory, { recursive: true })
     await writeFile(path.join(nextCliDirectory, 'deepchat.mjs'), 'console.log("v2")\n')
-    await writeFile(path.join(nextAppRoot, 'DeepChat.exe'), 'fixture electron v2\n', {
+    await writeFile(path.join(nextAppRoot, 'MioWork.exe'), 'fixture electron v2\n', {
       mode: 0o755
     })
     fixture.setCliDirectory(nextCliDirectory)
