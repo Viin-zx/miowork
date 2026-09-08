@@ -12,8 +12,7 @@
       </div>
       <form class="unlock-panel unlock-panel--manual" @submit.prevent="submitUnlock">
         <div class="unlock-brand" aria-hidden="true">
-          <div class="unlock-logo unlock-logo--dark" v-html="darkLogo" />
-          <div class="unlock-logo unlock-logo--light" v-html="lightLogo" />
+          <img class="unlock-logo" :src="logoImg" />
         </div>
         <div class="unlock-title">MioWork</div>
         <div class="unlock-subtitle">Local database is encrypted</div>
@@ -61,8 +60,7 @@
       </div>
       <form class="unlock-panel unlock-panel--manual" @submit.prevent="submitRecoveryPassword">
         <div class="unlock-brand" aria-hidden="true">
-          <div class="unlock-logo unlock-logo--dark" v-html="darkLogo" />
-          <div class="unlock-logo unlock-logo--light" v-html="lightLogo" />
+          <img class="unlock-logo" :src="logoImg" />
         </div>
         <div class="unlock-title">MioWork</div>
         <div class="unlock-subtitle">{{ recoverySubtitle }}</div>
@@ -120,8 +118,7 @@
       </div>
       <div class="unlock-panel unlock-panel--system">
         <div class="unlock-brand" aria-hidden="true">
-          <div class="unlock-logo unlock-logo--dark" v-html="darkLogo" />
-          <div class="unlock-logo unlock-logo--light" v-html="lightLogo" />
+          <img class="unlock-logo" :src="logoImg" />
         </div>
         <div class="unlock-title">MioWork</div>
         <div class="unlock-subtitle">Unlocking local database</div>
@@ -151,9 +148,7 @@
         <span class="core-flare"></span>
         <span class="speed-line speed-line--one"></span>
         <span class="speed-line speed-line--two"></span>
-        <!-- Trusted local SVG sources are inlined so each original path can move independently. -->
-        <div class="logo-mark logo-mark--dark" v-html="darkLogo" />
-        <div class="logo-mark logo-mark--light" v-html="lightLogo" />
+        <img class="logo-mark" :src="logoImg" />
       </div>
     </div>
   </div>
@@ -167,8 +162,7 @@ import {
   type DatabaseUnlockProgressPayload,
   type DatabaseUnlockRequestPayload
 } from '@shared/contracts/databaseSecurity'
-import darkLogo from '@/assets/splash/logo-v3-dark.svg?raw'
-import lightLogo from '@/assets/splash/logo-v3-light.svg?raw'
+import logoImg from '@/assets/logo.png'
 import type { SplashDebugMode } from '@shared/contracts/splash'
 
 const { t } = useI18n()
@@ -186,7 +180,7 @@ const safeStorageAvailable = ref(false)
 const unlockSubmitting = ref(false)
 const passwordInput = ref<HTMLInputElement | null>(null)
 const recoveryPasswordInput = ref<HTMLInputElement | null>(null)
-const animationStarted = ref(true)
+const animationStarted = ref(false)
 const isDebugPreview = ref(false)
 
 const unlockMessage = computed(() => {
@@ -455,7 +449,6 @@ onBeforeUnmount(() => {
 .aurora-ribbon--top {
   top: -28vmax;
   left: -26vmax;
-  animation: aurora-sweep-one 26s ease-in-out infinite alternate;
   background: linear-gradient(
     100deg,
     transparent 9%,
@@ -468,7 +461,6 @@ onBeforeUnmount(() => {
 .aurora-ribbon--bottom {
   right: -38vmax;
   bottom: -27vmax;
-  animation: aurora-sweep-two 32s ease-in-out infinite alternate;
   background: linear-gradient(
     95deg,
     transparent 6%,
@@ -489,17 +481,14 @@ onBeforeUnmount(() => {
 }
 
 .aurora-pool--blue {
-  animation: aurora-pool-one 14s ease-in-out infinite alternate;
   background: radial-gradient(ellipse, rgb(22 142 255 / 45%), transparent 67%);
 }
 
 .aurora-pool--violet {
-  animation: aurora-pool-two 18s ease-in-out infinite alternate;
   background: radial-gradient(ellipse, rgb(102 52 238 / 35%), transparent 67%);
 }
 
 .aurora-pool--cyan {
-  animation: aurora-pool-three 22s ease-in-out infinite alternate;
   background: radial-gradient(ellipse, rgb(61 213 255 / 28%), transparent 66%);
 }
 
@@ -599,27 +588,10 @@ onBeforeUnmount(() => {
   left: 0;
   width: 176px;
   height: 144px;
-  display: none;
-  opacity: 0;
-  transform: translateX(36px) scale(0.78);
-  will-change: opacity, transform;
-}
-
-.logo-mark :deep(svg) {
   display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.logo-mark :deep(path) {
-  transform-box: fill-box;
-  transform-origin: center;
-  will-change: opacity, transform;
-}
-
-.logo-mark--dark {
-  display: block;
+  opacity: 1;
+  transform: none;
+  object-fit: contain;
 }
 
 @media (prefers-color-scheme: light) {
@@ -634,14 +606,6 @@ onBeforeUnmount(() => {
 
   .aurora-ribbon--bottom {
     opacity: 0.3;
-  }
-
-  .logo-mark--dark {
-    display: none;
-  }
-
-  .logo-mark--light {
-    display: block;
   }
 }
 
@@ -739,26 +703,10 @@ onBeforeUnmount(() => {
 .unlock-logo {
   position: absolute;
   inset: 0;
-  display: none;
-  animation: unlock-logo-float 2.6s ease-in-out infinite;
-}
-
-.unlock-logo :deep(svg) {
-  display: block;
   width: 100%;
   height: 100%;
-  overflow: visible;
-}
-
-/* Both logo variants retain their native third path as the white eye. */
-.unlock-logo :deep(path:nth-of-type(3)) {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: eye-blink 2.1s ease-in-out 500ms infinite;
-}
-
-.unlock-logo--dark {
   display: block;
+  object-fit: contain;
 }
 
 @media (prefers-color-scheme: light) {
@@ -793,14 +741,6 @@ onBeforeUnmount(() => {
     border-color: rgb(38 115 188 / 22%);
     background: rgb(255 255 255 / 62%);
     color: #12335f;
-  }
-
-  .unlock-logo--dark {
-    display: none;
-  }
-
-  .unlock-logo--light {
-    display: block;
   }
 }
 
