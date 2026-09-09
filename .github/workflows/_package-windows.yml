@@ -206,11 +206,11 @@ jobs:
             --workflow-run-attempt "${GITHUB_RUN_ATTEMPT}" \
             "${size_report[@]}"
 
-      - name: Upload distribution package
-        if: ${{ success() && inputs.artifact-purpose == 'distribution' }}
+      - name: Upload package artifact
+        if: ${{ success() }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: deepchat-package-win32-${{ inputs.arch }}
+          name: deepchat-package-win32-${{ inputs.arch }}-${{ inputs.artifact-purpose }}
           path: package-output/
           if-no-files-found: error
           compression-level: 0

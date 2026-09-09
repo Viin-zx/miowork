@@ -13,6 +13,14 @@ on:
           - windows
           - linux
           - mac
+      purpose:
+        description: 打包用途（verification=免签名测试包，fork 仓库选此项；distribution=签名正式包，需配置 Apple 证书密钥）
+        required: true
+        default: verification
+        type: choice
+        options:
+          - verification
+          - distribution
 
 permissions:
   contents: read
@@ -34,7 +42,7 @@ jobs:
     with:
       source-sha: ${{ github.sha }}
       arch: ${{ matrix.arch }}
-      artifact-purpose: distribution
+      artifact-purpose: ${{ inputs.purpose }}
       enforce-installer-size: false
     secrets:
       RTK_GITHUB_TOKEN: ${{ secrets.RTK_GITHUB_TOKEN }}
@@ -55,7 +63,7 @@ jobs:
     with:
       source-sha: ${{ github.sha }}
       arch: ${{ matrix.arch }}
-      artifact-purpose: distribution
+      artifact-purpose: ${{ inputs.purpose }}
       enforce-installer-size: false
     secrets:
       RTK_GITHUB_TOKEN: ${{ secrets.RTK_GITHUB_TOKEN }}
@@ -76,7 +84,7 @@ jobs:
     with:
       source-sha: ${{ github.sha }}
       arch: ${{ matrix.arch }}
-      artifact-purpose: distribution
+      artifact-purpose: ${{ inputs.purpose }}
       enforce-installer-size: false
     secrets:
       RTK_GITHUB_TOKEN: ${{ secrets.RTK_GITHUB_TOKEN }}
