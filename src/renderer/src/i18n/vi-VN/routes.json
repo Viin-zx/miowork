@@ -1,6 +1,8 @@
 {
   "chat": "Trò chuyện",
   "welcome": "Chào mừng",
+  "login": "Sign In",
+  "register": "Register",
   "settings": "Cài đặt",
   "settings-common": "Cài đặt chung",
   "settings-ocr": "OCR (Nhận dạng văn bản)",
@@ -26,5 +28,6 @@
   "settings-memory": "Bộ nhớ",
   "plugins": "Plugins",
   "settings-debug": "Debug",
-  "settings-toolchains": "Toolchains"
+  "settings-toolchains": "Toolchains",
+  "settings-account": "Tài khoản"
 }

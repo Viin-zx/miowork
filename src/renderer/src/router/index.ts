@@ -1,8 +1,29 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import { createAuthClient } from '@api/AuthClient'
+
+const authClient = createAuthClient()
 
 const router = createRouter({
   history: createWebHashHistory(import.meta.env.BASE_URL),
   routes: [
+    {
+      path: '/login',
+      name: 'login',
+      component: () => import('@/pages/LoginPage.vue'),
+      meta: {
+        public: true,
+        titleKey: 'routes.login'
+      }
+    },
+    {
+      path: '/register',
+      name: 'register',
+      component: () => import('@/pages/RegisterPage.vue'),
+      meta: {
+        public: true,
+        titleKey: 'routes.register'
+      }
+    },
     {
       path: '/',
       redirect: '/chat'
@@ -100,5 +121,42 @@ const router = createRouter({
     }
   ]
 })
+
+// 路由守卫：未登录时跳转到登录页
+let authChecked = false
+let isAuthenticated = false
+
+router.beforeEach(async (to) => {
+  // 公开页面（登录、注册）不需要认证
+  if (to.meta.public) {
+    return true
+  }
+
+  // 首次导航时检查认证状态
+  if (!authChecked) {
+    try {
+      isAuthenticated = await authClient.getStatus()
+    } catch {
+      isAuthenticated = false
+    }
+    authChecked = true
+  }
+
+  if (!isAuthenticated && to.name !== 'login') {
+    return { name: 'login' }
+  }
+
+  return true
+})
+
+export function clearAuthState() {
+  authChecked = false
+  isAuthenticated = false
+}
+
+export function setAuthState(authed: boolean) {
+  authChecked = true
+  isAuthenticated = authed
+}
 
 export default router

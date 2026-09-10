@@ -1,6 +1,8 @@
 {
   "chat": "mengobrol",
   "welcome": "selamat datang",
+  "login": "Sign In",
+  "register": "Register",
   "settings": "pengaturan",
   "settings-common": "Pengaturan umum",
   "settings-ocr": "OCR (Pengenalan Teks)",
@@ -26,5 +28,6 @@
   "settings-memory": "Memori",
   "plugins": "Plugins",
   "settings-debug": "Debug",
-  "settings-toolchains": "Toolchains"
+  "settings-toolchains": "Toolchains",
+  "settings-account": "Akun"
 }

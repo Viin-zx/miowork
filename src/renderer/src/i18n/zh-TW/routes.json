@@ -1,6 +1,8 @@
 {
   "chat": "聊天",
   "welcome": "歡迎",
+  "login": "登入",
+  "register": "註冊",
   "settings": "設定",
   "settings-common": "一般設定",
   "settings-ocr": "OCR（文字辨識）",
@@ -26,5 +28,6 @@
   "settings-memory": "記憶",
   "plugins": "插件",
   "settings-debug": "偵錯",
-  "settings-toolchains": "工具鏈"
+  "settings-toolchains": "工具鏈",
+  "settings-account": "帳號資訊"
 }

@@ -1,5 +1,6 @@
 export const settingsRouteComponents = {
   'settings-overview': () => import('./components/SettingsOverview.vue'),
+  'settings-account': () => import('./components/AccountSettings.vue'),
   'settings-common': () => import('./components/CommonSettings.vue'),
   'settings-display': () => import('./components/DisplaySettings.vue'),
   'settings-environments': () => import('./components/EnvironmentsSettings.vue'),

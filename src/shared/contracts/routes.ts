@@ -577,7 +577,15 @@ import {
   syncPullFromCloudRoute
 } from './routes/sync.routes'
 import { systemOpenSettingsRoute } from './routes/system.routes'
-import { authGetStatusRoute, authLoginRoute } from './routes/auth.routes'
+import {
+  authGetStatusRoute,
+  authGetMeRoute,
+  authLoginRoute,
+  authLoginByCodeRoute,
+  authRegisterRoute,
+  authSendCodeRoute,
+  authLogoutRoute
+} from './routes/auth.routes'
 import {
   toolchainsCancelInstallRoute,
   toolchainsGetStatusRoute,
@@ -1267,7 +1275,12 @@ const DEEPCHAT_ROUTE_CATALOG_PART_5 = {
   [toolchainsRevertRoute.name]: toolchainsRevertRoute,
   [toolchainsPickCustomRoute.name]: toolchainsPickCustomRoute,
   [authGetStatusRoute.name]: authGetStatusRoute,
-  [authLoginRoute.name]: authLoginRoute
+  [authGetMeRoute.name]: authGetMeRoute,
+  [authLoginRoute.name]: authLoginRoute,
+  [authLoginByCodeRoute.name]: authLoginByCodeRoute,
+  [authRegisterRoute.name]: authRegisterRoute,
+  [authSendCodeRoute.name]: authSendCodeRoute,
+  [authLogoutRoute.name]: authLogoutRoute
 } satisfies Record<string, RouteContract>
 
 export type DeepchatRouteCatalog = typeof DEEPCHAT_ROUTE_CATALOG_PART_1 &

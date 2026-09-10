@@ -1,6 +1,8 @@
 {
   "chat": "گفتگو",
   "welcome": "خوش آمدید",
+  "login": "Sign In",
+  "register": "Register",
   "settings": "تنظیمات",
   "settings-common": "تنظیمات عمومی",
   "settings-ocr": "OCR (تشخیص متن)",
@@ -26,5 +28,6 @@
   "settings-memory": "حافظه",
   "plugins": "Plugins",
   "settings-debug": "Debug",
-  "settings-toolchains": "Toolchains"
+  "settings-toolchains": "Toolchains",
+  "settings-account": "حساب کاربری"
 }

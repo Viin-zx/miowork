@@ -1,6 +1,8 @@
 {
   "chat": "Chat",
   "welcome": "Velkomst",
+  "login": "Sign In",
+  "register": "Register",
   "settings": "Indstillinger",
   "settings-common": "Generelle indstillinger",
   "settings-ocr": "OCR (tekstgenkendelse)",
@@ -26,5 +28,6 @@
   "settings-memory": "Hukommelse",
   "plugins": "Plugins",
   "settings-debug": "Debug",
-  "settings-toolchains": "Toolchains"
+  "settings-toolchains": "Toolchains",
+  "settings-account": "Konto"
 }

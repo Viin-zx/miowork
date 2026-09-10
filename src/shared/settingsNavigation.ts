@@ -1,6 +1,7 @@
 export interface SettingsNavigationItem {
   routeName:
     | 'settings-overview'
+    | 'settings-account'
     | 'settings-common'
     | 'settings-display'
     | 'settings-environments'
@@ -97,6 +98,29 @@ export const SETTINGS_NAVIGATION_ITEMS: SettingsNavigationItem[] = [
     position: 0,
     groupKey: 'overview',
     keywords: ['overview', 'dashboard', 'usage', 'settings', '控制台', '设置中心', '用量']
+  },
+  {
+    routeName: 'settings-account',
+    path: '/account',
+    titleKey: 'routes.settings-account',
+    icon: 'lucide:user-round',
+    position: 0.5,
+    groupKey: 'overview',
+    keywords: [
+      'account',
+      'profile',
+      'user',
+      'plan',
+      'subscription',
+      'upgrade',
+      'logout',
+      '账号',
+      '账户',
+      '套餐',
+      '订阅',
+      '升级',
+      '退出登录'
+    ]
   },
   {
     routeName: 'settings-common',

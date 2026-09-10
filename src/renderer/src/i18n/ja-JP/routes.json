@@ -1,6 +1,8 @@
 {
   "chat": "チャット",
   "welcome": "ようこそ",
+  "login": "Sign In",
+  "register": "Register",
   "settings": "設定",
   "settings-common": "一般設定",
   "settings-ocr": "OCR（文字認識）",
@@ -26,5 +28,6 @@
   "settings-memory": "メモリ",
   "plugins": "Plugins",
   "settings-debug": "デバッグ",
-  "settings-toolchains": "Toolchains"
+  "settings-toolchains": "Toolchains",
+  "settings-account": "アカウント"
 }

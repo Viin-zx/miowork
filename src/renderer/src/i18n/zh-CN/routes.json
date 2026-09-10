@@ -2,6 +2,8 @@
   "chat": "聊天",
   "plugins": "插件",
   "welcome": "欢迎",
+  "login": "登录",
+  "register": "注册",
   "settings": "设置",
   "settings-common": "通用设置",
   "settings-ocr": "OCR（文字识别）",
@@ -26,5 +28,6 @@
   "settings-overview": "设置概览",
   "settings-memory": "记忆",
   "settings-debug": "调试",
-  "settings-toolchains": "工具链"
+  "settings-toolchains": "工具链",
+  "settings-account": "账号信息"
 }

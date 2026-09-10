@@ -1,0 +1,19 @@
+{
+  "title": "Create Account",
+  "description": "Create your MioWork account",
+  "phone": "Phone",
+  "password": "Password",
+  "confirmPassword": "Confirm Password",
+  "code": "Code",
+  "getCode": "Get Code",
+  "submit": "Register",
+  "submitting": "Registering…",
+  "goLogin": "Have an account? Sign in",
+  "agreePrefix": "I have read and agree to the",
+  "userAgreement": "User Agreement",
+  "and": "and",
+  "privacyAgreement": "Privacy Policy",
+  "error": "Registration failed, please try again",
+  "errorPasswordMismatch": "Passwords do not match",
+  "errorNotAgreed": "Please agree to the User Agreement and Privacy Policy first"
+}

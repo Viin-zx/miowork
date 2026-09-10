@@ -2,6 +2,8 @@
   "chat": "Chat",
   "plugins": "Plugins",
   "welcome": "Welcome",
+  "login": "Sign In",
+  "register": "Register",
   "settings": "Settings",
   "settings-common": "Common Settings",
   "settings-ocr": "OCR (Text Recognition)",
@@ -26,5 +28,6 @@
   "settings-overview": "Settings Overview",
   "settings-memory": "Memory",
   "settings-debug": "Debug",
-  "settings-toolchains": "Toolchains"
+  "settings-toolchains": "Toolchains",
+  "settings-account": "Account"
 }

@@ -1,6 +1,8 @@
 {
   "chat": "채팅",
   "welcome": "환영합니다",
+  "login": "Sign In",
+  "register": "Register",
   "settings": "설정",
   "settings-common": "일반 설정",
   "settings-ocr": "OCR(문자 인식)",
@@ -26,5 +28,6 @@
   "settings-memory": "메모리",
   "plugins": "Plugins",
   "settings-debug": "디버그",
-  "settings-toolchains": "Toolchains"
+  "settings-toolchains": "Toolchains",
+  "settings-account": "계정"
 }

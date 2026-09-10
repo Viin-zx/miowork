@@ -3,6 +3,7 @@ import { defineRouteContract } from '../common'
 
 export const SettingsRouteNameSchema = z.enum([
   'settings-overview',
+  'settings-account',
   'settings-common',
   'settings-display',
   'settings-environments',

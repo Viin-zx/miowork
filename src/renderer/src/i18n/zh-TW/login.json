@@ -1,0 +1,16 @@
+{
+  "title": "歡迎使用 MioWork",
+  "description": "請登入後繼續使用",
+  "phone": "手機號",
+  "password": "密碼",
+  "code": "驗證碼",
+  "getCode": "獲取驗證碼",
+  "submit": "登入",
+  "submitting": "登入中…",
+  "switchToCode": "驗證碼登入",
+  "switchToPassword": "密碼登入",
+  "goRegister": "沒有帳號？去註冊",
+  "error": "登入失敗，請重試",
+  "errorPassword": "手機號或密碼錯誤",
+  "errorCode": "驗證碼錯誤或已過期"
+}

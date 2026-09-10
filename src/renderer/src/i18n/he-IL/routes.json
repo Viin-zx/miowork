@@ -1,6 +1,8 @@
 {
   "chat": "צ'אט",
   "welcome": "ברוכים הבאים",
+  "login": "Sign In",
+  "register": "Register",
   "settings": "הגדרות",
   "settings-common": "הגדרות כלליות",
   "settings-ocr": "OCR (זיהוי טקסט)",
@@ -26,5 +28,6 @@
   "settings-memory": "זיכרון",
   "plugins": "Plugins",
   "settings-debug": "Debug",
-  "settings-toolchains": "Toolchains"
+  "settings-toolchains": "Toolchains",
+  "settings-account": "חשבון"
 }

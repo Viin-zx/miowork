@@ -19,6 +19,9 @@ import promptSetting from './promptSetting.json'
 import traceDialog from './traceDialog.json'
 import tapeInspector from './tapeInspector.json'
 import plan from './plan.json'
+import account from './account.json'
+import login from './login.json'
+import register from './register.json'
 
 // 单独的顶层键
 const others = {
@@ -57,5 +60,8 @@ export default {
   traceDialog,
   tapeInspector,
   plan,
+  account,
+  login,
+  register,
   ...others
 }
