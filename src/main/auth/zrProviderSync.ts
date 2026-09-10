@@ -22,7 +22,11 @@ export interface ZrProviderAuthPort {
 export async function syncZrProvider(
   auth: AuthService | ZrProviderAuthPort,
   providerSettings: ProviderSettingsPort,
-  options: { force?: boolean } = {}
+  options: {
+    force?: boolean
+    /** provider 首次创建后触发的回调（如刷新模型列表） */
+    onProviderCreated?: (providerId: string) => void | Promise<void>
+  } = {}
 ): Promise<{ ok: boolean; reason?: string; providerId?: string }> {
   if (!auth.isAuthenticated()) {
     return { ok: false, reason: 'not-authenticated' }
@@ -65,5 +69,16 @@ export async function syncZrProvider(
     enable: true
   }
   providerSettings.addProviderAtomic(newProvider)
+
+  // 首次创建后触发模型刷新
+  if (options.onProviderCreated) {
+    try {
+      console.log('[ZrProvider] 首次创建，自动刷新模型列表...')
+      await options.onProviderCreated(ZR_PROVIDER_ID)
+    } catch (e) {
+      console.warn('[ZrProvider] 自动刷新模型失败:', e)
+    }
+  }
+
   return { ok: true, providerId: ZR_PROVIDER_ID }
 }

@@ -2829,7 +2829,9 @@ export async function createMainProcessControl(dependencies: {
     authService = new AuthService()
     const authRoutes = createAuthRoutes(authService, async () => {
       try {
-        await syncZrProvider(authService, providerSettings)
+        await syncZrProvider(authService, providerSettings, {
+          onProviderCreated: (id) => providerRuntime.refreshModels(id)
+        })
       } catch (e) {
         console.warn('[ZrProvider] post-login sync failed:', e)
       }
@@ -3556,7 +3558,9 @@ export async function createMainProcessControl(dependencies: {
   // 同步 zr provider：将 mioagent 后端返回的 baseUrl/apiKey 写入本地 provider 表
   // 登录成功后 AuthService 已经 fetchModelConfig 缓存过，这里只负责 upsert provider
   try {
-    await syncZrProvider(authService, providerSettings)
+    await syncZrProvider(authService, providerSettings, {
+      onProviderCreated: (id) => providerRuntime.refreshModels(id)
+    })
   } catch (error) {
     console.warn('[ZrProvider] sync failed at startup:', error)
   }
