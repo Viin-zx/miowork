@@ -40,7 +40,19 @@ function reloadOtherWindows(excludeWebContentsId: number): void {
   }
 }
 
-export function createAuthRoutes(auth: AuthService): DeepchatRouteMap {
+export function createAuthRoutes(
+  auth: AuthService,
+  /** 登录 / 注册成功后触发的回调（用于同步 zr provider 等） */
+  onLoggedIn?: () => void | Promise<void>
+): DeepchatRouteMap {
+  const fireLoggedIn = () => {
+    if (onLoggedIn) {
+      void Promise.resolve(onLoggedIn()).catch((e) => {
+        console.warn('[AuthRoute] onLoggedIn callback failed:', e)
+      })
+    }
+  }
+
   return createRouteMap([
     [
       authGetStatusRoute.name,
@@ -96,6 +108,7 @@ export function createAuthRoutes(auth: AuthService): DeepchatRouteMap {
         const input = authLoginByCodeRoute.input.parse(rawInput)
         try {
           await auth.loginBySms(input.mobile, input.smsRequestId, input.smsCode)
+          fireLoggedIn()
           return authLoginByCodeRoute.output.parse({ ok: true })
         } catch (error) {
           return authLoginByCodeRoute.output.parse({
