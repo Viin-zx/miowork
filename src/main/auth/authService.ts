@@ -27,11 +27,22 @@ interface MioLoginVo {
   accountStatus?: string
 }
 
+/** 模型网关配置（POST /models/config 返回） */
+export interface MioModelConfig {
+  baseUrl: string
+  apiKey: string
+  credentialVersion?: number
+  /** ISO 8601 字符串，后端返回的 apiKey 过期时间 */
+  expiresAt?: string
+}
+
 interface StoredSession {
   accessToken: string
   /** 过期时间戳（毫秒），null 表示未知 */
   expiresAt: number | null
   user: MioUser | null
+  /** 模型网关配置缓存，credentialVersion 变化或 expiresAt 到期需重拉 */
+  modelConfig?: MioModelConfig | null
 }
 
 interface SmsCodeResult {
@@ -170,7 +181,7 @@ export class AuthService {
         const merged: MioUser = { ...this.session.user }
         for (const [key, value] of Object.entries(data)) {
           if (value !== null && value !== undefined) {
-            ;(merged as Record<string, unknown>)[key] = value
+            ; (merged as Record<string, unknown>)[key] = value
           }
         }
         this.session = { ...this.session, user: merged }
@@ -180,6 +191,69 @@ export class AuthService {
     } catch (error) {
       console.warn('[AuthService] Failed to fetch user profile:', error)
       return this.session?.user ?? null
+    }
+  }
+
+  /** 读取本地缓存的模型网关配置（未登录或未拉过返回 null） */
+  getCachedModelConfig(): MioModelConfig | null {
+    if (!this.isAuthenticated()) {
+      return null
+    }
+    return this.session?.modelConfig ?? null
+  }
+
+  /** 缓存的 apiKey 是否过期或需要刷新 */
+  modelConfigNeedsRefresh(force = false): boolean {
+    if (!this.isAuthenticated()) {
+      return false
+    }
+    if (force || !this.session?.modelConfig) {
+      return true
+    }
+    const exp = this.session.modelConfig.expiresAt
+    if (exp) {
+      const expiresMs = new Date(exp).getTime()
+      // 提前 5 分钟判定过期，避免刚好到点请求模型时失败
+      if (Date.now() >= expiresMs - 5 * 60 * 1000) {
+        return true
+      }
+    }
+    return false
+  }
+
+  /** 拉取模型网关配置（POST /models/config），失败返回 null 且保留旧缓存 */
+  async fetchModelConfig(force = false): Promise<MioModelConfig | null> {
+    if (!this.isAuthenticated()) {
+      return null
+    }
+    if (!this.modelConfigNeedsRefresh(force)) {
+      const cached = this.session?.modelConfig ?? null
+      console.log(
+        `[ModelsConfig] 跳过拉取：缓存有效 (credentialVersion=${cached?.credentialVersion ?? '?'}, expiresAt=${cached?.expiresAt ?? '?'})`
+      )
+      return cached
+    }
+    const token = this.session?.accessToken
+    console.log(
+      `[ModelsConfig] POST ${API_BASE_URL}/models/config (Bearer ***${token ? token.slice(-8) : '(none)'})`
+    )
+    const startMs = Date.now()
+    try {
+      const data = await postJson<MioModelConfig>('/models/config', {}, token)
+      if (data && this.session) {
+        this.session = { ...this.session, modelConfig: data }
+        this.persistSession()
+      }
+      console.log(
+        `[ModelsConfig] ✅ ${API_BASE_URL}/models/config → baseUrl=${data?.baseUrl ?? '?'} credentialVersion=${data?.credentialVersion ?? '?'} expiresAt=${data?.expiresAt ?? '?'} apiKey=***${data?.apiKey ? data.apiKey.slice(-6) : '?'} (${Date.now() - startMs}ms)`
+      )
+      return this.session?.modelConfig ?? null
+    } catch (error) {
+      console.warn(
+        `[ModelsConfig] ❌ ${API_BASE_URL}/models/config failed after ${Date.now() - startMs}ms:`,
+        error
+      )
+      return this.session?.modelConfig ?? null
     }
   }
 
@@ -209,6 +283,8 @@ export class AuthService {
       password
     })
     this.saveSession(vo)
+    // 登录成功后后台拉取模型网关配置并持久化
+    void this.fetchModelConfig().catch(() => { })
   }
 
   /** 手机号 + 短信验证码登录 */
@@ -220,6 +296,7 @@ export class AuthService {
       smsCode
     })
     this.saveSession(vo)
+    void this.fetchModelConfig().catch(() => { })
   }
 
   /** 注册（成功即取得登录态） */
@@ -239,6 +316,7 @@ export class AuthService {
       nickname: input.nickname
     })
     this.saveSession(vo)
+    void this.fetchModelConfig().catch(() => { })
   }
 
   /** 退出登录：通知后端撤销会话，再清除本地凭据 */
@@ -295,6 +373,9 @@ export class AuthService {
       user: vo.user ?? null
     }
     this.persistSession()
+    console.log(
+      `[Auth] ✅ 登录成功 accessToken=${vo.accessToken} expiresIn=${vo.expiresIn ?? '?'}s userId=${vo.user?.userId ?? '?'} nickname=${vo.user?.nickname ?? '?'}`
+    )
   }
 
   private persistSession(): void {
