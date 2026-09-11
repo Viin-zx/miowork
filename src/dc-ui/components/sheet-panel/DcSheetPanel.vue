@@ -63,7 +63,7 @@ const shouldScrollBody = computed(() => props.scrollBody ?? !isPlain.value)
       v-else
       :class="
         cn(
-          'flex h-screen w-full max-w-4xl flex-col border-l border-border bg-background p-0',
+          'flex h-screen w-full max-w-4xl flex-col overflow-y-auto border-l border-border bg-background p-0',
           resolvedWidthClass
         )
       "

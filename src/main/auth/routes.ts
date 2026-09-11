@@ -9,7 +9,9 @@ import {
   authLogoutRoute,
   authGetPlansRoute,
   authPurchasePlanRoute,
-  authGetSubscriptionsRoute
+  authGetOrderRoute,
+  authGetSubscriptionsRoute,
+  authGetQuotaRoute
 } from '@shared/contracts/routes'
 import {
   createRouteMap,
@@ -96,6 +98,7 @@ export function createAuthRoutes(
         const input = authLoginRoute.input.parse(rawInput)
         try {
           await auth.loginByPassword(input.mobile, input.password)
+          fireLoggedIn()
           return authLoginRoute.output.parse({ ok: true })
         } catch (error) {
           return authLoginRoute.output.parse({
@@ -133,6 +136,7 @@ export function createAuthRoutes(
             smsCode: input.smsCode,
             nickname: input.nickname
           })
+          fireLoggedIn()
           return authRegisterRoute.output.parse({ ok: true })
         } catch (error) {
           return authRegisterRoute.output.parse({
@@ -182,6 +186,10 @@ export function createAuthRoutes(
             ok: true,
             orderNo: result.orderNo,
             paymentStatus: result.paymentStatus,
+            paymentChannel: result.paymentChannel,
+            paymentScene: result.paymentScene,
+            codeUrl: result.codeUrl,
+            expireTime: result.expireTime,
             grantStatus: result.grantStatus,
             subscriptionId: result.subscriptionId
           })
@@ -189,6 +197,31 @@ export function createAuthRoutes(
           return authPurchasePlanRoute.output.parse({
             ok: false,
             msg: toErrorMessage(error, '购买失败，请重试')
+          })
+        }
+      }
+    ],
+    [
+      authGetOrderRoute.name,
+      async (rawInput) => {
+        const input = authGetOrderRoute.input.parse(rawInput)
+        try {
+          const result = await auth.getOrderStatus(input.orderNo)
+          return authGetOrderRoute.output.parse({
+            ok: true,
+            orderNo: result.orderNo,
+            paymentStatus: result.paymentStatus,
+            paymentChannel: result.paymentChannel,
+            paymentScene: result.paymentScene,
+            codeUrl: result.codeUrl,
+            expireTime: result.expireTime,
+            grantStatus: result.grantStatus,
+            subscriptionId: result.subscriptionId
+          })
+        } catch (error) {
+          return authGetOrderRoute.output.parse({
+            ok: false,
+            msg: toErrorMessage(error, '查询订单失败')
           })
         }
       }
@@ -208,6 +241,21 @@ export function createAuthRoutes(
           return authGetSubscriptionsRoute.output.parse({
             ok: false,
             msg: toErrorMessage(error, '查询订阅失败')
+          })
+        }
+      }
+    ],
+    [
+      authGetQuotaRoute.name,
+      async (rawInput) => {
+        authGetQuotaRoute.input.parse(rawInput)
+        try {
+          const quota = await auth.getQuota()
+          return authGetQuotaRoute.output.parse({ ok: true, quota })
+        } catch (error) {
+          return authGetQuotaRoute.output.parse({
+            ok: false,
+            msg: toErrorMessage(error, '查询额度失败')
           })
         }
       }

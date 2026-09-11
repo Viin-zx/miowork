@@ -807,7 +807,7 @@ export async function createMainProcessControl(dependencies: {
       const target = electronWebContents.fromId(webContentsId)
       if (!target || target.isDestroyed()) {
         queueMicrotask(listener)
-        return () => { }
+        return () => {}
       }
       target.once('destroyed', listener)
       return () => target.removeListener('destroyed', listener)
@@ -1066,7 +1066,7 @@ export async function createMainProcessControl(dependencies: {
       const target = electronWebContents.fromId(webContentsId)
       if (!target || target.isDestroyed()) {
         queueMicrotask(callback)
-        return () => { }
+        return () => {}
       }
       target.once('destroyed', callback)
       return () => target.removeListener('destroyed', callback)
@@ -1144,8 +1144,8 @@ export async function createMainProcessControl(dependencies: {
         focused?.kind === 'main'
           ? focused
           : (await semanticNotificationTargets.getExistingTargets()).find(
-            (candidate) => candidate.kind === 'main'
-          )
+              (candidate) => candidate.kind === 'main'
+            )
       return target ? { windowId: target.windowId, webContentsId: target.webContentsId } : null
     },
     present: async (target, payload) => {
@@ -1989,7 +1989,7 @@ export async function createMainProcessControl(dependencies: {
   tabPresenter = new TabPresenter(windowPresenter, desktopSessionBinding, () =>
     deeplinkService.processStartupUrl()
   )
-    ; (windowPresenter as WindowPresenter).bindTabPresenter(tabPresenter)
+  ;(windowPresenter as WindowPresenter).bindTabPresenter(tabPresenter)
   floatingButtonPresenter = new FloatingButtonPresenter(
     agentSettings,
     desktopSettings,
@@ -2075,17 +2075,17 @@ export async function createMainProcessControl(dependencies: {
         }
         return handle.kind === 'deepchat'
           ? {
-            ...turn,
-            kind: handle.kind,
-            compaction: {
-              getSnapshot: () => handle.deepchat.getCompactionSnapshot(),
-              compact: () => handle.deepchat.compact()
-            },
-            getContextOccupancy: () => handle.deepchat.getContextOccupancy(),
-            isPendingQueueResumeAvailable: () => handle.deepchat.isPendingQueueResumeAvailable(),
-            resumePendingQueue: () => handle.deepchat.resumePendingQueue(),
-            retryPendingQueueInput: (itemId) => handle.deepchat.retryPendingQueueInput(itemId)
-          }
+              ...turn,
+              kind: handle.kind,
+              compaction: {
+                getSnapshot: () => handle.deepchat.getCompactionSnapshot(),
+                compact: () => handle.deepchat.compact()
+              },
+              getContextOccupancy: () => handle.deepchat.getContextOccupancy(),
+              isPendingQueueResumeAvailable: () => handle.deepchat.isPendingQueueResumeAvailable(),
+              resumePendingQueue: () => handle.deepchat.resumePendingQueue(),
+              retryPendingQueueInput: (itemId) => handle.deepchat.retryPendingQueueInput(itemId)
+            }
           : { ...turn, kind: handle.kind }
       }
     },
@@ -2232,10 +2232,10 @@ export async function createMainProcessControl(dependencies: {
             )
             return answer
               ? {
-                messageId: identity.id,
-                answerMarkdown: answer,
-                updatedAt: identity.updated_at
-              }
+                  messageId: identity.id,
+                  answerMarkdown: answer,
+                  updatedAt: identity.updated_at
+                }
               : null
           }
 
@@ -2829,7 +2829,7 @@ export async function createMainProcessControl(dependencies: {
     authService = new AuthService()
     const authRoutes = createAuthRoutes(authService, async () => {
       try {
-        await syncZrProvider(authService, providerSettings, {
+        await syncZrProvider(authService, providerRuntime, {
           onProviderCreated: (id) => providerRuntime.refreshModels(id)
         })
       } catch (e) {
@@ -3558,7 +3558,7 @@ export async function createMainProcessControl(dependencies: {
   // 同步 zr provider：将 mioagent 后端返回的 baseUrl/apiKey 写入本地 provider 表
   // 登录成功后 AuthService 已经 fetchModelConfig 缓存过，这里只负责 upsert provider
   try {
-    await syncZrProvider(authService, providerSettings, {
+    await syncZrProvider(authService, providerRuntime, {
       onProviderCreated: (id) => providerRuntime.refreshModels(id)
     })
   } catch (error) {

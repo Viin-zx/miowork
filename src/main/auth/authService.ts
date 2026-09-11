@@ -54,8 +54,24 @@ export interface MioPlan {
 export interface MioPurchaseResult {
   orderNo: string
   paymentStatus: string
+  paymentChannel?: string | null
+  paymentScene?: string | null
+  codeUrl?: string | null
+  expireTime?: string | null
   grantStatus: string
-  subscriptionId: number
+  subscriptionId: number | null
+}
+
+/** 订单状态（GET /orders/{orderNo} 返回的 data） */
+export interface MioOrderStatus {
+  orderNo: string
+  paymentStatus: string
+  paymentChannel?: string | null
+  paymentScene?: string | null
+  codeUrl?: string | null
+  expireTime?: string | null
+  grantStatus: string
+  subscriptionId?: number | null
 }
 
 /** 单条订阅信息（GET /subscriptions 返回的 items[]） */
@@ -77,6 +93,14 @@ export interface MioSubscription {
 export interface MioSubscriptionsResult {
   items: MioSubscription[]
   realtime: boolean
+}
+
+/** 账户额度（GET /quota 返回的 data） */
+export interface MioQuota {
+  remainingQuota?: number | null
+  usedQuota?: number | null
+  unit?: string | null
+  fetchedAt?: string | null
 }
 
 interface StoredSession {
@@ -224,7 +248,7 @@ export class AuthService {
         const merged: MioUser = { ...this.session.user }
         for (const [key, value] of Object.entries(data)) {
           if (value !== null && value !== undefined) {
-            ; (merged as Record<string, unknown>)[key] = value
+            ;(merged as Record<string, unknown>)[key] = value
           }
         }
         this.session = { ...this.session, user: merged }
@@ -327,7 +351,7 @@ export class AuthService {
     })
     this.saveSession(vo)
     // 登录成功后后台拉取模型网关配置并持久化
-    void this.fetchModelConfig().catch(() => { })
+    void this.fetchModelConfig().catch(() => {})
   }
 
   /** 手机号 + 短信验证码登录 */
@@ -339,7 +363,7 @@ export class AuthService {
       smsCode
     })
     this.saveSession(vo)
-    void this.fetchModelConfig().catch(() => { })
+    void this.fetchModelConfig().catch(() => {})
   }
 
   /** 注册（成功即取得登录态） */
@@ -359,7 +383,7 @@ export class AuthService {
       nickname: input.nickname
     })
     this.saveSession(vo)
-    void this.fetchModelConfig().catch(() => { })
+    void this.fetchModelConfig().catch(() => {})
   }
 
   /** 退出登录：通知后端撤销会话，再清除本地凭据 */
@@ -382,7 +406,7 @@ export class AuthService {
       throw new MioApiError('未登录', 'TOKEN_INVALID')
     }
     const token = this.session?.accessToken
-    console.info(`[Plans] GET /plans accessToken=${token}`)
+    console.info('[Plans] GET /plans')
     return getJson<MioPlan[]>('/plans', token)
   }
 
@@ -392,14 +416,8 @@ export class AuthService {
       throw new MioApiError('未登录', 'TOKEN_INVALID')
     }
     const token = this.session?.accessToken
-    console.info(
-      `[Purchase] POST /plans/${planId}/purchase requestId=${requestId} accessToken=${token}`
-    )
-    return postJson<MioPurchaseResult>(
-      `/plans/${planId}/purchase`,
-      { requestId },
-      token
-    )
+    console.info(`[Purchase] POST /plans/${planId}/purchase requestId=${requestId}`)
+    return postJson<MioPurchaseResult>(`/plans/${planId}/purchase`, { requestId }, token)
   }
 
   /** 查询当前用户订阅（GET /subscriptions） */
@@ -408,8 +426,32 @@ export class AuthService {
       throw new MioApiError('未登录', 'TOKEN_INVALID')
     }
     const token = this.session?.accessToken
-    console.info(`[Subscriptions] GET /subscriptions accessToken=${token}`)
-    return getJson<MioSubscriptionsResult>('/subscriptions', token)
+    const result = await getJson<MioSubscriptionsResult>('/subscriptions', token)
+    console.info(
+      `[Subscriptions] GET /subscriptions → ${result.items?.length ?? 0} item(s)`,
+      result.items
+    )
+    return result
+  }
+
+  /** 查询订单状态（GET /orders/{orderNo}） */
+  async getOrderStatus(orderNo: string): Promise<MioOrderStatus> {
+    if (!this.isAuthenticated()) {
+      throw new MioApiError('未登录', 'TOKEN_INVALID')
+    }
+    const token = this.session?.accessToken
+    console.info(`[Order] GET /orders/${orderNo}`)
+    return getJson<MioOrderStatus>(`/orders/${orderNo}`, token)
+  }
+
+  /** 查询账户额度（GET /quota） */
+  async getQuota(): Promise<MioQuota> {
+    if (!this.isAuthenticated()) {
+      throw new MioApiError('未登录', 'TOKEN_INVALID')
+    }
+    const token = this.session?.accessToken
+    console.info('[Quota] GET /quota')
+    return getJson<MioQuota>('/quota', token)
   }
 
   // ---- 会话持久化（safeStorage 加密） ----
@@ -453,7 +495,7 @@ export class AuthService {
     }
     this.persistSession()
     console.info(
-      `[Auth] ✅ 登录成功 accessToken=${vo.accessToken} expiresIn=${vo.expiresIn ?? '?'}s userId=${vo.user?.userId ?? '?'} nickname=${vo.user?.nickname ?? '?'}`
+      `[Auth] ✅ 登录成功 expiresIn=${vo.expiresIn ?? '?'}s userId=${vo.user?.userId ?? '?'} nickname=${vo.user?.nickname ?? '?'}`
     )
   }
 

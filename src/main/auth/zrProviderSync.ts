@@ -1,6 +1,5 @@
 import type { MioModelConfig } from './authService'
 import type { AuthService } from './authService'
-import type { ProviderSettingsPort } from '../provider/settings'
 import type { LLM_PROVIDER } from '@shared/types/provider'
 
 /** zr provider 的固定 id，同时用 id 和 name 查找/创建 */
@@ -16,12 +15,23 @@ export interface ZrProviderAuthPort {
 }
 
 /**
+ * provider 写入端口。必须传 ProviderRuntime（而非 ProviderSettings），
+ * 因为只有运行时版本会在 apiKey/baseUrl 变更时重建 provider 实例，
+ * 否则内存中的旧实例会继续使用上一个账号的凭据。
+ */
+export interface ZrProviderStorePort {
+  getProviders(): LLM_PROVIDER[]
+  updateProviderAtomic(id: string, updates: Partial<LLM_PROVIDER>): boolean
+  addProviderAtomic(provider: LLM_PROVIDER): void
+}
+
+/**
  * 将 mioagent 后端返回的模型网关配置同步到本地 SQLite 的 zr 自定义 provider。
  * 启动时/登录成功后调用；内部会根据 expiresAt + credentialVersion 判断是否需要重拉。
  */
 export async function syncZrProvider(
   auth: AuthService | ZrProviderAuthPort,
-  providerSettings: ProviderSettingsPort,
+  providerStore: ZrProviderStorePort,
   options: {
     force?: boolean
     /** provider 首次创建后触发的回调（如刷新模型列表） */
@@ -42,16 +52,15 @@ export async function syncZrProvider(
   }
 
   // 2. 找现有 zr provider：优先按固定 id，其次按 name='zr'
-  let existing = providerSettings.getProviderById(ZR_PROVIDER_ID)
-  if (!existing) {
-    existing = providerSettings
-      .getProviders()
-      .find((p) => p.name.toLowerCase() === ZR_PROVIDER_NAME.toLowerCase())
-  }
+  const providers = providerStore.getProviders()
+  const existing =
+    providers.find((p) => p.id === ZR_PROVIDER_ID) ??
+    providers.find((p) => p.name.toLowerCase() === ZR_PROVIDER_NAME.toLowerCase())
 
   if (existing) {
-    // 3a. 更新已有 provider：只改 apiKey / baseUrl，保留用户其他设置
-    providerSettings.updateProviderAtomic(existing.id, {
+    // 3a. 更新已有 provider：只改 apiKey / baseUrl，保留用户其他设置。
+    // 走运行时 update 会触发实例重建，确保新账号的 apiKey 立即生效。
+    providerStore.updateProviderAtomic(existing.id, {
       apiKey: config.apiKey,
       baseUrl: config.baseUrl
     })
@@ -68,7 +77,7 @@ export async function syncZrProvider(
     custom: true,
     enable: true
   }
-  providerSettings.addProviderAtomic(newProvider)
+  providerStore.addProviderAtomic(newProvider)
 
   // 首次创建后触发模型刷新
   if (options.onProviderCreated) {

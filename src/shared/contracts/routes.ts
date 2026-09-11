@@ -587,7 +587,9 @@ import {
   authLogoutRoute,
   authGetPlansRoute,
   authPurchasePlanRoute,
-  authGetSubscriptionsRoute
+  authGetOrderRoute,
+  authGetSubscriptionsRoute,
+  authGetQuotaRoute
 } from './routes/auth.routes'
 import {
   toolchainsCancelInstallRoute,
@@ -1286,7 +1288,9 @@ const DEEPCHAT_ROUTE_CATALOG_PART_5 = {
   [authLogoutRoute.name]: authLogoutRoute,
   [authGetPlansRoute.name]: authGetPlansRoute,
   [authPurchasePlanRoute.name]: authPurchasePlanRoute,
-  [authGetSubscriptionsRoute.name]: authGetSubscriptionsRoute
+  [authGetOrderRoute.name]: authGetOrderRoute,
+  [authGetSubscriptionsRoute.name]: authGetSubscriptionsRoute,
+  [authGetQuotaRoute.name]: authGetQuotaRoute
 } satisfies Record<string, RouteContract>
 
 export type DeepchatRouteCatalog = typeof DEEPCHAT_ROUTE_CATALOG_PART_1 &

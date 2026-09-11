@@ -151,11 +151,35 @@ export const authPurchasePlanRoute = defineRouteContract({
   }),
   output: z.object({
     ok: z.boolean(),
-    orderNo: z.string().optional(),
-    paymentStatus: z.string().optional(),
-    grantStatus: z.string().optional(),
-    subscriptionId: z.number().optional(),
-    msg: z.string().optional()
+    orderNo: z.string().nullable().optional(),
+    paymentStatus: z.string().nullable().optional(),
+    paymentChannel: z.string().nullable().optional(),
+    paymentScene: z.string().nullable().optional(),
+    codeUrl: z.string().nullable().optional(),
+    expireTime: z.string().nullable().optional(),
+    grantStatus: z.string().nullable().optional(),
+    subscriptionId: z.number().nullable().optional(),
+    msg: z.string().nullable().optional()
+  })
+})
+
+/** 查询订单状态 */
+export const authGetOrderRoute = defineRouteContract({
+  name: 'auth.getOrder',
+  input: z.object({
+    orderNo: z.string().min(1)
+  }),
+  output: z.object({
+    ok: z.boolean(),
+    orderNo: z.string().nullable().optional(),
+    paymentStatus: z.string().nullable().optional(),
+    paymentChannel: z.string().nullable().optional(),
+    paymentScene: z.string().nullable().optional(),
+    codeUrl: z.string().nullable().optional(),
+    expireTime: z.string().nullable().optional(),
+    grantStatus: z.string().nullable().optional(),
+    subscriptionId: z.number().nullable().optional(),
+    msg: z.string().nullable().optional()
   })
 })
 
@@ -167,6 +191,25 @@ export const authGetSubscriptionsRoute = defineRouteContract({
     ok: z.boolean(),
     items: z.array(subscriptionSchema).optional(),
     realtime: z.boolean().optional(),
+    msg: z.string().optional()
+  })
+})
+
+/** 账户额度（GET /quota 返回的 data） */
+export const quotaSchema = z.object({
+  remainingQuota: z.number().nullable().optional(),
+  usedQuota: z.number().nullable().optional(),
+  unit: z.string().nullable().optional(),
+  fetchedAt: z.string().nullable().optional()
+})
+
+/** 查询当前用户额度 */
+export const authGetQuotaRoute = defineRouteContract({
+  name: 'auth.getQuota',
+  input: z.object({}).default({}),
+  output: z.object({
+    ok: z.boolean(),
+    quota: quotaSchema.nullable().optional(),
     msg: z.string().optional()
   })
 })

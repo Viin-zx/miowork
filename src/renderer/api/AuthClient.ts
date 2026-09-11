@@ -9,9 +9,12 @@ import {
   authLogoutRoute,
   authGetPlansRoute,
   authPurchasePlanRoute,
+  authGetOrderRoute,
   authGetSubscriptionsRoute,
+  authGetQuotaRoute,
   type authUserSchema,
   type planSchema,
+  type quotaSchema,
   type subscriptionSchema
 } from '@shared/contracts/routes'
 import type { z } from 'zod'
@@ -28,6 +31,9 @@ export type Plan = z.output<typeof planSchema>
 
 /** 单条订阅 */
 export type Subscription = z.output<typeof subscriptionSchema>
+
+/** 账户额度 */
+export type Quota = z.output<typeof quotaSchema>
 
 export function createAuthClient(bridge: DeepchatBridge = getDeepchatBridge()) {
   async function getStatus(): Promise<boolean> {
@@ -89,13 +95,33 @@ export function createAuthClient(bridge: DeepchatBridge = getDeepchatBridge()) {
     requestId: string
   ): Promise<{
     ok: boolean
-    orderNo?: string
-    paymentStatus?: string
-    grantStatus?: string
-    subscriptionId?: number
-    msg?: string
+    orderNo?: string | null
+    paymentStatus?: string | null
+    paymentChannel?: string | null
+    paymentScene?: string | null
+    codeUrl?: string | null
+    expireTime?: string | null
+    grantStatus?: string | null
+    subscriptionId?: number | null
+    msg?: string | null
   }> {
     return await bridge.invoke(authPurchasePlanRoute.name, { planId, requestId })
+  }
+
+  /** 查询订单状态 */
+  async function getOrder(orderNo: string): Promise<{
+    ok: boolean
+    orderNo?: string | null
+    paymentStatus?: string | null
+    paymentChannel?: string | null
+    paymentScene?: string | null
+    codeUrl?: string | null
+    expireTime?: string | null
+    grantStatus?: string | null
+    subscriptionId?: number | null
+    msg?: string | null
+  }> {
+    return await bridge.invoke(authGetOrderRoute.name, { orderNo })
   }
 
   /** 查询当前用户订阅 */
@@ -106,6 +132,15 @@ export function createAuthClient(bridge: DeepchatBridge = getDeepchatBridge()) {
     msg?: string
   }> {
     return await bridge.invoke(authGetSubscriptionsRoute.name, {})
+  }
+
+  /** 查询当前用户额度（GET /quota） */
+  async function getQuota(): Promise<{
+    ok: boolean
+    quota?: Quota | null
+    msg?: string
+  }> {
+    return await bridge.invoke(authGetQuotaRoute.name, {})
   }
 
   return {
@@ -119,7 +154,9 @@ export function createAuthClient(bridge: DeepchatBridge = getDeepchatBridge()) {
     logout,
     getPlans,
     purchasePlan,
-    getSubscriptions
+    getOrder,
+    getSubscriptions,
+    getQuota
   }
 }
 
