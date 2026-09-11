@@ -72,7 +72,7 @@
         </div>
       </div>
 
-      <!-- 当前套餐卡片（预留信息位） -->
+      <!-- 当前套餐卡片 -->
       <div
         class="rounded-xl border border-border/80 bg-card/70 p-5 shadow-sm"
         data-testid="settings-account-plan"
@@ -80,17 +80,52 @@
         <div class="flex items-center gap-2">
           <Icon icon="lucide:gem" class="size-4 text-primary" />
           <span class="text-sm font-semibold">{{ t('account.planSection') }}</span>
-          <Badge variant="outline" class="ml-1">{{ t('account.planFree') }}</Badge>
+          <Badge variant="outline" class="ml-1">
+            {{ activeSubscription ? activeSubscription.planName : t('account.planFree') }}
+          </Badge>
         </div>
-        <p class="mt-3 text-sm text-muted-foreground">
-          {{ t('account.planReserved') }}
+
+        <!-- 有订阅：展示详情 -->
+        <div v-if="activeSubscription" class="mt-3 space-y-2 text-sm">
+          <div class="grid grid-cols-[auto_1fr] items-center gap-x-6 gap-y-1.5">
+            <span class="text-muted-foreground">{{ t('account.subQuotaTotal') }}</span>
+            <span>{{ formatNumber(activeSubscription.amountTotal) }}</span>
+            <span class="text-muted-foreground">{{ t('account.subQuotaUsed') }}</span>
+            <span>{{ formatNumber(activeSubscription.amountUsed) }}</span>
+            <span class="text-muted-foreground">{{ t('account.subRemaining') }}</span>
+            <span class="font-medium text-primary">
+              {{ formatNumber(activeSubscription.amountTotal - activeSubscription.amountUsed) }}
+            </span>
+            <span class="text-muted-foreground">{{ t('account.subStartTime') }}</span>
+            <span>{{ formatDate(activeSubscription.startTime) }}</span>
+            <span class="text-muted-foreground">{{ t('account.subEndTime') }}</span>
+            <span>{{ formatDate(activeSubscription.endTime) }}</span>
+            <span class="text-muted-foreground">{{ t('account.subStatus') }}</span>
+            <span class="flex items-center gap-1">
+              <span
+                :class="[
+                  'inline-block size-1.5 rounded-full',
+                  activeSubscription.status === 'active' ? 'bg-green-500' : 'bg-muted-foreground'
+                ]"
+              />
+              {{ activeSubscription.status }}
+            </span>
+          </div>
+          <p v-if="!subscriptionsRealtime" class="text-xs text-muted-foreground">
+            {{ t('account.subDataDelayed') }}
+          </p>
+        </div>
+
+        <!-- 无订阅 -->
+        <p v-else class="mt-3 text-sm text-muted-foreground">
+          {{ t('account.planNoSubscription') }}
         </p>
-        <!-- 预留：套餐详情（额度、有效期等）后续接入后端后展示 -->
+
         <div class="mt-4 flex justify-end">
           <DcButton
             size="sm"
             data-testid="settings-account-upgrade"
-            @click="showSubscription = true"
+            @click="openSubscription"
           >
             <Icon icon="lucide:arrow-up-circle" class="mr-1 size-3.5" data-icon="inline-start" />
             {{ t('account.upgradeButton') }}
@@ -139,91 +174,70 @@
           <DialogDescription>{{ t('account.subscriptionDescription') }}</DialogDescription>
         </DialogHeader>
 
-        <!-- 套餐档位选择 -->
-        <div class="flex justify-center gap-1 rounded-lg bg-muted/60 p-1">
-          <button
-            v-for="tier in tiers"
-            :key="tier.key"
-            type="button"
-            :class="[
-              'flex-1 rounded-md px-3 py-1.5 text-sm transition-colors',
-              selectedTier === tier.key
-                ? 'bg-background font-medium text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            ]"
-            @click="selectTier(tier.key)"
-          >
-            {{ tier.label }}
-          </button>
+        <!-- 套餐列表 -->
+        <div v-if="plansLoading" class="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+          <Spinner class="size-4" />
+          {{ t('account.plansLoading') }}
         </div>
 
-        <!-- 计费周期选择 -->
-        <div v-if="selectedTier !== 'free'" class="grid grid-cols-4 gap-2">
+        <div v-else-if="plans.length === 0" class="py-8 text-center text-sm text-muted-foreground">
+          {{ t('account.plansEmpty') }}
+        </div>
+
+        <div v-else class="flex flex-col gap-2">
           <button
-            v-for="(option, index) in billingOptions"
-            :key="option.key"
+            v-for="plan in plans"
+            :key="plan.planId"
             type="button"
             :class="[
-              'flex flex-col items-center gap-0.5 rounded-lg border px-2 py-3 transition-colors',
-              selectedBilling === option.key
+              'flex items-center justify-between rounded-lg border px-4 py-3 transition-colors text-left',
+              selectedPlanId === plan.planId
                 ? 'border-primary bg-primary/5 ring-1 ring-primary'
                 : 'border-border hover:border-primary/40'
             ]"
-            @click="selectedBilling = option.key"
+            @click="selectedPlanId = plan.planId"
           >
-            <span v-if="option.continuous" class="text-[10px] font-medium text-primary">
-              {{ t('account.billingContinuousPrefix') }}
-            </span>
-            <span class="text-xs text-muted-foreground">{{ option.label }}</span>
-            <span class="text-lg font-bold">¥{{ option.price }}</span>
-            <span class="text-[10px] text-muted-foreground">{{ option.suffix }}</span>
-            <span v-if="index === 0" class="mt-0.5 text-[10px] text-primary">
-              {{ t('account.billingRecommended') }}
-            </span>
+            <div class="min-w-0">
+              <div class="truncate text-sm font-medium">{{ plan.planName }}</div>
+              <div class="mt-0.5 text-xs text-muted-foreground">
+                {{ t('account.planQuota') }}: {{ formatNumber(plan.quota) }}
+                · {{ t('account.planDuration') }}: {{ plan.durationValue }}{{ plan.durationUnit }}
+              </div>
+            </div>
+            <div class="ml-3 shrink-0 text-right">
+              <span class="text-lg font-bold">¥{{ plan.price }}</span>
+              <span class="text-xs text-muted-foreground">{{ plan.currency }}</span>
+            </div>
           </button>
         </div>
 
-        <!-- 权益列表 -->
-        <div class="max-h-52 overflow-y-auto rounded-lg border border-border/60 p-4">
-          <p class="mb-2 text-xs font-medium text-muted-foreground">
-            {{ selectedTierBenefitsTitle }}
+        <!-- 购买结果 -->
+        <div v-if="purchaseResult" class="rounded-lg border border-border/60 p-4">
+          <p v-if="purchaseResult.ok" class="text-sm">
+            <Icon icon="lucide:check-circle" class="mr-1 inline size-4 text-green-500" />
+            {{ t('account.purchaseSuccess') }}
+            <span v-if="purchaseResult.orderNo" class="ml-2 font-mono text-xs text-muted-foreground">
+              {{ purchaseResult.orderNo }}
+            </span>
           </p>
-          <ul class="flex flex-col gap-2">
-            <li
-              v-for="benefit in currentBenefits"
-              :key="benefit.key"
-              class="flex items-center gap-2 text-sm"
-            >
-              <Icon
-                :icon="benefit.enabled ? 'lucide:check' : 'lucide:minus'"
-                :class="[
-                  'size-3.5 shrink-0',
-                  benefit.enabled ? 'text-primary' : 'text-muted-foreground/40'
-                ]"
-              />
-              <span :class="benefit.enabled ? '' : 'text-muted-foreground/60'">
-                {{ benefit.label }}
-              </span>
-            </li>
-          </ul>
+          <p v-else class="text-sm text-destructive">
+            {{ purchaseResult.msg || t('account.purchaseFailed') }}
+          </p>
         </div>
 
-        <p v-if="upgradeNotice" class="text-center text-xs text-primary">
-          {{ t('account.upgradeNotice') }}
+        <p v-if="purchaseNotice" class="text-center text-xs text-primary">
+          {{ purchaseNotice }}
         </p>
 
         <DialogFooter>
           <DcButton
-            v-if="selectedTier !== 'free'"
             class="w-full"
-            :disabled="selectedTier === null"
-            @click="handleUpgrade"
+            :disabled="selectedPlanId === null || purchasing"
+            @click="handlePurchase"
           >
-            {{ t('account.upgradeNow') }}
+            <Spinner v-if="purchasing" class="mr-1 size-3" />
+            {{ purchasing ? t('account.purchasing') : t('account.upgradeNow') }}
           </DcButton>
-          <p v-else class="w-full text-center text-xs text-muted-foreground">
-            {{ t('account.freeTierHint') }}
-          </p>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -231,7 +245,7 @@
 </template>
 
 <script setup lang="ts">
-import { createAuthClient, type AuthUser } from '@api/AuthClient'
+import { createAuthClient, type AuthUser, type Plan, type Subscription } from '@api/AuthClient'
 import { createWindowClient } from '@api/WindowClient'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -261,9 +275,6 @@ import { Separator } from '@shadcn/components/ui/separator'
 import { Spinner } from '@shadcn/components/ui/spinner'
 import SettingsPageShell from './control-center/SettingsPageShell.vue'
 
-type TierKey = 'free' | 'standard' | 'plus' | 'advanced'
-type BillingKey = 'continuous-monthly' | 'continuous-yearly' | 'monthly' | 'yearly'
-
 const { t } = useI18n()
 const authClient = createAuthClient()
 const windowClient = createWindowClient()
@@ -273,11 +284,25 @@ const loggingOut = ref(false)
 const user = ref<AuthUser | null>(null)
 const confirmAction = ref<'logout' | 'switch' | null>(null)
 
-// 订阅弹窗状态（占位数据，待接入后端套餐/支付接口后替换）
+// 订阅状态
+const subscriptions = ref<Subscription[]>([])
+const subscriptionsRealtime = ref(true)
 const showSubscription = ref(false)
-const upgradeNotice = ref(false)
-const selectedTier = ref<TierKey>('standard')
-const selectedBilling = ref<BillingKey>('continuous-monthly')
+const plans = ref<Plan[]>([])
+const plansLoading = ref(false)
+const selectedPlanId = ref<number | null>(null)
+const purchasing = ref(false)
+const purchaseResult = ref<{
+  ok: boolean
+  msg?: string
+  orderNo?: string
+  grantStatus?: string
+} | null>(null)
+const purchaseNotice = ref('')
+
+const activeSubscription = computed(
+  () => subscriptions.value.find((s) => s.status === 'active') ?? null
+)
 
 const accountActive = computed(
   () => !user.value?.accountStatus || user.value.accountStatus === 'ACTIVE'
@@ -293,98 +318,84 @@ const avatarInitial = computed(() => {
   return name ? name.slice(0, 1).toUpperCase() : '?'
 })
 
-const tiers = computed(() => [
-  { key: 'free' as TierKey, label: t('account.tierFree') },
-  { key: 'standard' as TierKey, label: t('account.tierStandard') },
-  { key: 'plus' as TierKey, label: t('account.tierPlus') },
-  { key: 'advanced' as TierKey, label: t('account.tierAdvanced') }
-])
-
-const billingOptions = computed(() => [
-  {
-    key: 'continuous-monthly' as BillingKey,
-    label: t('account.billingMonthly'),
-    suffix: t('account.perMonth'),
-    price: '68',
-    continuous: true
-  },
-  {
-    key: 'continuous-yearly' as BillingKey,
-    label: t('account.billingYearly'),
-    suffix: t('account.perYear'),
-    price: '688',
-    continuous: true
-  },
-  {
-    key: 'monthly' as BillingKey,
-    label: t('account.billingSingleMonth'),
-    suffix: t('account.perMonth'),
-    price: '80',
-    continuous: false
-  },
-  {
-    key: 'yearly' as BillingKey,
-    label: t('account.billingSingleYear'),
-    suffix: t('account.perYear'),
-    price: '828',
-    continuous: false
-  }
-])
-
-interface Benefit {
-  key: string
-  label: string
-  enabled: boolean
+function formatNumber(n: number): string {
+  return n.toLocaleString()
 }
 
-const selectedTierBenefitsTitle = computed(() =>
-  selectedTier.value === 'free'
-    ? t('account.benefitsFreeTitle')
-    : t('account.benefitsPaidTitle', {
-        tier: tiers.value.find((tier) => tier.key === selectedTier.value)?.label ?? ''
-      })
-)
-
-const currentBenefits = computed<Benefit[]>(() => {
-  const all = [
-    { key: 'basic', label: t('account.benefitBasic'), minTier: 0 },
-    { key: 'priority', label: t('account.benefitPriority'), minTier: 1 },
-    { key: 'quota5x', label: t('account.benefitQuota5x'), minTier: 1 },
-    { key: 'proModel', label: t('account.benefitProModel'), minTier: 2 },
-    { key: 'scheduled', label: t('account.benefitScheduled'), minTier: 2 },
-    { key: 'docs', label: t('account.benefitDocs'), minTier: 3 },
-    { key: 'records', label: t('account.benefitRecords'), minTier: 3 },
-    { key: 'other', label: t('account.benefitOther'), minTier: 3 }
-  ]
-  const tierLevel: Record<TierKey, number> = {
-    free: 0,
-    standard: 1,
-    plus: 2,
-    advanced: 3
+function formatDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString()
+  } catch {
+    return iso
   }
-  const level = tierLevel[selectedTier.value]
-  return all.map((benefit) => ({
-    key: benefit.key,
-    label: benefit.label,
-    enabled: level >= benefit.minTier
-  }))
-})
-
-function selectTier(key: TierKey) {
-  selectedTier.value = key
-  upgradeNotice.value = false
 }
 
-function handleUpgrade() {
-  // 占位：支付渠道接入后替换为真实下单流程
-  upgradeNotice.value = true
+async function openSubscription() {
+  showSubscription.value = true
+  purchaseResult.value = null
+  purchaseNotice.value = ''
+  await loadPlans()
+}
+
+async function loadPlans() {
+  plansLoading.value = true
+  try {
+    const result = await authClient.getPlans()
+    if (result.ok && result.plans) {
+      plans.value = result.plans
+      if (plans.value.length > 0 && selectedPlanId.value === null) {
+        selectedPlanId.value = plans.value[0]!.planId
+      }
+    } else {
+      plans.value = []
+    }
+  } catch {
+    plans.value = []
+  } finally {
+    plansLoading.value = false
+  }
+}
+
+async function loadSubscriptions() {
+  try {
+    const result = await authClient.getSubscriptions()
+    if (result.ok && result.items) {
+      subscriptions.value = result.items
+      subscriptionsRealtime.value = result.realtime ?? true
+    }
+  } catch {
+    // 静默失败，保留旧数据
+  }
+}
+
+async function handlePurchase() {
+  if (selectedPlanId.value === null || purchasing.value) return
+  purchasing.value = true
+  purchaseResult.value = null
+  purchaseNotice.value = ''
+  const planId = selectedPlanId.value
+  const requestId = `purchase_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  try {
+    const result = await authClient.purchasePlan(planId, requestId)
+    purchaseResult.value = result
+    if (result.ok) {
+      if (result.grantStatus === 'ACTIVE') {
+        await loadSubscriptions()
+      } else if (result.grantStatus === 'PENDING' || result.grantStatus === 'PROCESSING') {
+        purchaseNotice.value = t('account.purchaseProcessing')
+      }
+    }
+  } catch (error) {
+    purchaseResult.value = { ok: false, msg: String(error) }
+  } finally {
+    purchasing.value = false
+  }
 }
 
 async function doLogout() {
   if (loggingOut.value) return
   loggingOut.value = true
   try {
-    // 主进程会清除会话并重载其他窗口（主窗口回到登录页）
     await authClient.logout()
     await windowClient.closeSettings()
   } catch (error) {
@@ -410,7 +421,9 @@ onMounted(async () => {
       user.value = fresh
     }
   } catch {
-    // 忽略：静默回退到登录时缓存的资料
+    // 忽略
   }
+  // 加载订阅信息
+  await loadSubscriptions()
 })
 </script>

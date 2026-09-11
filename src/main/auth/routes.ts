@@ -6,7 +6,10 @@ import {
   authLoginByCodeRoute,
   authRegisterRoute,
   authSendCodeRoute,
-  authLogoutRoute
+  authLogoutRoute,
+  authGetPlansRoute,
+  authPurchasePlanRoute,
+  authGetSubscriptionsRoute
 } from '@shared/contracts/routes'
 import {
   createRouteMap,
@@ -152,6 +155,61 @@ export function createAuthRoutes(
           reloadOtherWindows(-1)
         }
         return authLogoutRoute.output.parse({ ok: true })
+      }
+    ],
+    [
+      authGetPlansRoute.name,
+      async (rawInput) => {
+        authGetPlansRoute.input.parse(rawInput)
+        try {
+          const plans = await auth.getPlans()
+          return authGetPlansRoute.output.parse({ ok: true, plans })
+        } catch (error) {
+          return authGetPlansRoute.output.parse({
+            ok: false,
+            msg: toErrorMessage(error, '获取套餐失败')
+          })
+        }
+      }
+    ],
+    [
+      authPurchasePlanRoute.name,
+      async (rawInput) => {
+        const input = authPurchasePlanRoute.input.parse(rawInput)
+        try {
+          const result = await auth.purchasePlan(input.planId, input.requestId)
+          return authPurchasePlanRoute.output.parse({
+            ok: true,
+            orderNo: result.orderNo,
+            paymentStatus: result.paymentStatus,
+            grantStatus: result.grantStatus,
+            subscriptionId: result.subscriptionId
+          })
+        } catch (error) {
+          return authPurchasePlanRoute.output.parse({
+            ok: false,
+            msg: toErrorMessage(error, '购买失败，请重试')
+          })
+        }
+      }
+    ],
+    [
+      authGetSubscriptionsRoute.name,
+      async (rawInput) => {
+        authGetSubscriptionsRoute.input.parse(rawInput)
+        try {
+          const result = await auth.getSubscriptions()
+          return authGetSubscriptionsRoute.output.parse({
+            ok: true,
+            items: result.items,
+            realtime: result.realtime
+          })
+        } catch (error) {
+          return authGetSubscriptionsRoute.output.parse({
+            ok: false,
+            msg: toErrorMessage(error, '查询订阅失败')
+          })
+        }
       }
     ]
   ])

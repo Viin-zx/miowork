@@ -73,7 +73,7 @@ export async function syncZrProvider(
   // 首次创建后触发模型刷新
   if (options.onProviderCreated) {
     try {
-      console.log('[ZrProvider] 首次创建，自动刷新模型列表...')
+      console.info('[ZrProvider] 首次创建，自动刷新模型列表...')
       await options.onProviderCreated(ZR_PROVIDER_ID)
     } catch (e) {
       console.warn('[ZrProvider] 自动刷新模型失败:', e)

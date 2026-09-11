@@ -7,7 +7,12 @@ import {
   authRegisterRoute,
   authSendCodeRoute,
   authLogoutRoute,
-  type authUserSchema
+  authGetPlansRoute,
+  authPurchasePlanRoute,
+  authGetSubscriptionsRoute,
+  type authUserSchema,
+  type planSchema,
+  type subscriptionSchema
 } from '@shared/contracts/routes'
 import type { z } from 'zod'
 import { getDeepchatBridge } from './core'
@@ -17,6 +22,12 @@ export type SmsScene = 'REGISTER' | 'LOGIN'
 
 /** 当前登录用户信息 */
 export type AuthUser = z.output<typeof authUserSchema>
+
+/** 可购买套餐 */
+export type Plan = z.output<typeof planSchema>
+
+/** 单条订阅 */
+export type Subscription = z.output<typeof subscriptionSchema>
 
 export function createAuthClient(bridge: DeepchatBridge = getDeepchatBridge()) {
   async function getStatus(): Promise<boolean> {
@@ -67,6 +78,36 @@ export function createAuthClient(bridge: DeepchatBridge = getDeepchatBridge()) {
     return result.ok
   }
 
+  /** 获取可购买套餐 */
+  async function getPlans(): Promise<{ ok: boolean; plans?: Plan[]; msg?: string }> {
+    return await bridge.invoke(authGetPlansRoute.name, {})
+  }
+
+  /** 购买套餐 */
+  async function purchasePlan(
+    planId: number,
+    requestId: string
+  ): Promise<{
+    ok: boolean
+    orderNo?: string
+    paymentStatus?: string
+    grantStatus?: string
+    subscriptionId?: number
+    msg?: string
+  }> {
+    return await bridge.invoke(authPurchasePlanRoute.name, { planId, requestId })
+  }
+
+  /** 查询当前用户订阅 */
+  async function getSubscriptions(): Promise<{
+    ok: boolean
+    items?: Subscription[]
+    realtime?: boolean
+    msg?: string
+  }> {
+    return await bridge.invoke(authGetSubscriptionsRoute.name, {})
+  }
+
   return {
     getStatus,
     getAccount,
@@ -75,7 +116,10 @@ export function createAuthClient(bridge: DeepchatBridge = getDeepchatBridge()) {
     login,
     loginByCode,
     register,
-    logout
+    logout,
+    getPlans,
+    purchasePlan,
+    getSubscriptions
   }
 }
 

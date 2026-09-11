@@ -36,6 +36,49 @@ export interface MioModelConfig {
   expiresAt?: string
 }
 
+/** 可购买套餐（GET /plans 返回的单条 plan） */
+export interface MioPlan {
+  planId: number
+  planName: string
+  quota: number
+  price: number
+  currency: string
+  durationUnit: string
+  durationValue: number
+  customSeconds: number
+  quotaResetPeriod: string
+  quotaResetCustomSeconds: number
+}
+
+/** 购买结果（POST /plans/{planId}/purchase 返回的 data） */
+export interface MioPurchaseResult {
+  orderNo: string
+  paymentStatus: string
+  grantStatus: string
+  subscriptionId: number
+}
+
+/** 单条订阅信息（GET /subscriptions 返回的 items[]） */
+export interface MioSubscription {
+  subscriptionId: number
+  planId: number
+  planName: string
+  amountTotal: number
+  amountUsed: number
+  startTime: string
+  endTime: string
+  status: string
+  lastResetTime?: string
+  nextResetTime?: string
+  allowWalletOverflow: boolean
+}
+
+/** 订阅列表响应（GET /subscriptions 返回的 data） */
+export interface MioSubscriptionsResult {
+  items: MioSubscription[]
+  realtime: boolean
+}
+
 interface StoredSession {
   accessToken: string
   /** 过期时间戳（毫秒），null 表示未知 */
@@ -228,13 +271,13 @@ export class AuthService {
     }
     if (!this.modelConfigNeedsRefresh(force)) {
       const cached = this.session?.modelConfig ?? null
-      console.log(
+      console.info(
         `[ModelsConfig] 跳过拉取：缓存有效 (credentialVersion=${cached?.credentialVersion ?? '?'}, expiresAt=${cached?.expiresAt ?? '?'})`
       )
       return cached
     }
     const token = this.session?.accessToken
-    console.log(
+    console.info(
       `[ModelsConfig] POST ${API_BASE_URL}/models/config (Bearer ***${token ? token.slice(-8) : '(none)'})`
     )
     const startMs = Date.now()
@@ -244,7 +287,7 @@ export class AuthService {
         this.session = { ...this.session, modelConfig: data }
         this.persistSession()
       }
-      console.log(
+      console.info(
         `[ModelsConfig] ✅ ${API_BASE_URL}/models/config → baseUrl=${data?.baseUrl ?? '?'} credentialVersion=${data?.credentialVersion ?? '?'} expiresAt=${data?.expiresAt ?? '?'} apiKey=***${data?.apiKey ? data.apiKey.slice(-6) : '?'} (${Date.now() - startMs}ms)`
       )
       return this.session?.modelConfig ?? null
@@ -333,6 +376,42 @@ export class AuthService {
     this.clearSession()
   }
 
+  /** 获取可购买套餐（GET /plans） */
+  async getPlans(): Promise<MioPlan[]> {
+    if (!this.isAuthenticated()) {
+      throw new MioApiError('未登录', 'TOKEN_INVALID')
+    }
+    const token = this.session?.accessToken
+    console.info(`[Plans] GET /plans accessToken=${token}`)
+    return getJson<MioPlan[]>('/plans', token)
+  }
+
+  /** 购买套餐（POST /plans/{planId}/purchase） */
+  async purchasePlan(planId: number, requestId: string): Promise<MioPurchaseResult> {
+    if (!this.isAuthenticated()) {
+      throw new MioApiError('未登录', 'TOKEN_INVALID')
+    }
+    const token = this.session?.accessToken
+    console.info(
+      `[Purchase] POST /plans/${planId}/purchase requestId=${requestId} accessToken=${token}`
+    )
+    return postJson<MioPurchaseResult>(
+      `/plans/${planId}/purchase`,
+      { requestId },
+      token
+    )
+  }
+
+  /** 查询当前用户订阅（GET /subscriptions） */
+  async getSubscriptions(): Promise<MioSubscriptionsResult> {
+    if (!this.isAuthenticated()) {
+      throw new MioApiError('未登录', 'TOKEN_INVALID')
+    }
+    const token = this.session?.accessToken
+    console.info(`[Subscriptions] GET /subscriptions accessToken=${token}`)
+    return getJson<MioSubscriptionsResult>('/subscriptions', token)
+  }
+
   // ---- 会话持久化（safeStorage 加密） ----
 
   private get tokenPath(): string {
@@ -373,7 +452,7 @@ export class AuthService {
       user: vo.user ?? null
     }
     this.persistSession()
-    console.log(
+    console.info(
       `[Auth] ✅ 登录成功 accessToken=${vo.accessToken} expiresIn=${vo.expiresIn ?? '?'}s userId=${vo.user?.userId ?? '?'} nickname=${vo.user?.nickname ?? '?'}`
     )
   }

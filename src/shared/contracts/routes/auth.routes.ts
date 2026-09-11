@@ -99,3 +99,74 @@ export const authLogoutRoute = defineRouteContract({
     ok: z.boolean()
   })
 })
+
+// ---- 订阅相关 ----
+
+/** 可购买套餐 */
+export const planSchema = z.object({
+  planId: z.number(),
+  planName: z.string(),
+  quota: z.number(),
+  price: z.number(),
+  currency: z.string(),
+  durationUnit: z.string(),
+  durationValue: z.number(),
+  customSeconds: z.number(),
+  quotaResetPeriod: z.string(),
+  quotaResetCustomSeconds: z.number()
+})
+
+/** 单条订阅 */
+export const subscriptionSchema = z.object({
+  subscriptionId: z.number(),
+  planId: z.number(),
+  planName: z.string(),
+  amountTotal: z.number(),
+  amountUsed: z.number(),
+  startTime: z.string(),
+  endTime: z.string(),
+  status: z.string(),
+  lastResetTime: z.string().nullable().optional(),
+  nextResetTime: z.string().nullable().optional(),
+  allowWalletOverflow: z.boolean()
+})
+
+/** 获取可购买套餐 */
+export const authGetPlansRoute = defineRouteContract({
+  name: 'auth.getPlans',
+  input: z.object({}).default({}),
+  output: z.object({
+    ok: z.boolean(),
+    plans: z.array(planSchema).optional(),
+    msg: z.string().optional()
+  })
+})
+
+/** 购买套餐 */
+export const authPurchasePlanRoute = defineRouteContract({
+  name: 'auth.purchasePlan',
+  input: z.object({
+    planId: z.number(),
+    requestId: z.string().min(1)
+  }),
+  output: z.object({
+    ok: z.boolean(),
+    orderNo: z.string().optional(),
+    paymentStatus: z.string().optional(),
+    grantStatus: z.string().optional(),
+    subscriptionId: z.number().optional(),
+    msg: z.string().optional()
+  })
+})
+
+/** 查询当前用户订阅 */
+export const authGetSubscriptionsRoute = defineRouteContract({
+  name: 'auth.getSubscriptions',
+  input: z.object({}).default({}),
+  output: z.object({
+    ok: z.boolean(),
+    items: z.array(subscriptionSchema).optional(),
+    realtime: z.boolean().optional(),
+    msg: z.string().optional()
+  })
+})
