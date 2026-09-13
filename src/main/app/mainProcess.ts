@@ -1,8 +1,15 @@
 import { electronApp } from '@electron-toolkit/utils'
-import { app } from 'electron'
+import { AuthService } from '@/auth/authService'
 import { createSettingsStore } from '@/config/settingsStore'
 import { SecretStore } from '@/config/secretStore'
 import { DatabaseSecurityService } from './databaseSecurity'
+import {
+  adoptLegacyGlobalData,
+  getAccountDataRoot,
+  getAccountDatabasePath,
+  resolveAccountKey,
+  setActiveAccountKey
+} from './accountDataRoot'
 import { proxyConfig } from '@/platform/proxy'
 import type { StartupWorkloadCoordinator } from '@/app/startupWorkloadCoordinator'
 import { createMainProcessControl, type MainProcessControl } from './composition'
@@ -36,6 +43,10 @@ export async function startMainProcess(
 
   try {
     electronApp.setAppUserModelId('com.wefonk.deepchat')
+    // 先解析当前账号，后续所有业务数据（主库、知识库、记忆、skill、设置）都落在账号目录下
+    const authService = new AuthService()
+    setActiveAccountKey(resolveAccountKey(authService.peekUserId()))
+    adoptLegacyGlobalData()
     const settingsStore = createSettingsStore()
     setMainLoggingEnabled(settingsStore.get<boolean>('loggingEnabled') ?? false)
     const secretStore = new SecretStore(settingsStore)
@@ -44,7 +55,9 @@ export async function startMainProcess(
     const mcpSettings = new McpSettings()
     const mcpAppSandboxRegistry = new McpAppSandboxRegistry()
     const acpCatalogSettings = new AcpCatalogSettings({ mcpSettings })
-    const databaseSecurityService = new DatabaseSecurityService()
+    const databaseSecurityService = new DatabaseSecurityService({
+      dbPath: getAccountDatabasePath()
+    })
     const securityStatus = databaseSecurityService.getStatus()
     splashWindow.showDatabaseUnlockProgress(
       {
@@ -94,7 +107,7 @@ export async function startMainProcess(
       settings: settingsStore,
       mcpSettings: mcpSettings.getMigrationSnapshot(),
       acpCatalog: acpCatalogSettings.getMigrationSnapshot(),
-      userDataPath: app.getPath('userData')
+      userDataPath: getAccountDataRoot()
     })
     settingsStore.attachDatabase(settingsDatabase)
     mcpSettings.connectDatabase(mcpDatabase)
@@ -107,6 +120,7 @@ export async function startMainProcess(
 
     mainProcess = await createMainProcessControl({
       previousAppVersion: configMigration.previousAppVersion,
+      authService,
       settingsStore,
       secretStore,
       privacySettings,

@@ -51,17 +51,7 @@
           <DcButton
             variant="outline"
             size="sm"
-            :disabled="loggingOut"
-            data-testid="settings-account-switch"
-            @click="confirmAction = 'switch'"
-          >
-            <Icon icon="lucide:repeat" class="mr-1 size-3.5" data-icon="inline-start" />
-            {{ t('account.switchAccount') }}
-          </DcButton>
-          <DcButton
-            variant="outline"
-            size="sm"
-            class="text-destructive hover:text-destructive"
+            class="text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300"
             :disabled="loggingOut"
             data-testid="settings-account-logout"
             @click="confirmAction = 'logout'"
@@ -144,27 +134,17 @@
       </div>
     </div>
 
-    <!-- 退出/切换账号确认 -->
+    <!-- 退出登录确认 -->
     <AlertDialog
       :open="confirmAction !== null"
       @update:open="(open: boolean) => !open && (confirmAction = null)"
     >
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>
-            {{
-              confirmAction === 'switch'
-                ? t('account.switchConfirmTitle')
-                : t('account.logoutConfirmTitle')
-            }}
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            {{
-              confirmAction === 'switch'
-                ? t('account.switchConfirmDescription')
-                : t('account.logoutConfirmDescription')
-            }}
-          </AlertDialogDescription>
+          <AlertDialogTitle>{{ t('account.logoutConfirmTitle') }}</AlertDialogTitle>
+          <AlertDialogDescription>{{
+            t('account.logoutConfirmDescription')
+          }}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>{{ t('account.cancel') }}</AlertDialogCancel>
@@ -410,7 +390,7 @@ const windowClient = createWindowClient()
 const loading = ref(true)
 const loggingOut = ref(false)
 const user = ref<AuthUser | null>(null)
-const confirmAction = ref<'logout' | 'switch' | null>(null)
+const confirmAction = ref<'logout' | null>(null)
 const quota = ref<Quota | null>(null)
 
 // 订阅状态

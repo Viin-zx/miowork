@@ -199,11 +199,6 @@ async function handleSubmit() {
     if (mode.value === 'password') {
       result = await authClient.login(phone.value, password.value)
     } else {
-      if (!smsRequestId.value) {
-        errorMessage.value = '请先获取验证码'
-        submitting.value = false
-        return
-      }
       result = await authClient.loginByCode(phone.value, smsRequestId.value, code.value)
     }
     if (result.ok) {

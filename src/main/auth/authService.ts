@@ -235,6 +235,15 @@ export class AuthService {
     return this.session?.user ?? null
   }
 
+  /**
+   * 读取会话里的 userId，仅用于启动阶段解析账号数据目录。
+   * 不校验/清理过期会话：即使 token 过期，也要让本次启动落在同一账号目录，
+   * 由渲染层引导重新登录后再切换。
+   */
+  peekUserId(): string | null {
+    return this.session?.user?.userId?.trim() || null
+  }
+
   /** 拉取最新用户资料（GET /users/me），失败时回退本地会话缓存 */
   async fetchCurrentUser(): Promise<MioUser | null> {
     if (!this.isAuthenticated()) {

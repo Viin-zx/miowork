@@ -218,6 +218,7 @@ import {
   DatabaseSecurityService,
   type DatabaseSecurityMigrationDatabasePort
 } from './databaseSecurity'
+import { getAccountDatabaseDir, getActiveAccountKey, resolveAccountKey } from './accountDataRoot'
 import {
   normalizeDeepChatSubagentSlots,
   resolveDeepChatSubagentCapability
@@ -492,6 +493,7 @@ function createLivePort<T extends object>(resolve: () => T): T {
 
 export async function createMainProcessControl(dependencies: {
   previousAppVersion?: string
+  authService: AuthService
   settingsStore: SettingsStore
   secretStore: SecretStore
   privacySettings: PrivacySettings
@@ -1336,7 +1338,7 @@ export async function createMainProcessControl(dependencies: {
   )
 
   // Define the storage root for built-in knowledge databases.
-  const dbDir = path.join(app.getPath('userData'), 'app_db')
+  const dbDir = getAccountDatabaseDir()
   knowledgeService = new KnowledgeService({
     config: knowledgeSettings,
     storageRoot: dbDir,
@@ -2826,16 +2828,43 @@ export async function createMainProcessControl(dependencies: {
         })
       }
     })
-    authService = new AuthService()
-    const authRoutes = createAuthRoutes(authService, async () => {
-      try {
-        await syncZrProvider(authService, providerRuntime, {
-          onProviderCreated: (id) => providerRuntime.refreshModels(id)
-        })
-      } catch (e) {
-        console.warn('[ZrProvider] post-login sync failed:', e)
+    authService = dependencies.authService
+
+    // 账号切换（含登录/登出）需要重启应用：记忆向量库与知识库不支持运行时热切换，
+    // 重启后由启动流程按当前账号打开对应数据目录。
+    // 返回 true 表示已触发重启，调用方不应再继续操作当前（旧账号）数据。
+    const handleAccountSwitch = async (): Promise<boolean> => {
+      if (resolveAccountKey(authService.peekUserId()) === getActiveAccountKey()) {
+        return false
       }
-    })
+      try {
+        await restartApplication()
+        return true
+      } catch (error) {
+        console.warn('[Account] restart for account switch failed:', error)
+        return false
+      }
+    }
+
+    const authRoutes = createAuthRoutes(
+      authService,
+      async () => {
+        if (await handleAccountSwitch()) {
+          // 重启已触发，新账号的服务商同步会在重启后的启动流程中完成
+          return
+        }
+        try {
+          await syncZrProvider(authService, providerRuntime, {
+            onProviderCreated: (id) => providerRuntime.refreshModels(id)
+          })
+        } catch (e) {
+          console.warn('[ZrProvider] post-login sync failed:', e)
+        }
+      },
+      async () => {
+        await handleAccountSwitch()
+      }
+    )
     const fileRoutes = createFileRoutes(fileService)
     const ocrRoutes = createOcrRoutes({ runtime: ocrRuntimeService })
     const toolchainRoutes = createToolchainRoutes({

@@ -8,6 +8,12 @@ import path from 'path'
 import { app, dialog } from 'electron'
 import { svgSanitizer } from '../lib/svgSanitizer'
 import { cacheImage, type CacheImageOptions } from '@/platform/imageCache'
+import {
+  getAccountDataRoot,
+  getAccountDatabaseDir,
+  getAccountSettingsDir,
+  getGlobalDataRoot
+} from '@/app/accountDataRoot'
 const execAsync = promisify(exec)
 
 export class DeviceService implements DeviceServicePort {
@@ -150,7 +156,7 @@ export class DeviceService implements DeviceServicePort {
       })
       if (response === 0) {
         try {
-          const dbPath = path.join(app.getPath('userData'), 'app_db')
+          const dbPath = getAccountDatabaseDir()
           const removeDirectory = (dirPath: string): void => {
             if (fs.existsSync(dirPath)) {
               fs.readdirSync(dirPath).forEach((file) => {
@@ -184,7 +190,10 @@ export class DeviceService implements DeviceServicePort {
    */
   async resetDataByType(resetType: 'chat' | 'knowledge' | 'config' | 'all'): Promise<void> {
     try {
-      const userDataPath = app.getPath('userData')
+      const accountRoot = getAccountDataRoot()
+      const accountAppDbPath = getAccountDatabaseDir()
+      const accountSettingsDir = getAccountSettingsDir()
+      const globalRoot = getGlobalDataRoot()
 
       const removeDirectory = (dirPath: string): void => {
         if (fs.existsSync(dirPath)) {
@@ -210,7 +219,7 @@ export class DeviceService implements DeviceServicePort {
         case 'chat': {
           // 删除聊天数据
           logger.info('Resetting chat data...')
-          const appDbPath = path.join(userDataPath, 'app_db')
+          const appDbPath = accountAppDbPath
           const mainDbFile = path.join(appDbPath, 'agent.db')
           try {
             removeFile(mainDbFile)
@@ -236,7 +245,7 @@ export class DeviceService implements DeviceServicePort {
         case 'knowledge': {
           // 删除知识库数据
           logger.info('Resetting knowledge base data...')
-          const knowledgeDbPath = path.join(userDataPath, 'app_db', 'KnowledgeBase')
+          const knowledgeDbPath = path.join(accountAppDbPath, 'KnowledgeBase')
           logger.info('Removing knowledge base directory:', knowledgeDbPath)
           removeDirectory(knowledgeDbPath)
           break
@@ -246,10 +255,11 @@ export class DeviceService implements DeviceServicePort {
           // 删除配置文件
           logger.info('Resetting configuration files')
           const configFiles = [
-            path.join(userDataPath, 'app-settings.json'),
-            path.join(userDataPath, 'mcp-settings.json'),
-            path.join(userDataPath, 'model-config.json'),
-            path.join(userDataPath, 'custom_prompts.json')
+            path.join(accountSettingsDir, 'app-settings.json'),
+            // 以下为迁移前的遗留配置文件，仍可能落在全局 userData 下
+            path.join(globalRoot, 'mcp-settings.json'),
+            path.join(globalRoot, 'model-config.json'),
+            path.join(globalRoot, 'custom_prompts.json')
           ]
 
           configFiles.forEach((filePath) => {
@@ -262,7 +272,7 @@ export class DeviceService implements DeviceServicePort {
           })
 
           try {
-            removeDirectory(path.join(userDataPath, 'provider_models'))
+            removeDirectory(path.join(accountRoot, 'provider_models'))
             logger.info('Removed provider_models directory')
           } catch (error) {
             console.warn('Failed to remove provider_models directory:', error)
@@ -271,10 +281,10 @@ export class DeviceService implements DeviceServicePort {
         }
 
         case 'all': {
-          // 删除整个用户数据目录
-          logger.info('Performing complete reset of user data...')
-          logger.info('Removing user data directory:', userDataPath)
-          removeDirectory(userDataPath)
+          // 删除当前账号的全部数据（不影响设备级数据与其他账号）
+          logger.info('Performing complete reset of account data...')
+          logger.info('Removing account data directory:', accountRoot)
+          removeDirectory(accountRoot)
           break
         }
 

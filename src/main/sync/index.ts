@@ -16,6 +16,11 @@ import {
 import type { SyncSettings } from './settings'
 import type { SettingsDatabase } from '@/settings/data/database'
 import type { ProviderDatabase } from '@/provider/data/database'
+import {
+  getAccountDataRoot,
+  getAccountDatabaseDir,
+  getAccountSettingsDir
+} from '@/app/accountDataRoot'
 
 interface PromptStore {
   prompts: Array<{ id?: string; [key: string]: unknown }>
@@ -125,11 +130,12 @@ export interface SyncImportResult {
 export class SyncService {
   private isBackingUp = false
   private currentBackupStatus: BackupStatus = 'idle'
-  private readonly APP_SETTINGS_PATH = path.join(app.getPath('userData'), 'app-settings.json')
-  private readonly CUSTOM_PROMPTS_PATH = path.join(app.getPath('userData'), 'custom_prompts.json')
-  private readonly SYSTEM_PROMPTS_PATH = path.join(app.getPath('userData'), 'system_prompts.json')
-  private readonly MCP_SETTINGS_PATH = path.join(app.getPath('userData'), 'mcp-settings.json')
-  private readonly DB_PATH = path.join(app.getPath('userData'), 'app_db', 'agent.db')
+  // 备份/恢复路径全部落在当前账号数据目录下，避免跨账号或设备级数据串用
+  private readonly APP_SETTINGS_PATH = path.join(getAccountSettingsDir(), 'app-settings.json')
+  private readonly CUSTOM_PROMPTS_PATH = path.join(getAccountDataRoot(), 'custom_prompts.json')
+  private readonly SYSTEM_PROMPTS_PATH = path.join(getAccountDataRoot(), 'system_prompts.json')
+  private readonly MCP_SETTINGS_PATH = path.join(getAccountDataRoot(), 'mcp-settings.json')
+  private readonly DB_PATH = path.join(getAccountDatabaseDir(), 'agent.db')
 
   constructor(
     private readonly settings: SyncSettings,

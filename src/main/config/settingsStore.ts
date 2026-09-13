@@ -1,15 +1,23 @@
 import type { SettingsDatabase } from '@/settings/data/database'
 import { AppSettingsDbBackedStore } from '@/settings/appSettingsDbStore'
 import type { StoreLike } from '@/config/storeLike'
+import {
+  getAccountSettingsDir,
+  getAccountSkillsDir,
+  getAccountSyncDir
+} from '@/app/accountDataRoot'
 import ElectronStore from 'electron-store'
-import path from 'node:path'
+import { mkdirSync } from 'node:fs'
 import { app } from 'electron'
 
 export function createSettingsStore(): SettingsStore {
-  const userDataPath = app.getPath('userData')
+  // 非敏感设置随账号隔离，写入当前账号的 settings 目录
+  const settingsDir = getAccountSettingsDir()
+  mkdirSync(settingsDir, { recursive: true })
   return new SettingsStore(
     new ElectronStore<Record<string, unknown>>({
       name: 'app-settings',
+      cwd: settingsDir,
       defaults: {
         language: 'system',
         providers: [],
@@ -21,7 +29,7 @@ export function createSettingsStore(): SettingsStore {
         contentProtectionEnabled: false,
         privacyModeEnabled: false,
         syncEnabled: false,
-        syncFolderPath: path.join(userDataPath, 'sync'),
+        syncFolderPath: getAccountSyncDir(),
         lastSyncTime: 0,
         copyWithCotEnabled: true,
         autoCompactionEnabled: true,
@@ -32,7 +40,7 @@ export function createSettingsStore(): SettingsStore {
         fontFamily: '',
         codeFontFamily: '',
         default_system_prompt: '',
-        skillsPath: path.join(app.getPath('home'), '.deepchat', 'skills'),
+        skillsPath: getAccountSkillsDir(),
         enableSkills: true,
         skillDraftSuggestionsEnabled: false,
         appVersion: app.getVersion(),

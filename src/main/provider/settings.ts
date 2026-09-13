@@ -69,6 +69,7 @@ import {
   isMiniMaxM3AdaptiveThinkingModel
 } from '@shared/modelRequestPolicy'
 import { resolveDeepSeekResponsesRoute } from './deepseekResponsesAdapter'
+import { getAccountDataRoot } from '@/app/accountDataRoot'
 
 // Create interface for model storage
 const defaultProviders = DEFAULT_PROVIDERS.map((provider) => ({
@@ -342,7 +343,8 @@ export class ProviderSettings implements ProviderSettingsPort {
   ) {
     this.appSettings = settings
     this.store = new ProviderDbStore(settings, () => database.settingsTable)
-    this.userDataPath = app.getPath('userData')
+    // provider_models 等历史 provider 数据随账号隔离
+    this.userDataPath = getAccountDataRoot()
     this.currentAppVersion = app.getVersion()
     this.providerHelper = new ProviderHelper({
       store: this.store,
