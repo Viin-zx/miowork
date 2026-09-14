@@ -169,7 +169,7 @@ describe('Linux ARM64 packaging', () => {
 
     const upload = steps.find((step) => step.name === 'Upload distribution package')
     expect(upload?.with).toMatchObject({
-      name: 'deepchat-package-linux-${{ inputs.arch }}',
+      name: 'miowork-package-linux-${{ inputs.arch }}',
       path: 'package-output/',
       'if-no-files-found': 'error'
     })
@@ -209,8 +209,8 @@ describe('Linux ARM64 packaging', () => {
 
     expect(arm64Download?.uses).toMatch(/^actions\/download-artifact@[0-9a-f]{40}$/)
     expect(arm64Download?.with).toEqual({
-      name: 'deepchat-package-linux-arm64',
-      path: 'artifacts/deepchat-package-linux-arm64',
+      name: 'miowork-package-linux-arm64',
+      path: 'artifacts/miowork-package-linux-arm64',
       'digest-mismatch': 'error'
     })
     expect(

@@ -201,7 +201,7 @@ jobs:
         if: ${{ success() }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: deepchat-package-linux-${{ inputs.arch }}-${{ inputs.artifact-purpose }}
+          name: miowork-package-linux-${{ inputs.arch }}-${{ inputs.artifact-purpose }}
           path: package-output/
           if-no-files-found: error
           compression-level: 0
@@ -211,7 +211,7 @@ jobs:
         if: ${{ always() && inputs.artifact-purpose == 'verification' }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: deepchat-package-diagnostics-linux-${{ inputs.arch }}
+          name: miowork-package-diagnostics-linux-${{ inputs.arch }}
           path: |
             package-output/manifest.json
             package-output/reports/

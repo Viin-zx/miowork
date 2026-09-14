@@ -13,6 +13,7 @@ import type { NewEnvironmentRow } from '@/project/data/tables/newEnvironments'
 import type { SettingsStore } from '@/config/settingsStore'
 
 const PROJECT_SNAPSHOT_VERSION_SETTINGS_KEY = 'projectSnapshotVersion'
+const DEFAULT_WORKSPACE_DIRECTORY_NAME = 'MioWork'
 
 export class ProjectService {
   private sqlitePresenter: ProjectDatabase
@@ -287,7 +288,7 @@ export class ProjectService {
       return null
     }
 
-    this.sqlitePresenter.newProjectsTable.upsert(defaultPath, 'DeepChat')
+    this.sqlitePresenter.newProjectsTable.upsert(defaultPath, DEFAULT_WORKSPACE_DIRECTORY_NAME)
     this.sqlitePresenter.newEnvironmentPreferencesTable.markActive(defaultPath)
 
     if (currentDefault !== defaultPath) {
@@ -427,7 +428,7 @@ export class ProjectService {
   private getDefaultWorkspaceCandidates(): string[] {
     const candidates: string[] = []
     const addCandidate = (basePath: string) => {
-      candidates.push(path.resolve(path.join(basePath, 'DeepChat')))
+      candidates.push(path.resolve(path.join(basePath, DEFAULT_WORKSPACE_DIRECTORY_NAME)))
     }
 
     try {
@@ -442,7 +443,9 @@ export class ProjectService {
       console.warn('[ProjectService] Failed to resolve Home path:', error)
     }
 
-    candidates.push(path.resolve(path.join(this.userDataWorkspacesRoot, 'DeepChat')))
+    candidates.push(
+      path.resolve(path.join(this.userDataWorkspacesRoot, DEFAULT_WORKSPACE_DIRECTORY_NAME))
+    )
     return this.normalizeUniqueEnvironmentPaths(candidates)
   }
 

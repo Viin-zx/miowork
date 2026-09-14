@@ -131,17 +131,17 @@ const reusableWorkflows = {
   windows: {
     name: '_package-windows.yml',
     runner: "${{ inputs.arch == 'arm64' && 'windows-11-arm' || 'windows-2025-vs2026' }}",
-    artifact: 'deepchat-package-win32-${{ inputs.arch }}'
+    artifact: 'miowork-package-win32-${{ inputs.arch }}'
   },
   linux: {
     name: '_package-linux.yml',
     runner: "${{ inputs.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}",
-    artifact: 'deepchat-package-linux-${{ inputs.arch }}'
+    artifact: 'miowork-package-linux-${{ inputs.arch }}'
   },
   macos: {
     name: '_package-macos.yml',
     runner: "${{ inputs.arch == 'arm64' && 'macos-15' || 'macos-15-intel' }}",
-    artifact: 'deepchat-package-darwin-${{ inputs.arch }}'
+    artifact: 'miowork-package-darwin-${{ inputs.arch }}'
   }
 }
 
@@ -722,12 +722,12 @@ describe('Release caller and publication boundary', () => {
       step.uses?.startsWith('actions/download-artifact@')
     )
     expect(downloads.map((step) => step.with?.name)).toEqual([
-      'deepchat-package-win32-x64',
-      'deepchat-package-win32-arm64',
-      'deepchat-package-linux-x64',
-      'deepchat-package-linux-arm64',
-      'deepchat-package-darwin-x64',
-      'deepchat-package-darwin-arm64'
+      'miowork-package-win32-x64',
+      'miowork-package-win32-arm64',
+      'miowork-package-linux-x64',
+      'miowork-package-linux-arm64',
+      'miowork-package-darwin-x64',
+      'miowork-package-darwin-arm64'
     ])
     for (const download of downloads) {
       expect(download.with).toMatchObject({ 'digest-mismatch': 'error' })

@@ -202,43 +202,43 @@ jobs:
       - name: Download Windows x64 package
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: deepchat-package-win32-x64
-          path: artifacts/deepchat-package-win32-x64
+          name: miowork-package-win32-x64
+          path: artifacts/miowork-package-win32-x64
           digest-mismatch: error
 
       - name: Download Windows ARM64 package
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: deepchat-package-win32-arm64
-          path: artifacts/deepchat-package-win32-arm64
+          name: miowork-package-win32-arm64
+          path: artifacts/miowork-package-win32-arm64
           digest-mismatch: error
 
       - name: Download Linux x64 package
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: deepchat-package-linux-x64
-          path: artifacts/deepchat-package-linux-x64
+          name: miowork-package-linux-x64
+          path: artifacts/miowork-package-linux-x64
           digest-mismatch: error
 
       - name: Download Linux ARM64 package
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: deepchat-package-linux-arm64
-          path: artifacts/deepchat-package-linux-arm64
+          name: miowork-package-linux-arm64
+          path: artifacts/miowork-package-linux-arm64
           digest-mismatch: error
 
       - name: Download macOS x64 package
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: deepchat-package-darwin-x64
-          path: artifacts/deepchat-package-darwin-x64
+          name: miowork-package-darwin-x64
+          path: artifacts/miowork-package-darwin-x64
           digest-mismatch: error
 
       - name: Download macOS ARM64 package
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: deepchat-package-darwin-arm64
-          path: artifacts/deepchat-package-darwin-arm64
+          name: miowork-package-darwin-arm64
+          path: artifacts/miowork-package-darwin-arm64
           digest-mismatch: error
 
       - name: Assemble fail-closed release assets
