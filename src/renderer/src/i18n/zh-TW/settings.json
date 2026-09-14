@@ -2081,7 +2081,16 @@
       "urlPlaceholder": "輸入 skill ZIP 下載地址",
       "zipHint": "點擊或拖放 ZIP 檔案到此處",
       "basicTitle": "資料夾、ZIP 或 URL",
-      "basicDescription": "使用現有安裝器匯入本機資料夾、ZIP 套件和 ZIP 下載連結。"
+      "basicDescription": "使用現有安裝器匯入本機資料夾、ZIP 套件和 ZIP 下載連結。",
+      "errors": {
+        "invalidSkill": "Skill 套件無效，請確認其中包含有效的 SKILL.md。",
+        "notFound": "找不到 Skill 來源，請檢查路徑或下載連結後重試。",
+        "ioError": "檔案操作失敗，請檢查資料夾權限與可用磁碟空間後重試。",
+        "targetLocked": "目標資料夾正在使用中，請關閉佔用它的程式後重試。",
+        "permissionDenied": "此 Skill 為唯讀，無法覆寫。",
+        "staleImpact": "Skill 的指派關係已變更，請關閉對話框後重新安裝。",
+        "unknown": "安裝失敗。"
+      }
     },
     "noResults": "未找到匹配的 skill",
     "openFolder": "開啟資料夾",

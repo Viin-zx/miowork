@@ -2405,7 +2405,16 @@
       "failed": "Installation Failed",
       "dragInvalid": "Unsupported drop. Drag a skill folder or a single .zip file.",
       "basicTitle": "Folder, ZIP, or URL",
-      "basicDescription": "Use the existing installer for local folders, ZIP packages, and ZIP download URLs."
+      "basicDescription": "Use the existing installer for local folders, ZIP packages, and ZIP download URLs.",
+      "errors": {
+        "invalidSkill": "The Skill package is invalid. Make sure it contains a valid SKILL.md.",
+        "notFound": "The Skill source could not be found. Check the path or download link and try again.",
+        "ioError": "The file operation failed. Check the folder permissions and available disk space, then try again.",
+        "targetLocked": "The target folder is in use. Close whatever is using it and try again.",
+        "permissionDenied": "This Skill is provided read-only and cannot be overwritten.",
+        "staleImpact": "The Skill assignment changed. Close this dialog and install again.",
+        "unknown": "Installation failed."
+      }
     },
     "delete": {
       "title": "Delete Skill",

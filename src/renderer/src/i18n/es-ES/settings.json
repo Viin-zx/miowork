@@ -2351,7 +2351,16 @@
       "failed": "Instalación fallida",
       "dragInvalid": "Contenido no admitido. Arrastra una carpeta de Skill o un único archivo .zip.",
       "basicTitle": "Carpeta, ZIP o URL",
-      "basicDescription": "Usa el instalador existente para carpetas locales, paquetes ZIP y URL de descarga ZIP."
+      "basicDescription": "Usa el instalador existente para carpetas locales, paquetes ZIP y URL de descarga ZIP.",
+      "errors": {
+        "invalidSkill": "El paquete de Skill no es válido. Comprueba que contiene un SKILL.md válido.",
+        "notFound": "No se encontró el origen del Skill. Comprueba la ruta o el enlace de descarga e inténtalo de nuevo.",
+        "ioError": "La operación de archivos falló. Comprueba los permisos de la carpeta y el espacio en disco disponible e inténtalo de nuevo.",
+        "targetLocked": "La carpeta de destino está en uso. Cierra el programa que la usa e inténtalo de nuevo.",
+        "permissionDenied": "Este Skill es de solo lectura y no se puede sobrescribir.",
+        "staleImpact": "La asignación del Skill cambió. Cierra este cuadro de diálogo y vuelve a instalarlo.",
+        "unknown": "Error de instalación."
+      }
     },
     "delete": {
       "title": "Eliminar Skill",

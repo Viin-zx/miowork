@@ -3344,7 +3344,11 @@ export class SkillService implements SkillServicePort {
       })
       const skillDir = this.resolveSkillDirFromExtracted(tempDir)
       if (!skillDir) {
-        return { success: false, error: 'SKILL.md not found in zip archive' }
+        return {
+          success: false,
+          error: 'SKILL.md not found in zip archive',
+          errorCode: 'invalid_skill'
+        }
       }
       return await this.installFromDirectory(skillDir, {
         options,
@@ -3875,7 +3879,11 @@ export class SkillService implements SkillServicePort {
         }
       }
       if (assignToAgentIds && normalizedOperationAgentIds.length === 0) {
-        return { success: false, error: 'At least one target Agent is required' }
+        return {
+          success: false,
+          error: 'At least one target Agent is required',
+          errorCode: 'invalid_skill'
+        }
       }
       for (const normalizedAgentId of normalizedOperationAgentIds) {
         finishAgentOperations.push(this.beginAgentScopeOperation(normalizedAgentId))

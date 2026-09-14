@@ -2405,7 +2405,16 @@
       "failed": "安装失败",
       "dragInvalid": "不支持的拖拽内容，请拖入 skill 文件夹或单个 .zip 文件。",
       "basicTitle": "文件夹、ZIP 或 URL",
-      "basicDescription": "使用现有安装器导入本地文件夹、ZIP 包和 ZIP 下载链接。"
+      "basicDescription": "使用现有安装器导入本地文件夹、ZIP 包和 ZIP 下载链接。",
+      "errors": {
+        "invalidSkill": "Skill 包无效，请确认其中包含有效的 SKILL.md。",
+        "notFound": "未找到 Skill 来源，请检查路径或下载链接后重试。",
+        "ioError": "文件操作失败，请检查文件夹权限和可用磁盘空间后重试。",
+        "targetLocked": "目标文件夹正在被占用，请关闭占用它的程序后重试。",
+        "permissionDenied": "该 Skill 为只读，无法覆盖。",
+        "staleImpact": "Skill 的分配关系已变化，请关闭对话框后重新安装。",
+        "unknown": "安装失败。"
+      }
     },
     "delete": {
       "title": "删除 skill",

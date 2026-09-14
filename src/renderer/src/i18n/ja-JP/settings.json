@@ -2081,7 +2081,16 @@
       "urlPlaceholder": "skill ZIP ダウンロードアドレスを入力",
       "zipHint": "ZIP ファイルをクリックまたはドラッグ",
       "basicTitle": "フォルダー、ZIP、URL",
-      "basicDescription": "既存のインストーラーでローカルフォルダー、ZIP パッケージ、ZIP ダウンロード URL を追加します。"
+      "basicDescription": "既存のインストーラーでローカルフォルダー、ZIP パッケージ、ZIP ダウンロード URL を追加します。",
+      "errors": {
+        "invalidSkill": "Skill パッケージが無効です。有効な SKILL.md が含まれているか確認してください。",
+        "notFound": "Skill の取得元が見つかりません。パスまたはダウンロード URL を確認して再試行してください。",
+        "ioError": "ファイル操作に失敗しました。フォルダーの権限と空き容量を確認して再試行してください。",
+        "targetLocked": "対象フォルダーが使用中です。使用しているアプリを閉じて再試行してください。",
+        "permissionDenied": "この Skill は読み取り専用のため上書きできません。",
+        "staleImpact": "Skill の割り当てが変更されました。ダイアログを閉じて再インストールしてください。",
+        "unknown": "インストールに失敗しました。"
+      }
     },
     "noResults": "一致するスキルが見つかりません",
     "openFolder": "フォルダを開く",

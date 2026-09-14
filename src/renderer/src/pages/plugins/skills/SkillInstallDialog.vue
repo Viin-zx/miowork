@@ -118,6 +118,9 @@
         {{ validationError }}
       </div>
       <DcInlineError v-if="operationError" :error="operationError" class="mt-2" />
+      <p v-if="operationDetail" class="mt-1 break-words text-xs text-muted-foreground">
+        {{ operationDetail }}
+      </p>
     </DialogContent>
   </Dialog>
 
@@ -184,7 +187,36 @@ const activeTab = ref('folder')
 const installUrl = ref('')
 const validationError = ref('')
 const operationError = ref<string | null>(null)
+// Raw installer message kept alongside the localized summary so a failure
+// always states the concrete reason instead of a generic request error.
+const operationDetail = ref('')
 const { status: installStatus, run: runInstall, reset: resetInstallStatus } = useDcFormSubmit()
+
+const clearOperationError = () => {
+  operationError.value = null
+  operationDetail.value = ''
+}
+
+// Maps the installer error codes to localized summaries; unknown or missing
+// codes fall back to a generic message and rely on the raw detail.
+const installFailureMessageKey = (errorCode: SkillInstallResult['errorCode']): string => {
+  switch (errorCode) {
+    case 'invalid_skill':
+      return 'settings.skills.install.errors.invalidSkill'
+    case 'not_found':
+      return 'settings.skills.install.errors.notFound'
+    case 'io_error':
+      return 'settings.skills.install.errors.ioError'
+    case 'target_locked':
+      return 'settings.skills.install.errors.targetLocked'
+    case 'permission_denied':
+      return 'settings.skills.install.errors.permissionDenied'
+    case 'stale_impact':
+      return 'settings.skills.install.errors.staleImpact'
+    default:
+      return 'settings.skills.install.errors.unknown'
+  }
+}
 
 // Drag and drop state: which zone is currently being dragged over
 const dragActive = ref<'folder' | 'zip' | null>(null)
@@ -236,7 +268,7 @@ watch(
       conflictRequest.value = { status: 'idle' }
       dragActive.value = null
       validationError.value = ''
-      operationError.value = null
+      clearOperationError()
     }
   }
 )
@@ -252,16 +284,21 @@ const executeInstall = async (
   if (generation === null) return
   const requestId = ++installRequestId
   validationError.value = ''
-  operationError.value = null
+  clearOperationError()
   await runInstall(async () => {
+    let result: SkillInstallResult
     try {
-      const result = await request()
-      if (!isCurrentInstall(generation) || requestId !== installRequestId) return
-      handleInstallResult(result, retryWithOverwrite, isCurrentContext(version))
+      result = await request()
     } catch (error) {
       if (!isCurrentInstall(generation) || requestId !== installRequestId) return
       showError(error)
       throw error
+    }
+    if (!isCurrentInstall(generation) || requestId !== installRequestId) return
+    if (handleInstallResult(result, retryWithOverwrite, isCurrentContext(version)) === 'rejected') {
+      // Surface the failure on the submit button without overwriting the
+      // reason that handleInstallResult already rendered.
+      throw new Error('Skill installation was rejected')
     }
   })
     .then(() => {
@@ -414,13 +451,14 @@ const handleInstallResult = (
   result: SkillInstallResult,
   retryWithOverwrite: () => Promise<void>,
   surfaceCurrent: boolean
-) => {
+): 'settled' | 'rejected' => {
   if (result.success) {
     installing.value = false
     if (surfaceCurrent) {
       installUrl.value = ''
       isOpen.value = false
     }
+    return 'settled'
   } else if (result.errorCode === 'conflict') {
     if (!surfaceCurrent) {
       notifyRenderer({
@@ -432,7 +470,7 @@ const handleInstallResult = (
         })
       })
       installing.value = false
-      return
+      return 'settled'
     }
     installing.value = false
     conflictRequest.value = {
@@ -440,14 +478,16 @@ const handleInstallResult = (
       skillName: result.existingSkillName || result.skillName || '',
       overwrite: retryWithOverwrite
     }
-  } else {
-    console.error('[SkillInstallDialog] Skill installation was rejected', {
-      errorCode: result.errorCode ?? 'UnknownError'
-    })
-    operationError.value = t('common.error.requestFailed')
-    installing.value = false
-    throw new Error('Skill installation was rejected')
+    return 'settled'
   }
+  console.error('[SkillInstallDialog] Skill installation was rejected', {
+    errorCode: result.errorCode ?? 'UnknownError',
+    error: result.error
+  })
+  operationError.value = t(installFailureMessageKey(result.errorCode))
+  operationDetail.value = result.error ?? ''
+  installing.value = false
+  return 'rejected'
 }
 
 const handleConflictCancel = () => {
@@ -486,12 +526,13 @@ const handleConflictOverwrite = () => {
 const showError = (error: unknown) => {
   logFailure('[SkillInstallDialog] Skill installation failed', error)
   operationError.value = t('common.error.requestFailed')
+  operationDetail.value = error instanceof Error ? error.message : ''
   installing.value = false
 }
 
 watch([activeTab, installUrl], () => {
   if (installing.value) return
   validationError.value = ''
-  operationError.value = null
+  clearOperationError()
 })
 </script>

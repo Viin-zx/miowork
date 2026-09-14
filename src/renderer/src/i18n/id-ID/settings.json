@@ -2351,7 +2351,16 @@
       "failed": "Instalasi gagal",
       "dragInvalid": "Konten tidak didukung. Seret folder skill atau satu file .zip.",
       "basicTitle": "Folder, ZIP, atau URL",
-      "basicDescription": "Gunakan penginstal yang ada untuk folder lokal, paket ZIP, dan URL unduhan ZIP."
+      "basicDescription": "Gunakan penginstal yang ada untuk folder lokal, paket ZIP, dan URL unduhan ZIP.",
+      "errors": {
+        "invalidSkill": "Paket Skill tidak valid. Pastikan berisi SKILL.md yang valid.",
+        "notFound": "Sumber Skill tidak ditemukan. Periksa jalur atau tautan unduhan lalu coba lagi.",
+        "ioError": "Operasi berkas gagal. Periksa izin folder dan ruang disk yang tersedia lalu coba lagi.",
+        "targetLocked": "Folder tujuan sedang digunakan. Tutup program yang menggunakannya lalu coba lagi.",
+        "permissionDenied": "Skill ini hanya-baca dan tidak dapat ditimpa.",
+        "staleImpact": "Penetapan Skill berubah. Tutup dialog ini lalu pasang ulang.",
+        "unknown": "Pemasangan gagal."
+      }
     },
     "delete": {
       "title": "Hapus skill",

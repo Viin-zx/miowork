@@ -2351,7 +2351,16 @@
       "failed": "Pemasangan gagal",
       "dragInvalid": "Kandungan tidak disokong. Seret folder skill atau satu fail .zip.",
       "basicTitle": "Folder, ZIP atau URL",
-      "basicDescription": "Gunakan pemasang sedia ada untuk folder setempat, pakej ZIP dan URL muat turun ZIP."
+      "basicDescription": "Gunakan pemasang sedia ada untuk folder setempat, pakej ZIP dan URL muat turun ZIP.",
+      "errors": {
+        "invalidSkill": "Pakej Skill tidak sah. Pastikan ia mengandungi SKILL.md yang sah.",
+        "notFound": "Sumber Skill tidak ditemui. Semak laluan atau pautan muat turun dan cuba lagi.",
+        "ioError": "Operasi fail gagal. Semak kebenaran folder dan ruang cakera yang tersedia, kemudian cuba lagi.",
+        "targetLocked": "Folder sasaran sedang digunakan. Tutup program yang menggunakannya dan cuba lagi.",
+        "permissionDenied": "Skill ini hanya baca dan tidak boleh ditimpa.",
+        "staleImpact": "Penetapan Skill berubah. Tutup dialog ini dan pasang semula.",
+        "unknown": "Pemasangan gagal."
+      }
     },
     "delete": {
       "title": "Alih keluar skill",

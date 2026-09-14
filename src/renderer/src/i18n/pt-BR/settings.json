@@ -2081,7 +2081,16 @@
       "urlPlaceholder": "Digite o endereço de download do skill ZIP",
       "zipHint": "Clique ou arraste um arquivo ZIP aqui",
       "basicTitle": "Pasta, ZIP ou URL",
-      "basicDescription": "Use o instalador existente para pastas locais, pacotes ZIP e URLs de download ZIP."
+      "basicDescription": "Use o instalador existente para pastas locais, pacotes ZIP e URLs de download ZIP.",
+      "errors": {
+        "invalidSkill": "O pacote de Skill é inválido. Verifique se ele contém um SKILL.md válido.",
+        "notFound": "A origem do Skill não foi encontrada. Verifique o caminho ou o link de download e tente novamente.",
+        "ioError": "A operação de arquivo falhou. Verifique as permissões da pasta e o espaço em disco disponível e tente novamente.",
+        "targetLocked": "A pasta de destino está em uso. Feche o programa que a utiliza e tente novamente.",
+        "permissionDenied": "Este Skill é somente leitura e não pode ser sobrescrito.",
+        "staleImpact": "A atribuição do Skill mudou. Feche esta caixa de diálogo e instale novamente.",
+        "unknown": "Falha na instalação."
+      }
     },
     "noResults": "Skill correspondente não encontrada",
     "openFolder": "Abrir pasta",

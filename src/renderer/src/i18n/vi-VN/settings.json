@@ -2351,7 +2351,16 @@
       "failed": "Cài đặt không thành công",
       "dragInvalid": "Nội dung không được hỗ trợ. Hãy kéo một thư mục kỹ năng hoặc một tệp .zip.",
       "basicTitle": "Thư mục, ZIP hoặc URL",
-      "basicDescription": "Dùng trình cài đặt hiện có cho thư mục cục bộ, gói ZIP và URL tải ZIP."
+      "basicDescription": "Dùng trình cài đặt hiện có cho thư mục cục bộ, gói ZIP và URL tải ZIP.",
+      "errors": {
+        "invalidSkill": "Gói Skill không hợp lệ. Hãy đảm bảo gói chứa SKILL.md hợp lệ.",
+        "notFound": "Không tìm thấy nguồn Skill. Kiểm tra đường dẫn hoặc liên kết tải xuống rồi thử lại.",
+        "ioError": "Thao tác tệp thất bại. Kiểm tra quyền thư mục và dung lượng đĩa còn trống rồi thử lại.",
+        "targetLocked": "Thư mục đích đang được sử dụng. Hãy đóng chương trình đang dùng nó rồi thử lại.",
+        "permissionDenied": "Skill này chỉ đọc và không thể ghi đè.",
+        "staleImpact": "Phân công Skill đã thay đổi. Hãy đóng hộp thoại này và cài đặt lại.",
+        "unknown": "Cài đặt thất bại."
+      }
     },
     "delete": {
       "title": "Xóa kỹ năng",

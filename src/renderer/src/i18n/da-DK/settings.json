@@ -2014,7 +2014,16 @@
       "urlPlaceholder": "Indtast skill ZIP-downloadadresse",
       "zipHint": "Klik eller træk en ZIP-fil hertil",
       "basicTitle": "Mappe, ZIP eller URL",
-      "basicDescription": "Brug den eksisterende installer til lokale mapper, ZIP-pakker og ZIP-downloadlinks."
+      "basicDescription": "Brug den eksisterende installer til lokale mapper, ZIP-pakker og ZIP-downloadlinks.",
+      "errors": {
+        "invalidSkill": "Skill-pakken er ugyldig. Sørg for, at den indeholder en gyldig SKILL.md.",
+        "notFound": "Skill-kilden blev ikke fundet. Kontrollér stien eller downloadlinket, og prøv igen.",
+        "ioError": "Filhandlingen mislykkedes. Kontrollér mappetilladelser og ledig diskplads, og prøv igen.",
+        "targetLocked": "Målmappen er i brug. Luk det program, der bruger den, og prøv igen.",
+        "permissionDenied": "Dette Skill er skrivebeskyttet og kan ikke overskrives.",
+        "staleImpact": "Skill-tildelingen er ændret. Luk denne dialog, og installer igen.",
+        "unknown": "Installationen mislykkedes."
+      }
     },
     "noResults": "Ingen matchende skill fundet",
     "openFolder": "Åbn mappe",

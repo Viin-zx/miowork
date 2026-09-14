@@ -2351,7 +2351,16 @@
       "failed": "Instalacja nie powiodła się",
       "dragInvalid": "Nieobsługiwana zawartość. Przeciągnij folder umiejętności lub pojedynczy plik .zip.",
       "basicTitle": "Folder, ZIP lub URL",
-      "basicDescription": "Użyj istniejącego instalatora dla lokalnych folderów, paczek ZIP i adresów URL ZIP."
+      "basicDescription": "Użyj istniejącego instalatora dla lokalnych folderów, paczek ZIP i adresów URL ZIP.",
+      "errors": {
+        "invalidSkill": "Pakiet Skill jest nieprawidłowy. Upewnij się, że zawiera prawidłowy SKILL.md.",
+        "notFound": "Nie znaleziono źródła Skill. Sprawdź ścieżkę lub link do pobrania i spróbuj ponownie.",
+        "ioError": "Operacja na plikach nie powiodła się. Sprawdź uprawnienia folderu i wolne miejsce na dysku, a następnie spróbuj ponownie.",
+        "targetLocked": "Folder docelowy jest używany. Zamknij program, który go używa, i spróbuj ponownie.",
+        "permissionDenied": "Ten Skill jest tylko do odczytu i nie można go nadpisać.",
+        "staleImpact": "Przypisanie Skill zmieniło się. Zamknij to okno i zainstaluj ponownie.",
+        "unknown": "Instalacja nie powiodła się."
+      }
     },
     "delete": {
       "title": "Usuń umiejętność",

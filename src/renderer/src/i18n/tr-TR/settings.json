@@ -2351,7 +2351,16 @@
       "failed": "Kurulum Başarısız",
       "dragInvalid": "Desteklenmeyen içerik. Bir skill klasörü veya tek bir .zip dosyası sürükleyin.",
       "basicTitle": "Klasör, ZIP veya URL",
-      "basicDescription": "Yerel klasörler, ZIP paketleri ve ZIP indirme URL’leri için mevcut yükleyiciyi kullanın."
+      "basicDescription": "Yerel klasörler, ZIP paketleri ve ZIP indirme URL’leri için mevcut yükleyiciyi kullanın.",
+      "errors": {
+        "invalidSkill": "Skill paketi geçersiz. Geçerli bir SKILL.md içerdiğinden emin olun.",
+        "notFound": "Skill kaynağı bulunamadı. Yolu veya indirme bağlantısını kontrol edip yeniden deneyin.",
+        "ioError": "Dosya işlemi başarısız oldu. Klasör izinlerini ve kullanılabilir disk alanını kontrol edip yeniden deneyin.",
+        "targetLocked": "Hedef klasör kullanımda. Onu kullanan programı kapatıp yeniden deneyin.",
+        "permissionDenied": "Bu Skill salt okunur ve üzerine yazılamaz.",
+        "staleImpact": "Skill ataması değişti. Bu iletişim kutusunu kapatıp yeniden yükleyin.",
+        "unknown": "Yükleme başarısız oldu."
+      }
     },
     "delete": {
       "title": "Skill'yi sil",

@@ -2351,7 +2351,16 @@
       "failed": "Installation fehlgeschlagen",
       "dragInvalid": "Inhalt nicht unterstützt. Ziehen Sie einen skill-Ordner oder eine einzelne .zip-Datei.",
       "basicTitle": "Ordner, ZIP oder URL",
-      "basicDescription": "Nutze den vorhandenen Installer für lokale Ordner, ZIP-Pakete und ZIP-Download-URLs."
+      "basicDescription": "Nutze den vorhandenen Installer für lokale Ordner, ZIP-Pakete und ZIP-Download-URLs.",
+      "errors": {
+        "invalidSkill": "Das Skill-Paket ist ungültig. Stelle sicher, dass es eine gültige SKILL.md enthält.",
+        "notFound": "Die Skill-Quelle wurde nicht gefunden. Prüfe Pfad oder Download-Link und versuche es erneut.",
+        "ioError": "Der Dateivorgang ist fehlgeschlagen. Prüfe Ordnerrechte und freien Speicherplatz und versuche es erneut.",
+        "targetLocked": "Der Zielordner wird verwendet. Schließe das verwendende Programm und versuche es erneut.",
+        "permissionDenied": "Dieses Skill ist schreibgeschützt und kann nicht überschrieben werden.",
+        "staleImpact": "Die Skill-Zuordnung hat sich geändert. Schließe diesen Dialog und installiere erneut.",
+        "unknown": "Installation fehlgeschlagen."
+      }
     },
     "delete": {
       "title": "skill löschen",

@@ -2081,7 +2081,16 @@
       "urlPlaceholder": "Saisir l'adresse de téléchargement du fichier ZIP skill",
       "zipHint": "Cliquez ou glissez un fichier ZIP ici",
       "basicTitle": "Dossier, ZIP ou URL",
-      "basicDescription": "Utilisez l’installateur existant pour les dossiers locaux, les ZIP et les URL de téléchargement ZIP."
+      "basicDescription": "Utilisez l’installateur existant pour les dossiers locaux, les ZIP et les URL de téléchargement ZIP.",
+      "errors": {
+        "invalidSkill": "Le paquet de Skill est invalide. Vérifiez qu’il contient un SKILL.md valide.",
+        "notFound": "La source du Skill est introuvable. Vérifiez le chemin ou le lien de téléchargement, puis réessayez.",
+        "ioError": "L’opération sur les fichiers a échoué. Vérifiez les autorisations du dossier et l’espace disque disponible, puis réessayez.",
+        "targetLocked": "Le dossier cible est utilisé. Fermez le programme qui l’utilise, puis réessayez.",
+        "permissionDenied": "Ce Skill est en lecture seule et ne peut pas être écrasé.",
+        "staleImpact": "L’affectation du Skill a changé. Fermez cette boîte de dialogue et réinstallez.",
+        "unknown": "Échec de l’installation."
+      }
     },
     "noResults": "Aucune compétence correspondante trouvée",
     "openFolder": "Ouvrir le dossier",
