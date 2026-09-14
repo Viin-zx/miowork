@@ -48,22 +48,12 @@ function reloadOtherWindows(excludeWebContentsId: number): void {
 export function createAuthRoutes(
   auth: AuthService,
   /** 登录 / 注册成功后触发的回调（用于同步 zr provider 等） */
-  onLoggedIn?: () => void | Promise<void>,
-  /** 退出登录后触发的回调（用于切换到匿名账号数据目录） */
-  onLoggedOut?: () => void | Promise<void>
+  onLoggedIn?: () => void | Promise<void>
 ): DeepchatRouteMap {
   const fireLoggedIn = () => {
     if (onLoggedIn) {
       void Promise.resolve(onLoggedIn()).catch((e) => {
         console.warn('[AuthRoute] onLoggedIn callback failed:', e)
-      })
-    }
-  }
-
-  const fireLoggedOut = () => {
-    if (onLoggedOut) {
-      void Promise.resolve(onLoggedOut()).catch((e) => {
-        console.warn('[AuthRoute] onLoggedOut callback failed:', e)
       })
     }
   }
@@ -168,7 +158,6 @@ export function createAuthRoutes(
           // 非 renderer 调用时重载所有窗口
           reloadOtherWindows(-1)
         }
-        fireLoggedOut()
         return authLogoutRoute.output.parse({ ok: true })
       }
     ],

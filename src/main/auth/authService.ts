@@ -395,18 +395,18 @@ export class AuthService {
     void this.fetchModelConfig().catch(() => {})
   }
 
-  /** 退出登录：通知后端撤销会话，再清除本地凭据 */
+  /**
+   * 退出登录：先清除本地凭据让界面立即回到登录页，再后台通知后端撤销会话。
+   * 后端撤销是尽力而为的，网络耗时不应阻塞退出交互。
+   */
   async logout(): Promise<void> {
     const token = this.session?.accessToken
-    if (token) {
-      try {
-        await postJson<unknown>('/auth/logout', {}, token)
-      } catch (error) {
-        // 退出接口可重复调用，失败也继续清理本地凭据
-        console.warn('[AuthService] Logout request failed:', error)
-      }
-    }
     this.clearSession()
+    if (token) {
+      void postJson<unknown>('/auth/logout', {}, token).catch((error) => {
+        console.warn('[AuthService] Logout request failed:', error)
+      })
+    }
   }
 
   /** 获取可购买套餐（GET /plans） */

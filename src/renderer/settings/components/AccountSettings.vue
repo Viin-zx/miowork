@@ -525,6 +525,14 @@ function startCountdown(expireTime: string): void {
   countdownTimer = setInterval(update, 1000)
 }
 
+/** 是否存在进行中的订单（待扫码或已支付待开通） */
+function hasPendingOrder(): boolean {
+  return (
+    !!purchaseResult.value?.orderNo &&
+    (paymentPhase.value === 'qr_ready' || paymentPhase.value === 'paid_pending')
+  )
+}
+
 /** 轮询订单状态（成功返回 true，表示已终态） */
 async function pollOrderStatus(orderNo: string): Promise<boolean> {
   try {
@@ -539,6 +547,7 @@ async function pollOrderStatus(orderNo: string): Promise<boolean> {
       paymentPhase.value = 'active'
       stopTimers()
       await loadSubscriptions()
+      await loadQuota()
       return true
     }
     // 已支付但开通中/失败 → 展示处理中，继续查询
@@ -594,7 +603,10 @@ function closeSubscription(): void {
 
 async function openSubscription() {
   showSubscription.value = true
-  cancelPayment()
+  // 已有进行中的订单时保留其状态（二维码与轮询），避免丢失支付结果
+  if (!hasPendingOrder()) {
+    cancelPayment()
+  }
   await loadPlans()
 }
 
@@ -660,6 +672,7 @@ async function handlePurchase() {
       // 直接购买成功（无需扫码）
       paymentPhase.value = 'active'
       await loadSubscriptions()
+      await loadQuota()
     } else if (result.codeUrl && result.expireTime) {
       // 需要扫码支付
       paymentPhase.value = 'qr_ready'
@@ -696,9 +709,10 @@ async function doLogout() {
   }
 }
 
-// 弹窗关闭时停止轮询
+// 弹窗关闭时：没有进行中的订单才停掉定时器；
+// 有订单则保留轮询和倒计时，用户关闭二维码后再完成支付时账号页也能自动刷新套餐
 watch(showSubscription, (open) => {
-  if (!open) {
+  if (!open && !hasPendingOrder()) {
     stopTimers()
   }
 })

@@ -2830,8 +2830,9 @@ export async function createMainProcessControl(dependencies: {
     })
     authService = dependencies.authService
 
-    // 账号切换（含登录/登出）需要重启应用：记忆向量库与知识库不支持运行时热切换，
-    // 重启后由启动流程按当前账号打开对应数据目录。
+    // 账号切换（登录到与当前数据目录不同的账号）需要重启应用：记忆向量库与知识库不支持
+    // 运行时热切换，重启后由启动流程按当前账号打开对应数据目录。
+    // 退出登录不重启：只清会话并让窗口回到登录页，账号目录切换延后到下次登录或下次启动。
     // 返回 true 表示已触发重启，调用方不应再继续操作当前（旧账号）数据。
     const handleAccountSwitch = async (): Promise<boolean> => {
       if (resolveAccountKey(authService.peekUserId()) === getActiveAccountKey()) {
@@ -2846,25 +2847,19 @@ export async function createMainProcessControl(dependencies: {
       }
     }
 
-    const authRoutes = createAuthRoutes(
-      authService,
-      async () => {
-        if (await handleAccountSwitch()) {
-          // 重启已触发，新账号的服务商同步会在重启后的启动流程中完成
-          return
-        }
-        try {
-          await syncZrProvider(authService, providerRuntime, {
-            onProviderCreated: (id) => providerRuntime.refreshModels(id)
-          })
-        } catch (e) {
-          console.warn('[ZrProvider] post-login sync failed:', e)
-        }
-      },
-      async () => {
-        await handleAccountSwitch()
+    const authRoutes = createAuthRoutes(authService, async () => {
+      if (await handleAccountSwitch()) {
+        // 重启已触发，新账号的服务商同步会在重启后的启动流程中完成
+        return
       }
-    )
+      try {
+        await syncZrProvider(authService, providerRuntime, {
+          onProviderCreated: (id) => providerRuntime.refreshModels(id)
+        })
+      } catch (e) {
+        console.warn('[ZrProvider] post-login sync failed:', e)
+      }
+    })
     const fileRoutes = createFileRoutes(fileService)
     const ocrRoutes = createOcrRoutes({ runtime: ocrRuntimeService })
     const toolchainRoutes = createToolchainRoutes({
