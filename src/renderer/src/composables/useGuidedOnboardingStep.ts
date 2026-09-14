@@ -5,6 +5,7 @@ import {
   requestGuidedOnboardingResume
 } from '@/lib/onboardingResume'
 import {
+  GUIDED_ONBOARDING_ENABLED,
   getNextGuidedOnboardingStepId,
   getPreviousGuidedOnboardingStepId
 } from '@shared/guidedOnboarding'
@@ -42,6 +43,7 @@ export function useGuidedOnboardingStep(stepId: GuidedOnboardingStepId) {
   const canGoNext = computed(() => Boolean(nextStepId.value))
   const showGuide = computed(
     () =>
+      GUIDED_ONBOARDING_ENABLED &&
       onboardingState.value?.status === 'active' &&
       currentStepId.value === stepId &&
       !dismissed.value

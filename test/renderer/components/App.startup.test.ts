@@ -5,6 +5,7 @@ import {
   GUIDED_ONBOARDING_RESUME_REQUESTED_EVENT,
   GUIDED_ONBOARDING_RESUME_STORAGE_KEY
 } from '@/lib/onboardingResume'
+import { GUIDED_ONBOARDING_ENABLED } from '../../../src/shared/guidedOnboarding'
 
 const DEV_WELCOME_OVERRIDE_KEY = '__deepchat_dev_force_welcome'
 
@@ -514,44 +515,54 @@ describe('App startup welcome flow', () => {
     expect(sessionStore.fetchSessions).not.toHaveBeenCalled()
   })
 
-  it('routes to welcome when init is incomplete', async () => {
-    const { router, configService, onboardingClient } = await mountApp({
-      initComplete: false,
-      routeName: 'chat'
-    })
+  it.skipIf(!GUIDED_ONBOARDING_ENABLED)(
+    'routes to welcome when init is incomplete',
+    async () => {
+      const { router, configService, onboardingClient } = await mountApp({
+        initComplete: false,
+        routeName: 'chat'
+      })
 
-    expect(configService.getSetting).toHaveBeenCalledWith('init_complete')
-    expect(onboardingClient.getState).toHaveBeenCalledTimes(1)
-    expect(onboardingClient.start).toHaveBeenCalledTimes(1)
-    expect(router.replace).toHaveBeenCalledWith({ name: 'welcome' })
-  }, 10000)
+      expect(configService.getSetting).toHaveBeenCalledWith('init_complete')
+      expect(onboardingClient.getState).toHaveBeenCalledTimes(1)
+      expect(onboardingClient.start).toHaveBeenCalledTimes(1)
+      expect(router.replace).toHaveBeenCalledWith({ name: 'welcome' })
+    },
+    10000
+  )
 
-  it('redirects welcome back to chat when init is complete', async () => {
-    const { router, configService, onboardingClient, route } = await mountApp({
-      initComplete: true,
-      routeName: 'welcome',
-      onboardingStatus: 'idle'
-    })
+  it.skipIf(!GUIDED_ONBOARDING_ENABLED)(
+    'redirects welcome back to chat when init is complete',
+    async () => {
+      const { router, configService, onboardingClient, route } = await mountApp({
+        initComplete: true,
+        routeName: 'welcome',
+        onboardingStatus: 'idle'
+      })
 
-    expect(configService.getSetting).toHaveBeenCalledWith('init_complete')
-    expect(onboardingClient.start).not.toHaveBeenCalled()
-    expect(router.replace).toHaveBeenCalledWith({ name: 'chat' })
-    expect(route.name).toBe('chat')
-  })
+      expect(configService.getSetting).toHaveBeenCalledWith('init_complete')
+      expect(onboardingClient.start).not.toHaveBeenCalled()
+      expect(router.replace).toHaveBeenCalledWith({ name: 'chat' })
+      expect(route.name).toBe('chat')
+    }
+  )
 
-  it('routes to welcome when onboarding is already active', async () => {
-    const { router, onboardingClient, route } = await mountApp({
-      initComplete: true,
-      routeName: 'chat',
-      onboardingStatus: 'active',
-      onboardingCurrentStepId: 'first-chat'
-    })
+  it.skipIf(!GUIDED_ONBOARDING_ENABLED)(
+    'routes to welcome when onboarding is already active',
+    async () => {
+      const { router, onboardingClient, route } = await mountApp({
+        initComplete: true,
+        routeName: 'chat',
+        onboardingStatus: 'active',
+        onboardingCurrentStepId: 'first-chat'
+      })
 
-    expect(onboardingClient.getState).toHaveBeenCalledTimes(1)
-    expect(onboardingClient.start).not.toHaveBeenCalled()
-    expect(router.replace).toHaveBeenCalledWith({ name: 'welcome' })
-    expect(route.name).toBe('welcome')
-  })
+      expect(onboardingClient.getState).toHaveBeenCalledTimes(1)
+      expect(onboardingClient.start).not.toHaveBeenCalled()
+      expect(router.replace).toHaveBeenCalledWith({ name: 'welcome' })
+      expect(route.name).toBe('welcome')
+    }
+  )
 
   it('keeps welcome when dev override is enabled', async () => {
     window.sessionStorage.setItem(DEV_WELCOME_OVERRIDE_KEY, '1')

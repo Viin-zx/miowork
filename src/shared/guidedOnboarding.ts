@@ -1,5 +1,12 @@
 export const GUIDED_ONBOARDING_VERSION = 4 as const
 
+/**
+ * 首次登录引导流程总开关。
+ * 暂时关闭时置为 false：不再自动进入 welcome 引导页，也不显示任何引导浮层与引导卡片。
+ * 下次需要恢复引导时改回 true 即可。
+ */
+export const GUIDED_ONBOARDING_ENABLED = false
+
 export const GUIDED_ONBOARDING_STEP_IDS = [
   'select-provider',
   'provider-api-key',

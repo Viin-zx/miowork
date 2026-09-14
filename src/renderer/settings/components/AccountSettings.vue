@@ -41,9 +41,9 @@
           <span class="min-w-0 truncate">{{ user?.nickname || t('account.notSet') }}</span>
           <span class="text-muted-foreground">{{ t('account.phone') }}</span>
           <span class="min-w-0 truncate">{{ displayPhone }}</span>
-          <span class="text-muted-foreground">{{ t('account.subRemaining') }}</span>
+          <span class="text-muted-foreground">{{ t('account.freeQuota') }}</span>
           <span class="min-w-0 truncate">{{ quotaRemainingText }}</span>
-          <span class="text-muted-foreground">{{ t('account.subQuotaUsed') }}</span>
+          <span class="text-muted-foreground">{{ t('account.totalUsage') }}</span>
           <span class="min-w-0 truncate">{{ quotaUsedText }}</span>
         </div>
 

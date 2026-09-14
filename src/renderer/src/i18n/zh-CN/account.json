@@ -14,6 +14,8 @@
   "subQuotaTotal": "总额度",
   "subQuotaUsed": "已使用",
   "subRemaining": "剩余额度",
+  "freeQuota": "免费额度",
+  "totalUsage": "总使用量",
   "subStartTime": "开始时间",
   "subEndTime": "到期时间",
   "subStatus": "状态",

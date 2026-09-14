@@ -47,7 +47,10 @@ import {
   type GuidedOnboardingResumeTrigger
 } from '@/lib/onboardingResume'
 import type { GuidedOnboardingStepId } from '@shared/contracts/routes'
-import { resolveGuidedOnboardingStepTarget } from '@shared/guidedOnboarding'
+import {
+  GUIDED_ONBOARDING_ENABLED,
+  resolveGuidedOnboardingStepTarget
+} from '@shared/guidedOnboarding'
 import { createWindowClient } from '@api/WindowClient'
 import {
   RENDERER_PERFORMANCE_REPORTER,
@@ -162,6 +165,14 @@ const ensureStartupWelcomeState = async () => {
     if (isDevWelcomeOverrideEnabled()) {
       if (!isWelcomeRoute) {
         await router.replace({ name: 'welcome' })
+      }
+      return
+    }
+
+    // 引导流程已暂时关闭：不自动跳转 welcome，也不启动引导
+    if (!GUIDED_ONBOARDING_ENABLED) {
+      if (isWelcomeRoute) {
+        await router.replace({ name: 'chat' })
       }
       return
     }

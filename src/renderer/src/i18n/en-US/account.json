@@ -14,6 +14,8 @@
   "subQuotaTotal": "Total quota",
   "subQuotaUsed": "Used",
   "subRemaining": "Remaining",
+  "freeQuota": "Free quota",
+  "totalUsage": "Total usage",
   "subStartTime": "Start",
   "subEndTime": "Expires",
   "subStatus": "Status",

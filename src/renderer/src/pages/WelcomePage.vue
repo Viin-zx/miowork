@@ -269,6 +269,7 @@ import {
   type GuidedOnboardingResumeTrigger
 } from '@/lib/onboardingResume'
 import {
+  GUIDED_ONBOARDING_ENABLED,
   getNextGuidedOnboardingStepId,
   getPreviousGuidedOnboardingStepId,
   isGuidedOnboardingChatStepId,
@@ -356,7 +357,10 @@ const coachmarkStepId = computed<GuidedOnboardingStepId>(() => currentGuideStepI
 const coachmarkStepTitle = computed(() => guideStepTitle(coachmarkStepId.value))
 const showGuideImportAction = computed(() => coachmarkStepId.value === 'select-provider')
 const showGuideCoachmark = computed(
-  () => onboardingState.value?.status === 'active' && !guideCoachmarkDismissed.value
+  () =>
+    GUIDED_ONBOARDING_ENABLED &&
+    onboardingState.value?.status === 'active' &&
+    !guideCoachmarkDismissed.value
 )
 const coachmarkTargetSurface = computed<'guide-card' | 'providers'>(() =>
   coachmarkStepId.value === 'select-provider' ? 'providers' : 'guide-card'
@@ -476,6 +480,10 @@ const goToNextGuideStep = async () => {
 }
 
 const syncOnboardingState = async () => {
+  if (!GUIDED_ONBOARDING_ENABLED) {
+    return
+  }
+
   try {
     const state = await onboardingClient.getState()
     onboardingState.value = state.status === 'idle' ? await onboardingClient.start() : state
