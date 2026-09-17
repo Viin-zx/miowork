@@ -73,7 +73,7 @@ import {
 } from '@/routes/routeRegistry'
 import type { ProviderImportService } from './providerImportService'
 import { ProviderService, type ProviderQueryScheduler } from './providerService'
-import { ZR_PROVIDER_ID, refreshZrModels } from '@/auth/mioModelSync'
+import { ZR_PROVIDER_ID, refreshZrModelsWithSettings } from '@/auth/mioModelSync'
 import type { AuthService } from '@/auth/authService'
 import type { ProviderRuntime } from '.'
 import { CliRequestError } from '@/cli/errors'
@@ -426,16 +426,7 @@ export function createProviderRoutes(deps: {
         if (input.providerId === ZR_PROVIDER_ID) {
           // zr-mioagent 走新路径：从 /mio/client/v1/models 拉取
           console.info('[ZrModels] 走新路径刷新模型列表')
-          await refreshZrModels(
-            authService,
-            (pid, models) => providerSettings.setProviderModels(pid, models),
-            (pid) => providerSettings.notifyModelsChanged(pid),
-            (pid, modelIds, enabled) =>
-              providerSettings.batchSetModelStatus(
-                pid,
-                Object.fromEntries(modelIds.map((id) => [id, enabled]))
-              )
-          )
+          await refreshZrModelsWithSettings(authService, providerSettings)
         } else {
           // 其他 provider 走原有路径
           await providerRuntime.refreshModels(input.providerId)
@@ -561,6 +552,16 @@ export function createProviderRoutes(deps: {
       modelsListRuntimeRoute.name,
       async (rawInput) => {
         const input = modelsListRuntimeRoute.input.parse(rawInput)
+
+        if (input.providerId === ZR_PROVIDER_ID) {
+          // zr-mioagent 的模型列表只来自 /mio/client/v1/models；缓存为空时
+          // （历史数据缺失或首次拉取失败）先拉取一次，避免聊天页一直显示空列表。
+          if (providerSettings.getProviderModels(ZR_PROVIDER_ID).length === 0) {
+            console.info('[ZrModels] 运行时模型列表为空，从 /mio/client/v1/models 拉取')
+            await refreshZrModelsWithSettings(authService, providerSettings)
+          }
+        }
+
         return projectJsonRouteOutput(modelsListRuntimeRoute.output, {
           models: await providerRuntime.getModelList(input.providerId)
         })

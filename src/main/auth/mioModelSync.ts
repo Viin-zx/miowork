@@ -115,3 +115,30 @@ export async function refreshZrModels(
 
   return metas
 }
+
+/** refreshZrModelsWithSettings 依赖的最小设置端口 */
+export interface ZrModelSettingsPort {
+  setProviderModels(providerId: string, models: MODEL_META[]): void
+  notifyModelsChanged(providerId?: string): void
+  batchSetModelStatus(providerId: string, modelStatusMap: Record<string, boolean>): void
+}
+
+/**
+ * refreshZrModels 的便捷封装：写入/通知/启用回调固定落到 ProviderSettings，
+ * 供启动同步、登录回调和运行时兜底刷新共用，避免各调用点重复拼回调。
+ */
+export async function refreshZrModelsWithSettings(
+  auth: AuthService,
+  providerSettings: ZrModelSettingsPort
+): Promise<MODEL_META[] | null> {
+  return refreshZrModels(
+    auth,
+    (providerId, models) => providerSettings.setProviderModels(providerId, models),
+    (providerId) => providerSettings.notifyModelsChanged(providerId),
+    (providerId, modelIds, enabled) =>
+      providerSettings.batchSetModelStatus(
+        providerId,
+        Object.fromEntries(modelIds.map((modelId) => [modelId, enabled]))
+      )
+  )
+}

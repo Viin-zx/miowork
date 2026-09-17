@@ -113,7 +113,7 @@ import { createMemoryRoutes } from '../memory/routes'
 import { createDesktopRoutes } from '../desktop/routes'
 import { AuthService } from '../auth/authService'
 import { syncZrProvider } from '../auth/zrProviderSync'
-import { refreshZrModels } from '../auth/mioModelSync'
+import { refreshZrModelsWithSettings } from '../auth/mioModelSync'
 import { createAuthRoutes } from '../auth/routes'
 import { createFileRoutes } from '../file/routes'
 import { createKnowledgeRoutes } from '../knowledge/routes'
@@ -2855,20 +2855,10 @@ export async function createMainProcessControl(dependencies: {
         return
       }
       try {
-        await syncZrProvider(authService, providerRuntime, {
-          onProviderCreated: async () => {
-            await refreshZrModels(
-              authService,
-              (pid, models) => providerSettings.setProviderModels(pid, models),
-              (pid) => providerSettings.notifyModelsChanged(pid),
-              (pid, modelIds, enabled) =>
-                providerSettings.batchSetModelStatus(
-                  pid,
-                  Object.fromEntries(modelIds.map((id) => [id, enabled]))
-                )
-            )
-          }
-        })
+        await syncZrProvider(authService, providerRuntime)
+        // 登录后总是从 /mio/client/v1/models 拉取模型列表并全部标记开启，
+        // 不限于 provider 首次创建，避免老用户列表停留在历史数据。
+        await refreshZrModelsWithSettings(authService, providerSettings)
       } catch (e) {
         console.warn('[ZrProvider] post-login sync failed:', e)
       }
@@ -3595,20 +3585,10 @@ export async function createMainProcessControl(dependencies: {
   // 同步 zr provider：将 mioagent 后端返回的 baseUrl/apiKey 写入本地 provider 表
   // 登录成功后 AuthService 已经 fetchModelConfig 缓存过，这里只负责 upsert provider
   try {
-    await syncZrProvider(authService, providerRuntime, {
-      onProviderCreated: async () => {
-        await refreshZrModels(
-          authService,
-          (pid, models) => providerSettings.setProviderModels(pid, models),
-          (pid) => providerSettings.notifyModelsChanged(pid),
-          (pid, modelIds, enabled) =>
-            providerSettings.batchSetModelStatus(
-              pid,
-              Object.fromEntries(modelIds.map((id) => [id, enabled]))
-            )
-        )
-      }
-    })
+    await syncZrProvider(authService, providerRuntime)
+    // 每次启动都从 /mio/client/v1/models 刷新模型列表（未登录时内部会跳过），
+    // 保证聊天页展示的模型始终来自服务端接口而非历史缓存。
+    await refreshZrModelsWithSettings(authService, providerSettings)
   } catch (error) {
     console.warn('[ZrProvider] sync failed at startup:', error)
   }
