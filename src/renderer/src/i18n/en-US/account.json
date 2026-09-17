@@ -44,6 +44,7 @@
   "qrPayAlipayTitle": "Alipay Scan to Pay",
   "qrPayWechatTitle": "WeChat Scan to Pay",
   "qrPayDescription": "Scan the QR code below with WeChat to pay",
+  "qrPayAlipayDescription": "Scan the QR code below with Alipay to pay",
   "qrPayExpired": "QR code expired. Please purchase again.",
   "qrPayExpiresIn": "Time remaining",
   "qrPayWaiting": "Waiting for scan…",

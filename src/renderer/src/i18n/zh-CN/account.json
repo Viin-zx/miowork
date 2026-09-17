@@ -44,6 +44,7 @@
   "qrPayAlipayTitle": "支付宝扫码支付",
   "qrPayWechatTitle": "微信扫码支付",
   "qrPayDescription": "请使用微信扫描下方二维码完成支付",
+  "qrPayAlipayDescription": "请使用支付宝扫描下方二维码完成支付",
   "qrPayExpired": "二维码已过期，请重新购买",
   "qrPayExpiresIn": "剩余支付时间",
   "qrPayWaiting": "等待扫码支付…",

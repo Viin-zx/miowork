@@ -170,7 +170,7 @@
           <DialogDescription>
             {{
               paymentPhase === 'qr_ready' || paymentPhase === 'paid_pending'
-                ? t('account.qrPayDescription')
+                ? qrPayDescription
                 : t('account.subscriptionDescription')
             }}
           </DialogDescription>
@@ -212,7 +212,7 @@
                 <div class="truncate text-sm font-medium">{{ plan.planName }}</div>
                 <div class="mt-0.5 text-xs text-muted-foreground">
                   {{ t('account.planQuota') }}: {{ formatQuota(plan.quota) }} ·
-                  {{ t('account.planDuration') }}: {{ plan.durationValue }}{{ plan.durationUnit }}
+                  {{ t('account.planDuration') }}: {{ formatPlanDuration(plan) }}
                 </div>
               </div>
               <div class="ml-3 shrink-0 text-right">
@@ -440,6 +440,12 @@ const qrPayTitle = computed(() => {
   return channel === 'WECHAT' ? t('account.qrPayWechatTitle') : t('account.qrPayAlipayTitle')
 })
 
+/** 二维码区描述：按渠道区分，支付宝/微信分别提示对应扫码方式 */
+const qrPayDescription = computed(() => {
+  const channel = purchaseResult.value?.paymentChannel ?? selectedPaymentChannel.value
+  return channel === 'WECHAT' ? t('account.qrPayDescription') : t('account.qrPayAlipayDescription')
+})
+
 const purchaseResult = ref<{
   ok: boolean
   msg?: string | null
@@ -501,6 +507,21 @@ const QUOTA_DIVISOR = 500000
 /** 额度转金额：除以 500000，保留 2 位小数，单位 ¥ */
 function formatQuota(n: number): string {
   return `¥${(n / QUOTA_DIVISOR).toFixed(2)}`
+}
+
+/** 套餐时长单位映射：服务端返回英文单位，界面展示中文 */
+const PLAN_DURATION_UNIT_LABELS: Record<string, string> = {
+  month: '个月',
+  day: '天',
+  week: '周',
+  quarter: '个季度',
+  year: '年'
+}
+
+/** 套餐有效期展示：如 durationValue=1、durationUnit=month 显示为「1个月」 */
+function formatPlanDuration(plan: Plan): string {
+  const unit = PLAN_DURATION_UNIT_LABELS[plan.durationUnit] ?? plan.durationUnit
+  return `${plan.durationValue || 1}${unit}`
 }
 
 /** 紧凑日期：YYYY-MM-DD */
