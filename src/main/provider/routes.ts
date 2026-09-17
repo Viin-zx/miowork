@@ -553,13 +553,9 @@ export function createProviderRoutes(deps: {
       async (rawInput) => {
         const input = modelsListRuntimeRoute.input.parse(rawInput)
 
-        if (input.providerId === ZR_PROVIDER_ID) {
-          // zr-mioagent 的模型列表只来自 /mio/client/v1/models，每次运行时拉取都
-          // 先从接口刷新，确保聊天页展示的模型与服务端一致（旧模型会被替换掉）。
-          console.info('[ZrModels] 运行时拉取，从 /mio/client/v1/models 刷新')
-          await refreshZrModelsWithSettings(authService, providerSettings)
-        }
-
+        // zr-mioagent 的模型列表只来自 /mio/client/v1/models，由启动/登录/手动刷新路径
+        // 统一拉取并 notify 渲染层。这里只返回缓存：若在此强制刷新会与渲染层
+        // onModelsChanged -> refreshProviderModels 的回声形成死循环，疯狂请求接口。
         return projectJsonRouteOutput(modelsListRuntimeRoute.output, {
           models: await providerRuntime.getModelList(input.providerId)
         })
