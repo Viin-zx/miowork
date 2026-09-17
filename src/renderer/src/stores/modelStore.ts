@@ -22,7 +22,7 @@ import { createModelClient } from '../../api/ModelClient'
 const PROVIDER_MODELS_KEY = (providerId: string) => ['model-store', 'provider-models', providerId]
 const CUSTOM_MODELS_KEY = (providerId: string) => ['model-store', 'custom-models', providerId]
 const ENABLED_MODELS_KEY = (providerId: string) => ['model-store', 'enabled-models', providerId]
-const RUNTIME_MODEL_LIST_PROVIDER_IDS = new Set(['openai-codex'])
+const RUNTIME_MODEL_LIST_PROVIDER_IDS = new Set(['openai-codex', 'zr-mioagent'])
 const isRuntimeModelListProvider = (providerId: string) =>
   RUNTIME_MODEL_LIST_PROVIDER_IDS.has(providerId)
 

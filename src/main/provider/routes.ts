@@ -73,6 +73,8 @@ import {
 } from '@/routes/routeRegistry'
 import type { ProviderImportService } from './providerImportService'
 import { ProviderService, type ProviderQueryScheduler } from './providerService'
+import { ZR_PROVIDER_ID, refreshZrModels } from '@/auth/mioModelSync'
+import type { AuthService } from '@/auth/authService'
 import type { ProviderRuntime } from '.'
 import { CliRequestError } from '@/cli/errors'
 
@@ -84,6 +86,7 @@ export function createProviderRoutes(deps: {
   oauthService: OAuthServicePort
   scheduler: ProviderQueryScheduler
   recordSettingsActivity(input: SettingsActivityInput): Promise<unknown>
+  authService: AuthService
 }): DeepchatRouteMap {
   const {
     providerSettings,
@@ -91,7 +94,8 @@ export function createProviderRoutes(deps: {
     acpProviderAdminPort,
     providerImportService,
     oauthService,
-    scheduler
+    scheduler,
+    authService
   } = deps
   const providerService = new ProviderService({
     providerCatalogPort: {
@@ -418,7 +422,25 @@ export function createProviderRoutes(deps: {
       providersRefreshModelsRoute.name,
       async (rawInput) => {
         const input = providersRefreshModelsRoute.input.parse(rawInput)
-        await providerRuntime.refreshModels(input.providerId)
+
+        if (input.providerId === ZR_PROVIDER_ID) {
+          // zr-mioagent 走新路径：从 /mio/client/v1/models 拉取
+          console.info('[ZrModels] 走新路径刷新模型列表')
+          await refreshZrModels(
+            authService,
+            (pid, models) => providerSettings.setProviderModels(pid, models),
+            (pid) => providerSettings.notifyModelsChanged(pid),
+            (pid, modelIds, enabled) =>
+              providerSettings.batchSetModelStatus(
+                pid,
+                Object.fromEntries(modelIds.map((id) => [id, enabled]))
+              )
+          )
+        } else {
+          // 其他 provider 走原有路径
+          await providerRuntime.refreshModels(input.providerId)
+        }
+
         const provider = providerSettings.getProviderById(input.providerId)
         const result = providersRefreshModelsRoute.output.parse({ refreshed: true })
         recordActivity({

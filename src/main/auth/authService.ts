@@ -103,6 +103,36 @@ export interface MioQuota {
   fetchedAt?: string | null
 }
 
+/** 单个模型参数 */
+export interface MioModelParameters {
+  contextWindowTokens?: number
+  maxOutputTokens?: number
+  visionEnabled?: boolean
+  functionCallingEnabled?: boolean
+  reasoningEnabled?: boolean
+  temperature?: number
+  topP?: number
+  reasoningEffort?: string
+  [key: string]: unknown
+}
+
+/** 单个模型（GET /models 返回的 items[]） */
+export interface MioModelVo {
+  localModelId: number
+  modelId: string
+  displayName: string
+  providerName: string
+  modelType: string
+  requestTimeoutMs: number
+  isDefault: boolean
+  parameters: MioModelParameters
+}
+
+/** 模型列表响应（GET /models 返回的 data） */
+export interface MioModelListVo {
+  items: MioModelVo[]
+}
+
 interface StoredSession {
   accessToken: string
   /** 过期时间戳（毫秒），null 表示未知 */
@@ -110,6 +140,8 @@ interface StoredSession {
   user: MioUser | null
   /** 模型网关配置缓存，credentialVersion 变化或 expiresAt 到期需重拉 */
   modelConfig?: MioModelConfig | null
+  /** 模型列表缓存 */
+  models?: MioModelVo[] | null
 }
 
 interface SmsCodeResult {
@@ -141,6 +173,7 @@ class MioApiError extends Error {
 
 async function postJson<T>(path: string, body: unknown, accessToken?: string): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+
   if (accessToken) {
     headers.Authorization = `Bearer ${accessToken}`
   }
@@ -330,6 +363,39 @@ export class AuthService {
         error
       )
       return this.session?.modelConfig ?? null
+    }
+  }
+
+  /** 读取缓存的模型列表（未登录或未拉过返回 null） */
+  getCachedModels(): MioModelVo[] | null {
+    if (!this.isAuthenticated()) {
+      return null
+    }
+    return this.session?.models ?? null
+  }
+
+  /** 拉取模型列表（GET /models），失败返回 null 且保留旧缓存 */
+  async fetchModels(): Promise<MioModelVo[] | null> {
+    if (!this.isAuthenticated()) {
+      return null
+    }
+    const token = this.session?.accessToken
+    console.info(
+      `[Models] GET ${API_BASE_URL}/models (Bearer ***${token ? token.slice(-8) : '(none)'})`
+    )
+    const startMs = Date.now()
+    try {
+      const data = await getJson<MioModelListVo>('/models', token)
+      const items = data?.items ?? []
+      if (this.session) {
+        this.session = { ...this.session, models: items }
+        this.persistSession()
+      }
+      console.info(`[Models] ✅ /models → ${items.length} item(s) (${Date.now() - startMs}ms)`)
+      return items
+    } catch (error) {
+      console.warn(`[Models] ❌ /models failed after ${Date.now() - startMs}ms:`, error)
+      return this.session?.models ?? null
     }
   }
 

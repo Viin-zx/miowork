@@ -2137,6 +2137,12 @@ export class AiSdkProvider extends BaseLLMProvider {
   }
 
   protected async fetchProviderModels(): Promise<MODEL_META[]> {
+    // zr-mioagent 的模型列表由 /mio/client/v1/models 提供（见 refreshZrModels），
+    // 不从 OpenAI /v1/models 拉取，避免覆盖新接口写入的数据。
+    if (this.provider.id === 'zr-mioagent') {
+      const cached = this.providerSettings.getProviderModels(this.provider.id)
+      return cached.length > 0 ? cached : []
+    }
     return this.fetchProviderModelsByStrategy(this.definition.modelSource)
   }
 

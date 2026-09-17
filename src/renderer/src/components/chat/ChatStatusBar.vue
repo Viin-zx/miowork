@@ -194,7 +194,9 @@
                               custom-class="w-3.5 h-3.5 shrink-0"
                               :is-dark="themeStore.isDark"
                             />
-                            <span class="min-w-0 flex-1 truncate font-medium">{{ model.id }}</span>
+                            <span class="min-w-0 flex-1 truncate font-medium">{{
+                              model.name
+                            }}</span>
                           </button>
                         </div>
                       </div>
@@ -2041,7 +2043,8 @@ const generationSettingsModelText = computed(() => {
     return ''
   }
   const providerName = providerNameMap.value.get(selection.providerId) ?? selection.providerId
-  return `${providerName} / ${selection.modelId}`
+  const modelName = resolveModelName(selection.providerId, selection.modelId)
+  return `${providerName} / ${modelName}`
 })
 
 const isGenerationSettingsReady = computed(() => {
@@ -2086,13 +2089,13 @@ const displayModelText = computed(() => {
   if (hasActiveSession.value) {
     const selection = activeSessionSelection.value ?? draftModelSelection.value
     if (selection?.modelId) {
-      return selection.modelId
+      return resolveModelName(selection.providerId, selection.modelId)
     }
     return t('common.selectModel')
   }
   const selection = draftModelSelection.value
   if (selection?.modelId) {
-    return selection.modelId
+    return resolveModelName(selection.providerId, selection.modelId)
   }
   return t('common.selectModel')
 })

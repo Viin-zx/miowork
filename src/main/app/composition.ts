@@ -113,6 +113,7 @@ import { createMemoryRoutes } from '../memory/routes'
 import { createDesktopRoutes } from '../desktop/routes'
 import { AuthService } from '../auth/authService'
 import { syncZrProvider } from '../auth/zrProviderSync'
+import { refreshZrModels } from '../auth/mioModelSync'
 import { createAuthRoutes } from '../auth/routes'
 import { createFileRoutes } from '../file/routes'
 import { createKnowledgeRoutes } from '../knowledge/routes'
@@ -2775,7 +2776,8 @@ export async function createMainProcessControl(dependencies: {
       }),
       oauthService,
       scheduler: providerQueryScheduler,
-      recordSettingsActivity: (input) => settingsDatabase.recordSettingsActivity(input)
+      recordSettingsActivity: (input) => settingsDatabase.recordSettingsActivity(input),
+      authService
     })
     const toolRoutes = createToolRoutes(toolService)
     const pluginRoutes = createPluginRoutes(pluginService)
@@ -2854,7 +2856,18 @@ export async function createMainProcessControl(dependencies: {
       }
       try {
         await syncZrProvider(authService, providerRuntime, {
-          onProviderCreated: (id) => providerRuntime.refreshModels(id)
+          onProviderCreated: async () => {
+            await refreshZrModels(
+              authService,
+              (pid, models) => providerSettings.setProviderModels(pid, models),
+              (pid) => providerSettings.notifyModelsChanged(pid),
+              (pid, modelIds, enabled) =>
+                providerSettings.batchSetModelStatus(
+                  pid,
+                  Object.fromEntries(modelIds.map((id) => [id, enabled]))
+                )
+            )
+          }
         })
       } catch (e) {
         console.warn('[ZrProvider] post-login sync failed:', e)
@@ -3583,7 +3596,18 @@ export async function createMainProcessControl(dependencies: {
   // 登录成功后 AuthService 已经 fetchModelConfig 缓存过，这里只负责 upsert provider
   try {
     await syncZrProvider(authService, providerRuntime, {
-      onProviderCreated: (id) => providerRuntime.refreshModels(id)
+      onProviderCreated: async () => {
+        await refreshZrModels(
+          authService,
+          (pid, models) => providerSettings.setProviderModels(pid, models),
+          (pid) => providerSettings.notifyModelsChanged(pid),
+          (pid, modelIds, enabled) =>
+            providerSettings.batchSetModelStatus(
+              pid,
+              Object.fromEntries(modelIds.map((id) => [id, enabled]))
+            )
+        )
+      }
     })
   } catch (error) {
     console.warn('[ZrProvider] sync failed at startup:', error)
