@@ -554,12 +554,10 @@ export function createProviderRoutes(deps: {
         const input = modelsListRuntimeRoute.input.parse(rawInput)
 
         if (input.providerId === ZR_PROVIDER_ID) {
-          // zr-mioagent 的模型列表只来自 /mio/client/v1/models；缓存为空时
-          // （历史数据缺失或首次拉取失败）先拉取一次，避免聊天页一直显示空列表。
-          if (providerSettings.getProviderModels(ZR_PROVIDER_ID).length === 0) {
-            console.info('[ZrModels] 运行时模型列表为空，从 /mio/client/v1/models 拉取')
-            await refreshZrModelsWithSettings(authService, providerSettings)
-          }
+          // zr-mioagent 的模型列表只来自 /mio/client/v1/models，每次运行时拉取都
+          // 先从接口刷新，确保聊天页展示的模型与服务端一致（旧模型会被替换掉）。
+          console.info('[ZrModels] 运行时拉取，从 /mio/client/v1/models 刷新')
+          await refreshZrModelsWithSettings(authService, providerSettings)
         }
 
         return projectJsonRouteOutput(modelsListRuntimeRoute.output, {

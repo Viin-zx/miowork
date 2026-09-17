@@ -375,7 +375,7 @@ export class AuthService {
   }
 
   /** 拉取模型列表（GET /models），失败返回 null 且保留旧缓存 */
-  async fetchModels(): Promise<MioModelVo[] | null> {
+  async fetchModels(options?: { forceFresh?: boolean }): Promise<MioModelVo[] | null> {
     if (!this.isAuthenticated()) {
       return null
     }
@@ -395,6 +395,10 @@ export class AuthService {
       return items
     } catch (error) {
       console.warn(`[Models] ❌ /models failed after ${Date.now() - startMs}ms:`, error)
+      // forceFresh 模式下不回退旧缓存，避免用过期数据覆盖存储中的模型列表
+      if (options?.forceFresh) {
+        return null
+      }
       return this.session?.models ?? null
     }
   }

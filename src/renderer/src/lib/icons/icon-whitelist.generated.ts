@@ -255,6 +255,7 @@ export const GENERATED_ICON_WHITELIST: Record<GeneratedIconCollectionKey, readon
     'user-round',
     'users',
     'volume-2',
+    'wallet',
     'wand-2',
     'wand-sparkles',
     'workflow',

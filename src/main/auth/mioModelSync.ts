@@ -92,9 +92,11 @@ export async function refreshZrModels(
     return null
   }
 
-  const models = await auth.fetchModels()
+  // forceFresh: API 失败时 fetchModels 返回 null 而非旧缓存，
+  // 避免用过期模型列表覆盖存储中已有的数据
+  const models = await auth.fetchModels({ forceFresh: true })
   if (!models || models.length === 0) {
-    console.warn('[ZrModels] 获取模型列表为空')
+    console.warn('[ZrModels] 获取模型列表为空或拉取失败，跳过更新')
     return null
   }
 

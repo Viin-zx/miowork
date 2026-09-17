@@ -2763,6 +2763,9 @@ export async function createMainProcessControl(dependencies: {
   }
 
   function registerRoutes(): void {
+    // authService 必须在 createProviderRoutes 之前赋值，否则路由闭包中
+    // 解构拿到的 authService 为 undefined，运行时调用会报 isAuthenticated 报错
+    authService = dependencies.authService
     const providerQueryScheduler = createNodeScheduler()
     const providerRoutes = createProviderRoutes({
       providerSettings,
@@ -2830,7 +2833,6 @@ export async function createMainProcessControl(dependencies: {
         })
       }
     })
-    authService = dependencies.authService
 
     // 账号切换（登录到与当前数据目录不同的账号）需要重启应用：记忆向量库与知识库不支持
     // 运行时热切换，重启后由启动流程按当前账号打开对应数据目录。
