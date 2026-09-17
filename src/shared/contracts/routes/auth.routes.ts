@@ -147,7 +147,9 @@ export const authPurchasePlanRoute = defineRouteContract({
   name: 'auth.purchasePlan',
   input: z.object({
     planId: z.number(),
-    requestId: z.string().min(1)
+    requestId: z.string().min(1),
+    /** 支付渠道：ALIPAY / WECHAT；缺省由服务端决定（默认 WECHAT） */
+    paymentChannel: z.string().optional()
   }),
   output: z.object({
     ok: z.boolean(),

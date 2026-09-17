@@ -163,7 +163,7 @@
           <DialogTitle>
             {{
               paymentPhase === 'qr_ready' || paymentPhase === 'paid_pending'
-                ? t('account.qrPayTitle')
+                ? qrPayTitle
                 : t('account.subscriptionTitle')
             }}
           </DialogTitle>
@@ -220,6 +220,28 @@
                 <span class="text-xs text-muted-foreground">{{ plan.currency }}</span>
               </div>
             </button>
+
+            <!-- 支付渠道选择 -->
+            <div class="mt-2 flex items-center gap-2">
+              <span class="text-sm text-muted-foreground">{{ t('account.paymentChannel') }}</span>
+              <button
+                v-for="ch in paymentChannels"
+                :key="ch.value"
+                type="button"
+                :class="[
+                  'flex-1 rounded-lg border px-3 py-2 text-sm transition-colors',
+                  selectedPaymentChannel === ch.value
+                    ? 'border-primary bg-primary/5 text-primary'
+                    : 'border-border text-muted-foreground hover:border-primary/40'
+                ]"
+                @click="selectedPaymentChannel = ch.value"
+              >
+                <div class="flex items-center justify-center gap-1.5">
+                  <Icon :icon="ch.icon" class="size-4" />
+                  {{ ch.label }}
+                </div>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -238,11 +260,12 @@
             class="rounded-lg border border-border/60 p-4"
           >
             <div class="flex flex-col items-center gap-3">
+              <p class="text-sm font-medium">{{ qrPayTitle }}</p>
               <div class="relative">
                 <img
                   v-if="qrCodeDataUrl"
                   :src="qrCodeDataUrl"
-                  :alt="t('account.qrPayTitle')"
+                  :alt="qrPayTitle"
                   class="size-48 rounded-lg border border-border/40"
                 />
                 <!-- 过期遮罩 -->
@@ -401,6 +424,22 @@ const plans = ref<Plan[]>([])
 const plansLoading = ref(false)
 const selectedPlanId = ref<number | null>(null)
 const purchasing = ref(false)
+
+// 支付渠道选择
+type PaymentChannel = 'ALIPAY' | 'WECHAT'
+const selectedPaymentChannel = ref<PaymentChannel>('ALIPAY')
+
+const paymentChannels: { value: PaymentChannel; label: string; icon: string }[] = [
+  { value: 'ALIPAY', label: t('account.paymentAlipay'), icon: 'lucide:wallet' },
+  { value: 'WECHAT', label: t('account.paymentWechat'), icon: 'lucide:message-circle' }
+]
+
+/** 二维码区标题：优先用本次下单选中的渠道，其次用返回结果中的渠道 */
+const qrPayTitle = computed(() => {
+  const channel = purchaseResult.value?.paymentChannel ?? selectedPaymentChannel.value
+  return channel === 'WECHAT' ? t('account.qrPayWechatTitle') : t('account.qrPayAlipayTitle')
+})
+
 const purchaseResult = ref<{
   ok: boolean
   msg?: string | null
@@ -408,6 +447,7 @@ const purchaseResult = ref<{
   codeUrl?: string | null
   expireTime?: string | null
   paymentStatus?: string | null
+  paymentChannel?: string | null
   grantStatus?: string | null
   subscriptionId?: number | null
 } | null>(null)
@@ -664,7 +704,7 @@ async function handlePurchase() {
   const planId = selectedPlanId.value
   const requestId = `purchase_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   try {
-    const result = await authClient.purchasePlan(planId, requestId)
+    const result = await authClient.purchasePlan(planId, requestId, selectedPaymentChannel.value)
     purchaseResult.value = result
     if (!result.ok) {
       paymentPhase.value = 'failed'

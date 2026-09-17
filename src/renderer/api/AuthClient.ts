@@ -89,10 +89,11 @@ export function createAuthClient(bridge: DeepchatBridge = getDeepchatBridge()) {
     return await bridge.invoke(authGetPlansRoute.name, {})
   }
 
-  /** 购买套餐 */
+  /** 购买套餐（可选支付渠道，缺省由服务端决定） */
   async function purchasePlan(
     planId: number,
-    requestId: string
+    requestId: string,
+    paymentChannel?: string
   ): Promise<{
     ok: boolean
     orderNo?: string | null
@@ -105,7 +106,11 @@ export function createAuthClient(bridge: DeepchatBridge = getDeepchatBridge()) {
     subscriptionId?: number | null
     msg?: string | null
   }> {
-    return await bridge.invoke(authPurchasePlanRoute.name, { planId, requestId })
+    return await bridge.invoke(authPurchasePlanRoute.name, {
+      planId,
+      requestId,
+      paymentChannel
+    })
   }
 
   /** 查询订单状态 */

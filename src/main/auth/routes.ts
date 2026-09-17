@@ -181,7 +181,11 @@ export function createAuthRoutes(
       async (rawInput) => {
         const input = authPurchasePlanRoute.input.parse(rawInput)
         try {
-          const result = await auth.purchasePlan(input.planId, input.requestId)
+          const result = await auth.purchasePlan(
+            input.planId,
+            input.requestId,
+            input.paymentChannel
+          )
           return authPurchasePlanRoute.output.parse({
             ok: true,
             orderNo: result.orderNo,

@@ -485,14 +485,24 @@ export class AuthService {
     return getJson<MioPlan[]>('/plans', token)
   }
 
-  /** 购买套餐（POST /plans/{planId}/purchase） */
-  async purchasePlan(planId: number, requestId: string): Promise<MioPurchaseResult> {
+  /** 购买套餐（POST /plans/{planId}/purchase），支付渠道默认支付宝（ALIPAY） */
+  async purchasePlan(
+    planId: number,
+    requestId: string,
+    paymentChannel?: string
+  ): Promise<MioPurchaseResult> {
     if (!this.isAuthenticated()) {
       throw new MioApiError('未登录', 'TOKEN_INVALID')
     }
     const token = this.session?.accessToken
-    console.info(`[Purchase] POST /plans/${planId}/purchase requestId=${requestId}`)
-    return postJson<MioPurchaseResult>(`/plans/${planId}/purchase`, { requestId }, token)
+    console.info(
+      `[Purchase] POST /plans/${planId}/purchase requestId=${requestId} channel=${paymentChannel ?? 'ALIPAY'}`
+    )
+    return postJson<MioPurchaseResult>(
+      `/plans/${planId}/purchase`,
+      { requestId, paymentChannel: paymentChannel ?? 'ALIPAY' },
+      token
+    )
   }
 
   /** 查询当前用户订阅（GET /subscriptions） */
