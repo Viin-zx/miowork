@@ -2676,6 +2676,10 @@ watch(isModelPanelOpen, (open) => {
       return
     }
 
+    // 打开模型切换面板时，按需重新拉取 zr-mioagent 的模型列表（/mio/client/v1/models）。
+    // 主进程刷新完成后通过 models.changed 事件驱动渲染层更新展示，避免启动时无限拉取。
+    void providerClient.refreshModels('zr-mioagent').catch(() => {})
+
     void (async () => {
       const ready = await ensureCompleteModelOptionsReady()
       if (!ready || !isModelPanelOpen.value) {
