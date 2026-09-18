@@ -17,7 +17,7 @@ case "$0" in
   *) script_dir=. ;;
 esac
 script_dir=$(CDPATH= cd -P -- "$script_dir" && pwd)
-cli_module="$script_dir/deepchat.mjs"
+cli_module="$script_dir/miowork.mjs"
 electron_host=""
 for candidate in \\
   "$script_dir/../../../MacOS/MioWork" \\
@@ -43,7 +43,7 @@ exit 127
 
 export const WINDOWS_LAUNCHER = `@echo off\r
 setlocal\r
-set "cli_module=%~dp0deepchat.mjs"\r
+set "cli_module=%~dp0miowork.mjs"\r
 set "electron_host=%~dp0..\\..\\node_modules\\electron\\dist\\electron.exe"\r
 if not exist "%electron_host%" set "electron_host=%~dp0..\\..\\..\\MioWork.exe"\r
 if not exist "%electron_host%" set "electron_host=%~dp0..\\..\\..\\MioWork"\r
@@ -90,7 +90,7 @@ export async function buildCli(options = {}) {
         external: [/^node:/],
         output: {
           format: 'es',
-          entryFileNames: 'deepchat.mjs',
+          entryFileNames: 'miowork.mjs',
           inlineDynamicImports: true,
           banner: '#!/usr/bin/env node'
         }
@@ -100,9 +100,9 @@ export async function buildCli(options = {}) {
   })
 
   await mkdir(outDir, { recursive: true })
-  await writeFile(path.join(outDir, 'deepchat'), POSIX_LAUNCHER, { mode: 0o755 })
-  await chmod(path.join(outDir, 'deepchat'), 0o755)
-  await writeFile(path.join(outDir, 'deepchat.cmd'), WINDOWS_LAUNCHER, 'utf8')
+  await writeFile(path.join(outDir, 'miowork'), POSIX_LAUNCHER, { mode: 0o755 })
+  await chmod(path.join(outDir, 'miowork'), 0o755)
+  await writeFile(path.join(outDir, 'miowork.cmd'), WINDOWS_LAUNCHER, 'utf8')
 }
 
 if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {

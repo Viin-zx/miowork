@@ -2343,7 +2343,7 @@ export class DeepChatLoopRunner {
               modelId: state.modelId,
               requestSeq: 0,
               payload: {
-                endpoint: 'deepchat://interleaved-reasoning-gap',
+                endpoint: 'miowork://interleaved-reasoning-gap',
                 headers: {},
                 body: gap
               }

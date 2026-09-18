@@ -398,19 +398,19 @@ describe('AgentCliTokenAuthority', () => {
 
   it('binds exact call and batch commands to canonical owned stdin', () => {
     const first = parseAgentCliProgrammaticExecInvocation({
-      command: 'deepchat tool call',
+      command: 'miowork tool call',
       stdin: '{"arguments":{"limit":2,"query":"weather"},"target":"remote_search"}'
     })
     const reordered = parseAgentCliProgrammaticExecInvocation({
-      command: 'deepchat tool call',
+      command: 'miowork tool call',
       stdin: '{ "target": "remote_search", "arguments": { "query": "weather", "limit": 2 } }'
     })
     const changed = parseAgentCliProgrammaticExecInvocation({
-      command: 'deepchat tool call',
+      command: 'miowork tool call',
       stdin: '{"arguments":{"limit":3,"query":"weather"},"target":"remote_search"}'
     })
     const batch = parseAgentCliProgrammaticExecInvocation({
-      command: 'deepchat tool batch',
+      command: 'miowork tool batch',
       stdin: '{"steps":[{"target":"remote_search","arguments":{}}]}'
     })
 
@@ -435,13 +435,13 @@ describe('AgentCliTokenAuthority', () => {
 
   it('binds canonical search and describe scalar arguments without general shell parsing', () => {
     const search = parseAgentCliProgrammaticExecInvocation({
-      command: 'deepchat tool search --query "calendar mail" --limit 4'
+      command: 'miowork tool search --query "calendar mail" --limit 4'
     })
     const describe = parseAgentCliProgrammaticExecInvocation({
-      command: 'deepchat tool describe --target calendar_search'
+      command: 'miowork tool describe --target calendar_search'
     })
     const quotedDescribe = parseAgentCliProgrammaticExecInvocation({
-      command: 'deepchat tool describe --target "calendar_search"'
+      command: 'miowork tool describe --target "calendar_search"'
     })
 
     expect(search).toMatchObject({
@@ -466,43 +466,43 @@ describe('AgentCliTokenAuthority', () => {
   })
 
   it.each([
-    { command: 'deepchat tool search', stdin: '{}' },
-    { command: 'deepchat tool search --query calendar mail' },
-    { command: 'deepchat tool search --query ""' },
-    { command: 'deepchat tool search --query " calendar"' },
-    { command: 'deepchat tool search --query "calendar  mail"' },
-    { command: 'deepchat tool search --query "calendar mail "' },
-    { command: 'deepchat tool search --query "calendar mail' },
-    { command: 'deepchat tool search --query "calendar $HOME"' },
-    { command: 'deepchat tool search --query "calendar $(whoami)"' },
-    { command: 'deepchat tool search --query "calendar `whoami`"' },
-    { command: 'deepchat tool search --query "calendar; mail"' },
-    { command: 'deepchat tool search --query "calendar\\ mail"' },
-    { command: 'deepchat tool search --query "calendar mail" extra' },
-    { command: 'deepchat tool search --query calendar --limit 2 --limit 3' },
-    { command: 'deepchat tool search --limit 2 --query calendar' },
-    { command: 'deepchat tool search --query calendar --limit 0x4' },
-    { command: 'deepchat tool search --query calendar --limit +4' },
-    { command: 'deepchat tool search --query calendar | cat' },
-    { command: 'deepchat tool describe --target $TARGET' },
+    { command: 'miowork tool search', stdin: '{}' },
+    { command: 'miowork tool search --query calendar mail' },
+    { command: 'miowork tool search --query ""' },
+    { command: 'miowork tool search --query " calendar"' },
+    { command: 'miowork tool search --query "calendar  mail"' },
+    { command: 'miowork tool search --query "calendar mail "' },
+    { command: 'miowork tool search --query "calendar mail' },
+    { command: 'miowork tool search --query "calendar $HOME"' },
+    { command: 'miowork tool search --query "calendar $(whoami)"' },
+    { command: 'miowork tool search --query "calendar `whoami`"' },
+    { command: 'miowork tool search --query "calendar; mail"' },
+    { command: 'miowork tool search --query "calendar\\ mail"' },
+    { command: 'miowork tool search --query "calendar mail" extra' },
+    { command: 'miowork tool search --query calendar --limit 2 --limit 3' },
+    { command: 'miowork tool search --limit 2 --query calendar' },
+    { command: 'miowork tool search --query calendar --limit 0x4' },
+    { command: 'miowork tool search --query calendar --limit +4' },
+    { command: 'miowork tool search --query calendar | cat' },
+    { command: 'miowork tool describe --target $TARGET' },
     { command: "deepchat tool describe --target 'calendar_search'" },
-    { command: 'deepchat tool describe --target ""' },
-    { command: 'deepchat tool describe --target "calendar_search' },
-    { command: 'deepchat tool describe --target calendar_search"' },
-    { command: 'deepchat tool describe --target "calendar search"' },
-    { command: 'deepchat tool describe --target "calendar_search" extra' },
-    { command: 'deepchat tool describe --target "calendar_$TARGET"' },
-    { command: 'deepchat tool describe --target "calendar_$(whoami)"' },
-    { command: 'deepchat tool describe --target "calendar_\\"search"' },
-    { command: 'deepchat tool call' },
-    { command: 'deepchat tool batch' },
-    { command: 'deepchat tool call --target remote', stdin: '{}' },
-    { command: 'deepchat tool call', stdin: '' },
-    { command: 'deepchat tool call', stdin: '[]' },
-    { command: 'deepchat tool batch', stdin: '{' },
-    { command: 'deepchat tool call', stdin: '{"target":"remote","arguments":{},"forEach":[]}' },
+    { command: 'miowork tool describe --target ""' },
+    { command: 'miowork tool describe --target "calendar_search' },
+    { command: 'miowork tool describe --target calendar_search"' },
+    { command: 'miowork tool describe --target "calendar search"' },
+    { command: 'miowork tool describe --target "calendar_search" extra' },
+    { command: 'miowork tool describe --target "calendar_$TARGET"' },
+    { command: 'miowork tool describe --target "calendar_$(whoami)"' },
+    { command: 'miowork tool describe --target "calendar_\\"search"' },
+    { command: 'miowork tool call' },
+    { command: 'miowork tool batch' },
+    { command: 'miowork tool call --target remote', stdin: '{}' },
+    { command: 'miowork tool call', stdin: '' },
+    { command: 'miowork tool call', stdin: '[]' },
+    { command: 'miowork tool batch', stdin: '{' },
+    { command: 'miowork tool call', stdin: '{"target":"remote","arguments":{},"forEach":[]}' },
     {
-      command: 'deepchat tool call',
+      command: 'miowork tool call',
       stdin: `${'{"nested":'.repeat(66)}null${'}'.repeat(66)}`
     }
   ])('rejects non-exact Programmatic exec invocation %#', (input) => {

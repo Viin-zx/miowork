@@ -1059,10 +1059,6 @@ export class AiSdkProvider extends BaseLLMProvider {
     const resolvedDecision = decision ?? { providerKind: this.definition.runtimeKind }
     const runtimeProvider = this.getRuntimeProvider(resolvedDecision)
     const modelsUrl = this.buildModelsUrl(resolvedDecision, runtimeProvider)
-    console.log(
-      `[ModelRefresh→HTTP] GET ${modelsUrl} (provider=${this.provider.id}/${this.provider.name}, apiKey=${this.provider.apiKey ? '***' + this.provider.apiKey.slice(-6) : '(empty)'})`
-    )
-    const startMs = Date.now()
     const payload = await this.requestProviderJson<unknown>(
       modelsUrl,
       { method: 'GET' },
@@ -1070,9 +1066,6 @@ export class AiSdkProvider extends BaseLLMProvider {
       resolvedDecision
     )
     const records = toModelRecordArray(payload)
-    console.log(
-      `[ModelRefresh→HTTP] ✅ ${modelsUrl} → ${records.length} models in ${Date.now() - startMs}ms`
-    )
     return records
   }
 

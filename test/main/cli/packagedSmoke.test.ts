@@ -45,7 +45,7 @@ describe('packaged CLI smoke', () => {
   async function runPackagedCliSmoke(): Promise<void> {
     const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), 'deepchat-cli-smoke-'))
     const outputDirectory = path.join(temporaryDirectory, 'cli')
-    const entryPath = path.join(outputDirectory, 'deepchat.mjs')
+    const entryPath = path.join(outputDirectory, 'miowork.mjs')
     const userDataPath = path.join(temporaryDirectory, 'profile')
     const spool = new ArtifactSpool({
       directory: path.join(temporaryDirectory, 'artifacts'),

@@ -249,7 +249,7 @@ function requireCanonicalInvocationParams(value: unknown): Readonly<Record<strin
 function parseCanonicalProgrammaticSearchCommand(
   command: string
 ): Readonly<{ query: string; limit?: number }> | null {
-  const prefix = 'deepchat tool search --query '
+  const prefix = 'miowork tool search --query '
   if (!command.startsWith(prefix)) return null
   const argumentsText = command.slice(prefix.length)
   let query: string
@@ -272,7 +272,7 @@ function parseCanonicalProgrammaticSearchCommand(
 }
 
 function parseCanonicalProgrammaticDescribeCommand(command: string): string | null {
-  const prefix = 'deepchat tool describe --target '
+  const prefix = 'miowork tool describe --target '
   if (!command.startsWith(prefix)) return null
   const argumentText = command.slice(prefix.length)
   let target = argumentText
@@ -308,10 +308,10 @@ export function parseAgentCliProgrammaticExecInvocation(input: {
   const tokens = command.split(' ')
   if (
     tokens.some((token) => token.length === 0) ||
-    tokens[0] !== 'deepchat' ||
+    tokens[0] !== 'miowork' ||
     tokens[1] !== 'tool'
   ) {
-    throw new Error('Programmatic Tool exec requires one canonical DeepChat Tool command')
+    throw new Error('Programmatic Tool exec requires one canonical MioWork Tool command')
   }
 
   const verb = tokens[2]

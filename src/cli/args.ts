@@ -387,7 +387,7 @@ export function parseCliArguments(
   env: NodeJS.ProcessEnv = process.env
 ): ParsedCliArguments {
   if (argv[0] === 'help') {
-    if (argv.length !== 1) throw new CliUsageError('Expected: deepchat help')
+    if (argv.length !== 1) throw new CliUsageError('Expected: miowork help')
     return {
       domain: 'help',
       verb: '',
@@ -405,14 +405,14 @@ export function parseCliArguments(
   const domain = argv[0]
   const verb = argv[1]
   if (!domain || !verb || domain.startsWith('-') || verb.startsWith('-')) {
-    throw new CliUsageError('Expected: deepchat <domain> <verb> [options]')
+    throw new CliUsageError('Expected: miowork <domain> <verb> [options]')
   }
 
   const commandKey = cliCommandKey(domain, verb)
   const commandDefinition = getCliCommandDefinition(domain, verb)
   let contract = commandDefinition?.contract ?? null
   if (!contract) {
-    throw new CliUsageError(`Unknown command: deepchat ${domain} ${verb}`)
+    throw new CliUsageError(`Unknown command: miowork ${domain} ${verb}`)
   }
 
   let outputMode = parseOutputMode(env[CLI_OUTPUT_ENV])
@@ -579,23 +579,23 @@ export function parseCliArguments(
   const isArtifactCommand = domain === 'artifact'
   const isSkillInstall = commandKey === 'skill install'
   if (!helpRequested && isArtifactCommand && !artifactId) {
-    throw new CliUsageError(`deepchat ${domain} ${verb} requires --id <artifact-id>`)
+    throw new CliUsageError(`miowork ${domain} ${verb} requires --id <artifact-id>`)
   }
   if (!helpRequested && commandKey === 'artifact get' && !outputPath) {
-    throw new CliUsageError('deepchat artifact get requires --out <path>')
+    throw new CliUsageError('miowork artifact get requires --out <path>')
   }
   if (!isArtifactCommand && (artifactId !== undefined || outputPath !== undefined)) {
-    throw new CliUsageError(`Artifact options are not valid for deepchat ${domain} ${verb}`)
+    throw new CliUsageError(`Artifact options are not valid for miowork ${domain} ${verb}`)
   }
   if (overwrite && commandKey !== 'artifact get' && !isSkillInstall) {
-    throw new CliUsageError(`--overwrite is not valid for deepchat ${domain} ${verb}`)
+    throw new CliUsageError(`--overwrite is not valid for miowork ${domain} ${verb}`)
   }
   if (
     isArtifactCommand &&
     commandKey !== 'artifact get' &&
     (outputPath !== undefined || overwrite)
   ) {
-    throw new CliUsageError(`--out and --overwrite are only valid for deepchat artifact get`)
+    throw new CliUsageError(`--out and --overwrite are only valid for miowork artifact get`)
   }
 
   const isModelInvoke = commandKey === 'model invoke'
@@ -639,37 +639,35 @@ export function parseCliArguments(
     (option) => !allowedDomainOptions.has(option)
   )
   if (invalidDomainOption) {
-    throw new CliUsageError(`--${invalidDomainOption} is not valid for deepchat ${domain} ${verb}`)
+    throw new CliUsageError(`--${invalidDomainOption} is not valid for miowork ${domain} ${verb}`)
   }
   if (!helpRequested && isModelInvoke && (!providerId || !modelId)) {
-    throw new CliUsageError('deepchat model invoke requires --provider and --model')
+    throw new CliUsageError('miowork model invoke requires --provider and --model')
   }
   if (!helpRequested && isModelInvoke && (prompt !== undefined) === readStdin) {
-    throw new CliUsageError('deepchat model invoke requires exactly one of --prompt or --stdin')
+    throw new CliUsageError('miowork model invoke requires exactly one of --prompt or --stdin')
   }
   if (!helpRequested && isAgentRun && (prompt !== undefined) === readStdin) {
-    throw new CliUsageError('deepchat agent run requires exactly one of --prompt or --stdin')
+    throw new CliUsageError('miowork agent run requires exactly one of --prompt or --stdin')
   }
   if (!helpRequested && (isRunGet || isRunWatch || isRunCancel) && !runId) {
-    throw new CliUsageError(`deepchat run ${verb} requires --run <run-id>`)
+    throw new CliUsageError(`miowork run ${verb} requires --run <run-id>`)
   }
   if (!helpRequested && isMediaGenerate && (!providerId || !modelId)) {
-    throw new CliUsageError(`deepchat ${domain} ${verb} requires --provider and --model`)
+    throw new CliUsageError(`miowork ${domain} ${verb} requires --provider and --model`)
   }
   if (
     !helpRequested &&
     (isImageGenerate || isVideoGenerate) &&
     (prompt !== undefined) === readStdin
   ) {
-    throw new CliUsageError(
-      `deepchat ${domain} ${verb} requires exactly one of --prompt or --stdin`
-    )
+    throw new CliUsageError(`miowork ${domain} ${verb} requires exactly one of --prompt or --stdin`)
   }
   if (!helpRequested && isSpeechGenerate && (textInput !== undefined) === readStdin) {
-    throw new CliUsageError('deepchat audio speak requires exactly one of --text or --stdin')
+    throw new CliUsageError('miowork audio speak requires exactly one of --text or --stdin')
   }
   if (!helpRequested && isAudioTranscribe && (!providerId || !modelId)) {
-    throw new CliUsageError('deepchat audio transcribe requires --provider and --model')
+    throw new CliUsageError('miowork audio transcribe requires --provider and --model')
   }
   if (
     !helpRequested &&
@@ -677,7 +675,7 @@ export function parseCliArguments(
     (inputPath !== undefined) === (inputArtifactId !== undefined)
   ) {
     throw new CliUsageError(
-      `deepchat ${domain} ${verb} requires exactly one of --file or --artifact`
+      `miowork ${domain} ${verb} requires exactly one of --file or --artifact`
     )
   }
   if (!helpRequested && inputArtifactId && mimeType) {
@@ -690,13 +688,13 @@ export function parseCliArguments(
     throw new CliUsageError(`--max-tokens must not exceed ${ATTACHMENT_PDF_OCR_MAX_TOKENS}`)
   }
   if (!helpRequested && isSettingsSet && (!settingKey || !domainOptions.has('value'))) {
-    throw new CliUsageError('deepchat settings set requires --key and --value')
+    throw new CliUsageError('miowork settings set requires --key and --value')
   }
   if (!helpRequested && isSettingsGet && settingKeys !== undefined && !parsedSettingKeys?.length) {
     throw new CliUsageError('--keys must contain at least one setting key')
   }
   if (!helpRequested && isProviderAdd && (!providerName || !providerApiType || !providerBaseUrl)) {
-    throw new CliUsageError('deepchat provider add requires --name, --api-type, and --base-url')
+    throw new CliUsageError('miowork provider add requires --name, --api-type, and --base-url')
   }
   if (
     !helpRequested &&
@@ -707,7 +705,7 @@ export function parseCliArguments(
         providerBaseUrl === undefined &&
         providerEnabled === undefined))
   ) {
-    throw new CliUsageError('deepchat provider update requires --provider and at least one update')
+    throw new CliUsageError('miowork provider update requires --provider and at least one update')
   }
   if (
     !helpRequested &&
@@ -718,39 +716,39 @@ export function parseCliArguments(
       isModelList) &&
     !providerId
   ) {
-    throw new CliUsageError(`deepchat ${domain} ${verb} requires --provider`)
+    throw new CliUsageError(`miowork ${domain} ${verb} requires --provider`)
   }
   if (!helpRequested && isProviderSetCredential && !readStdin) {
-    throw new CliUsageError('deepchat provider set-credential requires --stdin')
+    throw new CliUsageError('miowork provider set-credential requires --stdin')
   }
   if (
     !helpRequested &&
     (isModelConfigGet || isModelStatus || isModelConfigSet || isModelConfigReset) &&
     (!providerId || !modelId)
   ) {
-    throw new CliUsageError(`deepchat model ${verb} requires --provider and --model`)
+    throw new CliUsageError(`miowork model ${verb} requires --provider and --model`)
   }
   if (!helpRequested && isModelConfigSet && !readStdin) {
-    throw new CliUsageError('deepchat model config-set requires --stdin')
+    throw new CliUsageError('miowork model config-set requires --stdin')
   }
   if (!helpRequested && isSkillInstall && (inputPath !== undefined) === (skillUrl !== undefined)) {
-    throw new CliUsageError('deepchat skill install requires exactly one of --file or --url')
+    throw new CliUsageError('miowork skill install requires exactly one of --file or --url')
   }
   if (!helpRequested && (isSkillStatus || isSkillRemove) && !skillName) {
-    throw new CliUsageError(`deepchat skill ${verb} requires --name`)
+    throw new CliUsageError(`miowork skill ${verb} requires --name`)
   }
   if (
     !helpRequested &&
     (isMcpAdd || isMcpUpdate || isMcpStatus || isMcpRuntime || isMcpRemove) &&
     !mcpServerName
   ) {
-    throw new CliUsageError(`deepchat mcp ${verb} requires --name`)
+    throw new CliUsageError(`miowork mcp ${verb} requires --name`)
   }
   if (!helpRequested && (isMcpAdd || isMcpUpdate) && !readStdin) {
-    throw new CliUsageError(`deepchat mcp ${verb} requires --stdin`)
+    throw new CliUsageError(`miowork mcp ${verb} requires --stdin`)
   }
   if (!helpRequested && isToolSearch && !toolQuery) {
-    throw new CliUsageError('deepchat tool search requires --query')
+    throw new CliUsageError('miowork tool search requires --query')
   }
   if (
     !helpRequested &&
@@ -759,11 +757,11 @@ export function parseCliArguments(
     messageLimit > PROGRAMMATIC_TOOL_SEARCH_MAX_RESULTS
   ) {
     throw new CliUsageError(
-      `deepchat tool search --limit must not exceed ${PROGRAMMATIC_TOOL_SEARCH_MAX_RESULTS}`
+      `miowork tool search --limit must not exceed ${PROGRAMMATIC_TOOL_SEARCH_MAX_RESULTS}`
     )
   }
   if (!helpRequested && isToolDescribe && !toolTarget) {
-    throw new CliUsageError('deepchat tool describe requires --target')
+    throw new CliUsageError('miowork tool describe requires --target')
   }
 
   const activeSkills = skillsValue ? parseIdentifierList(skillsValue, '--skills') : undefined
@@ -1141,7 +1139,7 @@ export function formatCliHelp(command?: Pick<ParsedCliArguments, 'domain' | 'ver
                           ]
                         : []
     return [
-      `Usage: deepchat ${command.domain} ${command.verb}${commandOptions} [--json|--jsonl] [--timeout <ms>]`,
+      `Usage: miowork ${command.domain} ${command.verb}${commandOptions} [--json|--jsonl] [--timeout <ms>]`,
       '',
       'Global flags must follow the domain and verb.',
       ...(optionLines.length > 0 ? ['', 'Command options:', ...optionLines] : [])
@@ -1149,7 +1147,7 @@ export function formatCliHelp(command?: Pick<ParsedCliArguments, 'domain' | 'ver
   }
 
   return [
-    'Usage: deepchat <domain> <verb> [options]',
+    'Usage: miowork <domain> <verb> [options]',
     '',
     'Commands:',
     '  system status        Show local control-plane status',
@@ -1207,6 +1205,6 @@ export function formatCliHelp(command?: Pick<ParsedCliArguments, 'domain' | 'ver
     '  --timeout <ms>       Set request timeout',
     '  --help               Show command usage and options',
     '',
-    'Run deepchat <domain> <verb> --help for command-specific options.'
+    'Run miowork <domain> <verb> --help for command-specific options.'
   ].join('\n')
 }

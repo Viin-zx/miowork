@@ -1,4 +1,4 @@
-appId: com.wefonk.deepchat
+appId: com.miowork.app
 productName: MioWork
 directories:
   buildResources: build
@@ -45,7 +45,7 @@ asarUnpack:
 extraResources:
   - from: ./out/cli/
     to: app.asar.unpacked/cli
-    filter: ['deepchat', 'deepchat.cmd', 'deepchat.mjs']
+    filter: ['miowork', 'miowork.cmd', 'miowork.mjs']
   - from: ./runtime/
     to: app.asar.unpacked/runtime
     filter: ['**/*']
@@ -132,5 +132,5 @@ dmg:
 npmRebuild: true
 publish:
   provider: github
-  owner: ThinkInAIXYZ
-  repo: deepchat
+  owner: Viin-zx
+  repo: miowork

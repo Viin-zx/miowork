@@ -15,7 +15,7 @@ import {
   isEncodedMacLightOcrArtifact
 } from './light-ocr-artifacts.mjs'
 
-const LINUX_APP_NAME = 'deepchat'
+const LINUX_APP_NAME = 'miowork'
 const VSS_EXTENSION_NAME = 'vss.duckdb_extension'
 const LIGHT_OCR_FACADE_PACKAGE = '@arcships/light-ocr'
 const LIGHT_OCR_RUNTIME_MANIFEST = path.join('runtime', 'ocr', 'manifest.json')

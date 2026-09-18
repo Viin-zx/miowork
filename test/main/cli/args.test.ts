@@ -29,10 +29,10 @@ describe('CLI argument grammar', () => {
     })
 
     expect(() => parseCliArguments(['--json', 'system', 'doctor'], {})).toThrow(
-      'deepchat <domain> <verb>'
+      'miowork <domain> <verb>'
     )
     expect(() => parseCliArguments(['system', '--json', 'doctor'], {})).toThrow(
-      'deepchat <domain> <verb>'
+      'miowork <domain> <verb>'
     )
   })
 
@@ -69,12 +69,12 @@ describe('CLI argument grammar', () => {
       contract: null,
       helpRequested: true
     })
-    expect(() => parseCliArguments(['help', 'commands'], {})).toThrow('deepchat help')
-    expect(() => parseCliArguments(['--help'], {})).toThrow('deepchat <domain> <verb>')
+    expect(() => parseCliArguments(['help', 'commands'], {})).toThrow('miowork help')
+    expect(() => parseCliArguments(['--help'], {})).toThrow('miowork <domain> <verb>')
     expect(formatCliHelp({ domain: 'agent', verb: 'run' })).toContain('--max-turns <n>')
     expect(formatCliHelp({ domain: 'run', verb: 'watch' })).toContain('--cursor <event-cursor>')
     expect(formatCliHelp({ domain: 'model', verb: 'list' })).toContain(
-      'deepchat model list --provider <id>'
+      'miowork model list --provider <id>'
     )
   })
 
@@ -128,7 +128,7 @@ describe('CLI argument grammar', () => {
     })
     expect(() =>
       parseCliArguments(['artifact', 'delete', '--id', id, '--out', './invalid'], {})
-    ).toThrow('only valid for deepchat artifact get')
+    ).toThrow('only valid for miowork artifact get')
     expect(() => parseCliArguments(['artifact', 'get', '--id', id], {})).toThrow('requires --out')
     expect(() =>
       parseCliArguments(['artifact', 'get', '--id', id, '--out', '--overwrite'], {})
@@ -297,9 +297,9 @@ describe('CLI argument grammar', () => {
         ['--json', 'model', 'invoke', '--provider', 'provider-1', '--model', 'model-1'],
         {}
       )
-    ).toThrow('deepchat <domain> <verb>')
+    ).toThrow('miowork <domain> <verb>')
     expect(() => parseCliArguments(['provider', 'list', '--provider', 'provider-1'], {})).toThrow(
-      'not valid for deepchat provider list'
+      'not valid for miowork provider list'
     )
     expect(parseCliArguments(['provider', 'list', '--enabled-only'], {})).toMatchObject({
       params: { enabledOnly: true }
@@ -579,7 +579,7 @@ describe('CLI argument grammar', () => {
         ],
         {}
       )
-    ).toThrow('--voice is not valid for deepchat video generate')
+    ).toThrow('--voice is not valid for miowork video generate')
   })
 
   it('keeps media-specific options discoverable from command help', () => {
