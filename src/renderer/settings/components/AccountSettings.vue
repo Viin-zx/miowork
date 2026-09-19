@@ -111,7 +111,7 @@
                   {{ formatQuota(sub.amountTotal - sub.amountUsed) }}
                 </span>
                 <span class="ml-auto text-xs text-muted-foreground">
-                  / {{ formatQuota(sub.amountTotal) }}
+                  / {{ formatQuota(sub.amountTotal, true) }}
                 </span>
               </div>
               <div class="mt-2 flex items-center justify-between text-xs text-muted-foreground">
@@ -124,6 +124,9 @@
           </div>
           <p v-if="!subscriptionsRealtime" class="mt-2 text-xs text-muted-foreground">
             {{ t('account.subDataDelayed') }}
+          </p>
+          <p class="mt-2 text-xs text-muted-foreground">
+            {{ t('account.quotaUnitHint') }}
           </p>
         </div>
 
@@ -158,7 +161,7 @@
 
     <!-- 订阅/升级套餐弹窗 -->
     <Dialog :open="showSubscription" @update:open="showSubscription = $event">
-      <DialogContent class="max-w-lg">
+      <DialogContent class="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
             {{
@@ -195,31 +198,63 @@
             {{ t('account.plansEmpty') }}
           </div>
 
-          <div v-else class="flex flex-col gap-2">
-            <button
-              v-for="plan in plans"
-              :key="plan.planId"
-              type="button"
-              :class="[
-                'flex items-center justify-between rounded-lg border px-4 py-3 transition-colors text-left',
-                selectedPlanId === plan.planId
-                  ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                  : 'border-border hover:border-primary/40'
-              ]"
-              @click="selectedPlanId = plan.planId"
-            >
-              <div class="min-w-0">
-                <div class="truncate text-sm font-medium">{{ plan.planName }}</div>
-                <div class="mt-0.5 text-xs text-muted-foreground">
-                  {{ t('account.planQuota') }}: {{ formatQuota(plan.quota) }} ·
-                  {{ t('account.planDuration') }}: {{ formatPlanDuration(plan) }}
+          <div v-else class="flex flex-col gap-3">
+            <!-- 套餐网格卡片（全部套餐，不分组） -->
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div
+                v-for="plan in plans"
+                :key="plan.planId"
+                role="button"
+                tabindex="0"
+                :class="[
+                  'flex cursor-pointer flex-col rounded-xl border p-4 transition-colors',
+                  selectedPlanId === plan.planId
+                    ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                    : 'border-border hover:border-primary/40'
+                ]"
+                @click="selectedPlanId = plan.planId"
+                @keydown.enter="selectedPlanId = plan.planId"
+              >
+                <div class="flex items-center gap-2">
+                  <span class="truncate text-sm font-semibold">{{ plan.planName }}</span>
+                  <Icon
+                    v-if="selectedPlanId === plan.planId"
+                    icon="lucide:check-circle-2"
+                    class="ml-auto size-4 shrink-0 text-primary"
+                  />
+                </div>
+
+                <!-- 大字价格 -->
+                <div class="mt-2 flex items-baseline gap-1">
+                  <span class="text-2xl font-bold leading-none">￥{{ plan.price }}</span>
+                  <span class="text-xs text-muted-foreground">{{ plan.currency }}</span>
+                  <span class="ml-auto text-xs text-muted-foreground">
+                    / {{ formatPlanDuration(plan) }}
+                  </span>
+                </div>
+
+                <!-- 权益特性列表（planContent 富文本） -->
+                <div v-if="plan.planContent" class="mt-2 border-t border-border/60 pt-2">
+                  <p class="text-xs font-medium text-foreground/80">
+                    {{ t('account.planIncludes') }}
+                  </p>
+                  <div
+                    class="plan-content mt-0.5 text-xs leading-relaxed text-muted-foreground"
+                    v-html="plan.planContent"
+                  />
+                </div>
+
+                <!-- 额度 / 重置周期 / 限购 -->
+                <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span>{{ t('account.planQuota') }}: {{ formatQuota(plan.quota, true) }}</span>
+                  <span
+                    >{{ t('account.planResetPeriod') }}:
+                    {{ formatResetPeriod(plan.quotaResetPeriod) }}</span
+                  >
+                  <span>{{ t('account.planPurchaseLimit') }}: {{ formatPurchaseLimit(plan) }}</span>
                 </div>
               </div>
-              <div class="ml-3 shrink-0 text-right">
-                <span class="text-lg font-bold">¥{{ plan.price }}</span>
-                <span class="text-xs text-muted-foreground">{{ plan.currency }}</span>
-              </div>
-            </button>
+            </div>
 
             <!-- 支付渠道选择 -->
             <div class="mt-2 flex items-center gap-2">
@@ -251,6 +286,9 @@
           <div v-if="!purchaseResult.ok" class="rounded-lg border border-border/60 p-4">
             <p class="text-sm text-destructive">
               {{ purchaseResult.msg || t('account.purchaseFailed') }}
+            </p>
+            <p v-if="purchaseErrorHint" class="mt-1 text-xs text-muted-foreground">
+              {{ purchaseErrorHint }}
             </p>
           </div>
 
@@ -333,7 +371,7 @@
         <DialogFooter>
           <!-- 有活跃订单时显示取消/重新购买 -->
           <template v-if="paymentPhase === 'qr_ready' || paymentPhase === 'paid_pending'">
-            <DcButton variant="outline" class="w-full" @click="cancelPayment">
+            <DcButton variant="outline" class="w-full" @click="cancelPaymentIntent">
               {{ t('account.qrPayCancel') }}
             </DcButton>
           </template>
@@ -427,7 +465,7 @@ const purchasing = ref(false)
 
 // 支付渠道选择
 type PaymentChannel = 'ALIPAY' | 'WECHAT'
-const selectedPaymentChannel = ref<PaymentChannel>('ALIPAY')
+const selectedPaymentChannel = ref<PaymentChannel>('WECHAT')
 
 const paymentChannels: { value: PaymentChannel; label: string; icon: string }[] = [
   { value: 'ALIPAY', label: t('account.paymentAlipay'), icon: 'lucide:wallet' },
@@ -456,6 +494,7 @@ const purchaseResult = ref<{
   paymentChannel?: string | null
   grantStatus?: string | null
   subscriptionId?: number | null
+  errorCode?: string | null
 } | null>(null)
 
 // 二维码支付流程
@@ -501,12 +540,16 @@ const quotaUsedText = computed(() =>
   quota.value?.usedQuota != null ? formatQuota(quota.value.usedQuota) : t('account.notSet')
 )
 
-/** 额度换算比例：原始额度 / 500000 = 金额（元） */
-const QUOTA_DIVISOR = 500000
+/** NewAPI 原始额度换算系数：展示额度 = 原始值 / 500000（元） */
+const NEWAPI_QUOTA_SCALE = 500000
 
-/** 额度转金额：除以 500000，保留 2 位小数，单位 ¥ */
-function formatQuota(n: number): string {
-  return `¥${(n / QUOTA_DIVISOR).toFixed(2)}`
+/**
+ * 额度展示：原始额度除以 NEWAPI_QUOTA_SCALE 折算为人民币金额；
+ * zeroAsUnlimited 为 true 时 0 表示无限额度（仅套餐/订阅总额度适用，已使用/剩余额度显示 0）
+ */
+function formatQuota(n: number, zeroAsUnlimited = false): string {
+  if (zeroAsUnlimited && n === 0) return t('account.quotaUnlimited')
+  return `￥${(n / NEWAPI_QUOTA_SCALE).toLocaleString('en-US', { maximumFractionDigits: 4 })}`
 }
 
 /** 套餐时长单位映射：服务端返回英文单位，界面展示中文 */
@@ -523,6 +566,60 @@ function formatPlanDuration(plan: Plan): string {
   const unit = PLAN_DURATION_UNIT_LABELS[plan.durationUnit] ?? plan.durationUnit
   return `${plan.durationValue || 1}${unit}`
 }
+
+// 套餐列表变化后，确保选中项仍属于当前列表
+watch(plans, (list) => {
+  if (list.length > 0 && !list.some((plan) => plan.planId === selectedPlanId.value)) {
+    selectedPlanId.value = list[0]!.planId
+  }
+})
+
+/** 额度重置周期映射 */
+const RESET_PERIOD_LABEL_KEYS: Record<string, string> = {
+  daily: 'account.resetPeriodDaily',
+  weekly: 'account.resetPeriodWeekly',
+  monthly: 'account.resetPeriodMonthly',
+  yearly: 'account.resetPeriodYearly'
+}
+
+function formatResetPeriod(period: string): string {
+  const key = RESET_PERIOD_LABEL_KEYS[period]
+  return key ? t(key) : period
+}
+
+/** 限购展示：0 表示不限 */
+function formatPurchaseLimit(plan: Plan): string {
+  if (plan.maxPurchasePerUser <= 0) {
+    return t('account.planPurchaseLimitUnlimited')
+  }
+  return t('account.planPurchaseLimitCount', { count: plan.maxPurchasePerUser })
+}
+
+/** 错误码 → 补充提示文案键 */
+const PURCHASE_ERROR_HINT_KEYS: Record<string, string> = {
+  TOKEN_INVALID: 'account.errTokenInvalid',
+  ACCOUNT_NOT_READY: 'account.errAccountNotReady',
+  PLAN_NOT_FOUND: 'account.errPlanNotFound',
+  PLAN_NOT_AVAILABLE: 'account.errPlanNotAvailable',
+  PLAN_PURCHASE_LIMIT_REACHED: 'account.errPlanPurchaseLimitReached',
+  PLAN_PURCHASE_IN_PROGRESS: 'account.errPlanPurchaseInProgress',
+  PURCHASE_REQUEST_CONFLICT: 'account.errPurchaseRequestConflict',
+  PAYMENT_ORDER_EXPIRED: 'account.errPaymentOrderExpired',
+  PAYMENT_ORDER_NOT_FOUND: 'account.errPaymentOrderNotFound',
+  WECHAT_PAY_UNAVAILABLE: 'account.errPaymentChannelUnavailable',
+  ALIPAY_PAY_UNAVAILABLE: 'account.errPaymentChannelUnavailable',
+  SUBSCRIPTION_CREATE_FAILED: 'account.errSubscriptionCreateFailed',
+  NEWAPI_UNAVAILABLE: 'account.errNewapiUnavailable',
+  INVALID_ARGUMENT: 'account.errInvalidArgument',
+  NETWORK_ERROR: 'account.errNetwork'
+}
+
+/** 购买失败时的补充提示（面向用户，主文案仍展示后端 msg） */
+const purchaseErrorHint = computed(() => {
+  const code = purchaseResult.value?.errorCode
+  const key = code ? PURCHASE_ERROR_HINT_KEYS[code] : undefined
+  return key ? t(key) : ''
+})
 
 /** 紧凑日期：YYYY-MM-DD */
 function formatShortDate(iso: string): string {
@@ -580,6 +677,8 @@ function startCountdown(expireTime: string): void {
     if (remaining <= 0 && paymentPhase.value === 'qr_ready') {
       paymentPhase.value = 'expired'
       stopTimers()
+      // 二维码过期：本次购买意图结束，下次购买生成新 requestId
+      clearPurchaseIntent()
     }
   }
   update()
@@ -599,6 +698,13 @@ async function pollOrderStatus(orderNo: string): Promise<boolean> {
   try {
     const result = await authClient.getOrder(orderNo)
     console.info('[Pay] order status:', orderNo, result)
+    // 订单已过期：停止展示旧二维码，购买意图结束，重新购买时生成新 requestId
+    if (result.errorCode === 'PAYMENT_ORDER_EXPIRED') {
+      paymentPhase.value = 'expired'
+      stopTimers()
+      clearPurchaseIntent()
+      return true
+    }
     if (!result.ok || !result.paymentStatus) {
       console.warn('[Pay] order query returned no status:', result)
       return false
@@ -607,6 +713,7 @@ async function pollOrderStatus(orderNo: string): Promise<boolean> {
     if (result.paymentStatus === 'PAID' && result.grantStatus === 'ACTIVE') {
       paymentPhase.value = 'active'
       stopTimers()
+      clearPurchaseIntent()
       await loadSubscriptions()
       await loadQuota()
       return true
@@ -654,6 +761,58 @@ function cancelPayment(): void {
   purchaseResult.value = null
   qrCodeDataUrl.value = ''
   countdownSeconds.value = 0
+}
+
+// ---- requestId 幂等（按文档：超时/重试复用原值，购买意图结束时清除，换套餐/渠道生成新值） ----
+
+interface StoredPurchaseIntent {
+  requestId: string
+  planId: number
+  paymentChannel: PaymentChannel
+}
+
+const PURCHASE_INTENT_KEY = 'mio.purchase.intent'
+
+function loadPurchaseIntent(): StoredPurchaseIntent | null {
+  try {
+    const raw = localStorage.getItem(PURCHASE_INTENT_KEY)
+    return raw ? (JSON.parse(raw) as StoredPurchaseIntent) : null
+  } catch {
+    return null
+  }
+}
+
+function savePurchaseIntent(intent: StoredPurchaseIntent): void {
+  try {
+    localStorage.setItem(PURCHASE_INTENT_KEY, JSON.stringify(intent))
+  } catch {
+    // 忽略：持久化失败不影响下单
+  }
+}
+
+function clearPurchaseIntent(): void {
+  try {
+    localStorage.removeItem(PURCHASE_INTENT_KEY)
+  } catch {
+    // 忽略
+  }
+}
+
+/** 获取本次购买意图的 requestId：同一套餐+渠道复用原值（超时重试），否则生成新值 */
+function getOrCreateRequestId(planId: number, channel: PaymentChannel): string {
+  const intent = loadPurchaseIntent()
+  if (intent && intent.planId === planId && intent.paymentChannel === channel) {
+    return intent.requestId
+  }
+  const requestId = `purchase_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  savePurchaseIntent({ requestId, planId, paymentChannel: channel })
+  return requestId
+}
+
+/** 用户主动取消支付：明确结束本次购买意图，下次购买生成新 requestId */
+function cancelPaymentIntent(): void {
+  clearPurchaseIntent()
+  cancelPayment()
 }
 
 /** 支付成功后关闭弹窗 */
@@ -714,6 +873,7 @@ async function loadQuota() {
   }
 }
 
+/** 发起购买：校验选中套餐并走支付流程 */
 async function handlePurchase() {
   if (selectedPlanId.value === null || purchasing.value) return
   purchasing.value = true
@@ -723,15 +883,24 @@ async function handlePurchase() {
   countdownSeconds.value = 0
   paymentPhase.value = 'idle'
   const planId = selectedPlanId.value
-  const requestId = `purchase_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  const channel = selectedPaymentChannel.value
+  const requestId = getOrCreateRequestId(planId, channel)
   try {
-    const result = await authClient.purchasePlan(planId, requestId, selectedPaymentChannel.value)
+    const result = await authClient.purchasePlan(planId, requestId, channel)
     purchaseResult.value = result
     if (!result.ok) {
       paymentPhase.value = 'failed'
+      // 订单过期 / requestId 冲突：本次购买意图已失效，下次购买生成新值
+      if (
+        result.errorCode === 'PAYMENT_ORDER_EXPIRED' ||
+        result.errorCode === 'PURCHASE_REQUEST_CONFLICT'
+      ) {
+        clearPurchaseIntent()
+      }
     } else if (result.paymentStatus === 'PAID' && result.grantStatus === 'ACTIVE') {
       // 直接购买成功（无需扫码）
       paymentPhase.value = 'active'
+      clearPurchaseIntent()
       await loadSubscriptions()
       await loadQuota()
     } else if (result.codeUrl && result.expireTime) {
@@ -808,3 +977,36 @@ onUnmounted(() => {
   stopTimers()
 })
 </script>
+
+<style scoped>
+/* 套餐描述为富文本编辑器输出的 HTML，约束子元素样式保持卡片内紧凑展示 */
+.plan-content :deep(p) {
+  margin: 0.25rem 0;
+}
+
+.plan-content :deep(ul),
+.plan-content :deep(ol) {
+  margin: 0.25rem 0;
+  padding-left: 1.25rem;
+}
+
+.plan-content :deep(ul) {
+  list-style: disc;
+}
+
+.plan-content :deep(ol) {
+  list-style: decimal;
+}
+
+.plan-content :deep(h1),
+.plan-content :deep(h2),
+.plan-content :deep(h3) {
+  margin: 0.25rem 0;
+  font-size: inherit;
+  font-weight: 600;
+}
+
+.plan-content :deep(img) {
+  max-width: 100%;
+}
+</style>

@@ -40,7 +40,13 @@ export interface MioModelConfig {
 export interface MioPlan {
   planId: number
   planName: string
+  /** 本地展示分类：MONTHLY / QUARTERLY / YEARLY；不决定订阅有效期 */
+  planType: string
+  /** 本地配置的普通文本套餐内容 */
+  planContent: string
   quota: number
+  /** NewAPI 每用户历史订阅次数上限；0 表示不限 */
+  maxPurchasePerUser: number
   price: number
   currency: string
   durationUnit: string
@@ -173,7 +179,7 @@ class MioApiError extends Error {
 
 async function postJson<T>(path: string, body: unknown, accessToken?: string): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-
+  debugger
   if (accessToken) {
     headers.Authorization = `Bearer ${accessToken}`
   }
@@ -489,7 +495,7 @@ export class AuthService {
     return getJson<MioPlan[]>('/plans', token)
   }
 
-  /** 购买套餐（POST /plans/{planId}/purchase），支付渠道默认支付宝（ALIPAY） */
+  /** 购买套餐（POST /plans/{planId}/purchase），支付渠道缺省由服务端决定（默认 WECHAT） */
   async purchasePlan(
     planId: number,
     requestId: string,
@@ -500,11 +506,11 @@ export class AuthService {
     }
     const token = this.session?.accessToken
     console.info(
-      `[Purchase] POST /plans/${planId}/purchase requestId=${requestId} channel=${paymentChannel ?? 'ALIPAY'}`
+      `[Purchase] POST /plans/${planId}/purchase requestId=${requestId} channel=${paymentChannel ?? 'WECHAT'}`
     )
     return postJson<MioPurchaseResult>(
       `/plans/${planId}/purchase`,
-      { requestId, paymentChannel: paymentChannel ?? 'ALIPAY' },
+      { requestId, paymentChannel: paymentChannel ?? 'WECHAT' },
       token
     )
   }

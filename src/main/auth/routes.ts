@@ -28,6 +28,14 @@ function toErrorMessage(error: unknown, fallback: string): string {
   return fallback
 }
 
+/** 透传后端稳定错误码（供渲染层做业务分支），非 MioApiError 时返回 null */
+function toErrorCode(error: unknown): string | null {
+  if (error instanceof MioApiError) {
+    return error.errorCode ?? null
+  }
+  return null
+}
+
 /** 退出登录后重载其他窗口，使其回到登录页（调用方窗口由渲染层自行关闭） */
 function reloadOtherWindows(excludeWebContentsId: number): void {
   for (const win of BrowserWindow.getAllWindows()) {
@@ -200,6 +208,7 @@ export function createAuthRoutes(
         } catch (error) {
           return authPurchasePlanRoute.output.parse({
             ok: false,
+            errorCode: toErrorCode(error),
             msg: toErrorMessage(error, '购买失败，请重试')
           })
         }
@@ -225,6 +234,7 @@ export function createAuthRoutes(
         } catch (error) {
           return authGetOrderRoute.output.parse({
             ok: false,
+            errorCode: toErrorCode(error),
             msg: toErrorMessage(error, '查询订单失败')
           })
         }

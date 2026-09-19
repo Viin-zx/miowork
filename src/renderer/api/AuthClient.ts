@@ -104,6 +104,7 @@ export function createAuthClient(bridge: DeepchatBridge = getDeepchatBridge()) {
     expireTime?: string | null
     grantStatus?: string | null
     subscriptionId?: number | null
+    errorCode?: string | null
     msg?: string | null
   }> {
     return await bridge.invoke(authPurchasePlanRoute.name, {
@@ -124,6 +125,7 @@ export function createAuthClient(bridge: DeepchatBridge = getDeepchatBridge()) {
     expireTime?: string | null
     grantStatus?: string | null
     subscriptionId?: number | null
+    errorCode?: string | null
     msg?: string | null
   }> {
     return await bridge.invoke(authGetOrderRoute.name, { orderNo })

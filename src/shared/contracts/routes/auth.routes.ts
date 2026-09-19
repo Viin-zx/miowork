@@ -102,11 +102,17 @@ export const authLogoutRoute = defineRouteContract({
 
 // ---- 订阅相关 ----
 
-/** 可购买套餐 */
+/** 可购买套餐（GET /plans 返回的单条 plan） */
 export const planSchema = z.object({
   planId: z.number(),
   planName: z.string(),
+  /** 本地展示分类：MONTHLY / QUARTERLY / YEARLY；不决定订阅有效期 */
+  planType: z.string(),
+  /** 本地配置的普通文本套餐内容 */
+  planContent: z.string(),
   quota: z.number(),
+  /** NewAPI 每用户历史订阅次数上限；0 表示不限 */
+  maxPurchasePerUser: z.number(),
   price: z.number(),
   currency: z.string(),
   durationUnit: z.string(),
@@ -161,6 +167,7 @@ export const authPurchasePlanRoute = defineRouteContract({
     expireTime: z.string().nullable().optional(),
     grantStatus: z.string().nullable().optional(),
     subscriptionId: z.number().nullable().optional(),
+    errorCode: z.string().nullable().optional(),
     msg: z.string().nullable().optional()
   })
 })
@@ -181,6 +188,7 @@ export const authGetOrderRoute = defineRouteContract({
     expireTime: z.string().nullable().optional(),
     grantStatus: z.string().nullable().optional(),
     subscriptionId: z.number().nullable().optional(),
+    errorCode: z.string().nullable().optional(),
     msg: z.string().nullable().optional()
   })
 })

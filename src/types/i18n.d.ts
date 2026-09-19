@@ -27,6 +27,86 @@ declare module 'vue-i18n' {
       totalMemory: string
       osVersion: string
     }
+    loading: string
+    notSet: string
+    nickname: string
+    phone: string
+    userId: string
+    statusActive: string
+    planSection: string
+    planFree: string
+    planNoSubscription: string
+    planQuota: string
+    planDuration: string
+    upgradeButton: string
+    subQuotaTotal: string
+    subQuotaUsed: string
+    subRemaining: string
+    freeQuota: string
+    totalUsage: string
+    subStartTime: string
+    subEndTime: string
+    subStatus: string
+    subDataDelayed: string
+    switchAccount: string
+    logout: string
+    switchConfirmTitle: string
+    switchConfirmDescription: string
+    logoutConfirmTitle: string
+    logoutConfirmDescription: string
+    cancel: string
+    confirmLogout: string
+    subscriptionTitle: string
+    subscriptionDescription: string
+    plansLoading: string
+    plansEmpty: string
+    upgradeNow: string
+    planIncludes: string
+    paymentChannel: string
+    paymentAlipay: string
+    paymentWechat: string
+    purchasing: string
+    purchaseSuccess: string
+    purchaseFailed: string
+    purchaseProcessing: string
+    qrPayTitle: string
+    qrPayAlipayTitle: string
+    qrPayWechatTitle: string
+    qrPayDescription: string
+    qrPayAlipayDescription: string
+    qrPayExpired: string
+    qrPayExpiresIn: string
+    qrPayWaiting: string
+    qrPayPaid: string
+    qrPayActive: string
+    qrPayFailed: string
+    qrPayCancel: string
+    qrPayRetry: string
+    qrPayOrderNo: string
+    planResetPeriod: string
+    planPurchaseLimit: string
+    planPurchaseLimitUnlimited: string
+    planPurchaseLimitCount: string
+    quotaUnlimited: string
+    quotaUnitHint: string
+    resetPeriodDaily: string
+    resetPeriodWeekly: string
+    resetPeriodMonthly: string
+    resetPeriodYearly: string
+    errTokenInvalid: string
+    errAccountNotReady: string
+    errPlanNotFound: string
+    errPlanNotAvailable: string
+    errPlanPurchaseLimitReached: string
+    errPlanPurchaseInProgress: string
+    errPurchaseRequestConflict: string
+    errPaymentOrderExpired: string
+    errPaymentOrderNotFound: string
+    errPaymentChannelUnavailable: string
+    errSubscriptionCreateFailed: string
+    errNewapiUnavailable: string
+    errInvalidArgument: string
+    errNetwork: string
     clickToOpen: string
     codeSnippet: string
     function: string
@@ -494,6 +574,15 @@ declare module 'vue-i18n' {
         dragInvalid: string
         basicTitle: string
         basicDescription: string
+        errors: {
+          invalidSkill: string
+          notFound: string
+          ioError: string
+          targetLocked: string
+          permissionDenied: string
+          staleImpact: string
+          unknown: string
+        }
       }
       delete: {
         title: string
@@ -1266,14 +1355,12 @@ declare module 'vue-i18n' {
         }
       }
     }
-    loading: string
     copied: string
     paste: string
     copyImageSuccess: string
     copyCode: string
     newChat: string
     newTopic: string
-    cancel: string
     retry: string
     confirm: string
     next: string
@@ -1539,10 +1626,15 @@ declare module 'vue-i18n' {
     saveAs: string
     saveSuccess: string
     saveFailed: string
-    username: string
     password: string
+    getCode: string
     submit: string
     submitting: string
+    switchToCode: string
+    switchToPassword: string
+    goRegister: string
+    errorPassword: string
+    errorCode: string
     enabledTitle: string
     enabledDescription: string
     enableToAccess: string
@@ -2041,6 +2133,14 @@ declare module 'vue-i18n' {
     resetToDefaultSuccess: string
     resetToDefaultFailed: string
     parameterRequired: string
+    confirmPassword: string
+    goLogin: string
+    agreePrefix: string
+    userAgreement: string
+    and: string
+    privacyAgreement: string
+    errorPasswordMismatch: string
+    errorNotAgreed: string
     chat: string
     plugins: {
       title: string
@@ -2079,6 +2179,8 @@ declare module 'vue-i18n' {
       }
     }
     welcome: string
+    login: string
+    register: string
     settings: string
     'settings-common': string
     'settings-ocr': string
@@ -2104,6 +2206,7 @@ declare module 'vue-i18n' {
     'settings-memory': string
     'settings-debug': string
     'settings-toolchains': string
+    'settings-account': string
     common: {
       commandShell: {
         title: string
