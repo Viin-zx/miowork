@@ -88,7 +88,6 @@ declare module 'vue-i18n' {
     planPurchaseLimitUnlimited: string
     planPurchaseLimitCount: string
     quotaUnlimited: string
-    quotaUnitHint: string
     resetPeriodDaily: string
     resetPeriodWeekly: string
     resetPeriodMonthly: string

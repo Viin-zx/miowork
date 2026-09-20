@@ -125,9 +125,6 @@
           <p v-if="!subscriptionsRealtime" class="mt-2 text-xs text-muted-foreground">
             {{ t('account.subDataDelayed') }}
           </p>
-          <p class="mt-2 text-xs text-muted-foreground">
-            {{ t('account.quotaUnitHint') }}
-          </p>
         </div>
 
         <!-- 无订阅 -->
@@ -161,7 +158,7 @@
 
     <!-- 订阅/升级套餐弹窗 -->
     <Dialog :open="showSubscription" @update:open="showSubscription = $event">
-      <DialogContent class="max-w-2xl">
+      <DialogContent class="flex max-h-[90vh] max-w-[90vw] flex-col sm:max-w-[90vw]">
         <DialogHeader>
           <DialogTitle>
             {{
@@ -182,6 +179,7 @@
         <!-- 套餐列表（支付流程中隐藏） -->
         <div
           v-if="paymentPhase === 'idle' || paymentPhase === 'failed' || paymentPhase === 'expired'"
+          class="min-h-0 flex-1 overflow-y-auto"
         >
           <div
             v-if="plansLoading"
@@ -199,15 +197,15 @@
           </div>
 
           <div v-else class="flex flex-col gap-3">
-            <!-- 套餐网格卡片（全部套餐，不分组） -->
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <!-- 套餐卡片（全部套餐，单行排列，不换行，超出横向滚动） -->
+            <div class="flex gap-3 overflow-x-auto pb-1">
               <div
                 v-for="plan in plans"
                 :key="plan.planId"
                 role="button"
                 tabindex="0"
                 :class="[
-                  'flex cursor-pointer flex-col rounded-xl border p-4 transition-colors',
+                  'flex min-w-64 flex-1 cursor-pointer flex-col rounded-xl border p-4 transition-colors',
                   selectedPlanId === plan.planId
                     ? 'border-primary bg-primary/5 ring-1 ring-primary'
                     : 'border-border hover:border-primary/40'
@@ -233,7 +231,7 @@
                   </span>
                 </div>
 
-                <!-- 权益特性列表（planContent 富文本） -->
+                <!-- 权益特性列表（planContent 富文本，按编辑器 HTML 展示） -->
                 <div v-if="plan.planContent" class="mt-2 border-t border-border/60 pt-2">
                   <p class="text-xs font-medium text-foreground/80">
                     {{ t('account.planIncludes') }}
@@ -244,8 +242,10 @@
                   />
                 </div>
 
-                <!-- 额度 / 重置周期 / 限购 -->
-                <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                <!-- 每月额度 / 重置周期 / 限购（固定卡片底部，与权益分隔） -->
+                <div
+                  class="mt-auto flex flex-wrap gap-x-3 gap-y-1 border-t border-border/60 pt-2 text-xs text-muted-foreground"
+                >
                   <span>{{ t('account.planQuota') }}: {{ formatQuota(plan.quota, true) }}</span>
                   <span
                     >{{ t('account.planResetPeriod') }}:
@@ -258,7 +258,9 @@
 
             <!-- 支付渠道选择 -->
             <div class="mt-2 flex items-center gap-2">
-              <span class="text-sm text-muted-foreground">{{ t('account.paymentChannel') }}</span>
+              <span class="text-sm font-semibold text-muted-foreground">
+                {{ t('account.paymentChannel') }}
+              </span>
               <button
                 v-for="ch in paymentChannels"
                 :key="ch.value"
@@ -557,12 +559,23 @@ const PLAN_DURATION_UNIT_LABELS: Record<string, string> = {
   month: '个月',
   day: '天',
   week: '周',
-  quarter: '个季度',
+  quarter: '季度',
   year: '年'
 }
 
-/** 套餐有效期展示：如 durationValue=1、durationUnit=month 显示为「1个月」 */
+/** 按 planType 归一化后的时长单位：MONTHLY→个月、QUARTERLY→季度、YEARLY→年 */
+const PLAN_TYPE_DURATION_LABELS: Record<string, string> = {
+  MONTHLY: '个月',
+  QUARTERLY: '季度',
+  YEARLY: '年'
+}
+
+/** 套餐有效期展示：优先按套餐类型，如 MONTHLY 显示为「1个月」；兜底用 durationUnit */
 function formatPlanDuration(plan: Plan): string {
+  const typeUnit = PLAN_TYPE_DURATION_LABELS[plan.planType.trim().toUpperCase()]
+  if (typeUnit) {
+    return `${plan.durationValue || 1}${typeUnit}`
+  }
   const unit = PLAN_DURATION_UNIT_LABELS[plan.durationUnit] ?? plan.durationUnit
   return `${plan.durationValue || 1}${unit}`
 }
