@@ -342,12 +342,18 @@ export async function* adaptAiSdkStream(
             yield createStreamEvent.stop('error')
             break
           case 'error':
+            console.error('[AI SDK Stream] Provider finished stream with error:', {
+              rawFinishReason: part.rawFinishReason ?? null
+            })
             yield createStreamEvent.error('Provider stopped the response because of an error.', {
               code: 'provider_finish_error'
             })
             yield createStreamEvent.stop('error')
             break
           case 'other':
+            console.error('[AI SDK Stream] Provider finished stream for unspecified reason:', {
+              rawFinishReason: part.rawFinishReason ?? null
+            })
             yield createStreamEvent.error(
               `Provider stopped the response for an unspecified reason${part.rawFinishReason ? `: ${part.rawFinishReason}` : '.'}`,
               { code: 'provider_finish_other' }
@@ -366,6 +372,10 @@ export async function* adaptAiSdkStream(
         break
 
       case 'error':
+        console.error('[AI SDK Stream] Provider emitted error part:', {
+          message: part.error instanceof Error ? part.error.message : String(part.error),
+          ...extractProviderFailureMetadata(part.error)
+        })
         yield createStreamEvent.error(
           part.error instanceof Error ? part.error.message : String(part.error),
           extractProviderFailureMetadata(part.error)

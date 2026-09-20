@@ -1371,6 +1371,25 @@ export async function runAiSdkGenerateText(
   }
 }
 
+async function* traceStreamErrors<T>(stream: AsyncIterable<T>, modelId: string): AsyncGenerator<T> {
+  try {
+    for await (const part of stream) {
+      yield part
+    }
+  } catch (error) {
+    if (APICallError.isInstance(error)) {
+      console.error(`[AI SDK Runtime] provider request failed (model=${modelId}):`, {
+        message: error.message,
+        statusCode: error.statusCode,
+        responseBody: error.responseBody
+      })
+    } else {
+      console.error(`[AI SDK Runtime] provider stream failed (model=${modelId}):`, error)
+    }
+    throw error
+  }
+}
+
 export async function* runAiSdkCoreStream(
   context: AiSdkRuntimeContext,
   messages: ChatMessage[],
@@ -1587,7 +1606,7 @@ export async function* runAiSdkCoreStream(
     ...(requestSignal ? { abortSignal: requestSignal } : {})
   })
 
-  yield* adaptAiSdkStream(result.stream, {
+  yield* adaptAiSdkStream(traceStreamErrors(result.stream, modelId), {
     supportsNativeTools: runtime.supportsNativeTools,
     cacheImage,
     projectRawChunk: runtime.providerAdapter?.projectRawChunk,

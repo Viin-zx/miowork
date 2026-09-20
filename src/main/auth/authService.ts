@@ -179,7 +179,6 @@ class MioApiError extends Error {
 
 async function postJson<T>(path: string, body: unknown, accessToken?: string): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  debugger
   if (accessToken) {
     headers.Authorization = `Bearer ${accessToken}`
   }
@@ -281,6 +280,11 @@ export class AuthService {
    */
   peekUserId(): string | null {
     return this.session?.user?.userId?.trim() || null
+  }
+
+  /** 读取会话里的 accessToken，仅用于启动阶段调试日志；未登录返回 null */
+  peekAccessToken(): string | null {
+    return this.session?.accessToken ?? null
   }
 
   /** 拉取最新用户资料（GET /users/me），失败时回退本地会话缓存 */

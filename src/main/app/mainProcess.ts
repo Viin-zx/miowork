@@ -47,6 +47,7 @@ export async function startMainProcess(
     const authService = new AuthService()
     setActiveAccountKey(resolveAccountKey(authService.peekUserId()))
     adoptLegacyGlobalData()
+    console.info(`[App] 启动 accessToken=${authService.peekAccessToken() ?? '(none)'}`)
     const settingsStore = createSettingsStore()
     setMainLoggingEnabled(settingsStore.get<boolean>('loggingEnabled') ?? false)
     const secretStore = new SecretStore(settingsStore)

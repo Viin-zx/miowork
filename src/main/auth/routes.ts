@@ -56,12 +56,24 @@ function reloadOtherWindows(excludeWebContentsId: number): void {
 export function createAuthRoutes(
   auth: AuthService,
   /** 登录 / 注册成功后触发的回调（用于同步 zr provider 等） */
-  onLoggedIn?: () => void | Promise<void>
+  onLoggedIn?: () => void | Promise<void>,
+  /** 套餐开通成功（订单 PAID + ACTIVE）后触发的回调，用于强制刷新模型网关凭据 */
+  onPurchaseGranted?: () => void | Promise<void>
 ): DeepchatRouteMap {
   const fireLoggedIn = () => {
     if (onLoggedIn) {
       void Promise.resolve(onLoggedIn()).catch((e) => {
         console.warn('[AuthRoute] onLoggedIn callback failed:', e)
+      })
+    }
+  }
+  // 同一订单仅触发一次开通同步，避免轮询重复刷新
+  let lastGrantedOrderNo: string | null = null
+  const firePurchaseGranted = (orderNo: string) => {
+    if (onPurchaseGranted && lastGrantedOrderNo !== orderNo) {
+      lastGrantedOrderNo = orderNo
+      void Promise.resolve(onPurchaseGranted()).catch((e) => {
+        console.warn('[AuthRoute] onPurchaseGranted callback failed:', e)
       })
     }
   }
@@ -220,6 +232,9 @@ export function createAuthRoutes(
         const input = authGetOrderRoute.input.parse(rawInput)
         try {
           const result = await auth.getOrderStatus(input.orderNo)
+          if (result.paymentStatus === 'PAID' && result.grantStatus === 'ACTIVE') {
+            firePurchaseGranted(input.orderNo)
+          }
           return authGetOrderRoute.output.parse({
             ok: true,
             orderNo: result.orderNo,

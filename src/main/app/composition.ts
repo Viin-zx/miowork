@@ -2851,20 +2851,31 @@ export async function createMainProcessControl(dependencies: {
       }
     }
 
-    const authRoutes = createAuthRoutes(authService, async () => {
-      if (await handleAccountSwitch()) {
-        // 重启已触发，新账号的服务商同步会在重启后的启动流程中完成
-        return
-      }
+    // 同步 zr provider 凭据 + 模型列表。force 用于购买套餐后强制重拉模型网关配置：
+    // 套餐开通时后端会轮换 apiKey，若不重拉，旧会话会继续用旧 key 请求而失败（新会话正常）。
+    const syncZrAfterAuth = async (force: boolean): Promise<void> => {
       try {
-        await syncZrProvider(authService, providerRuntime)
-        // 登录后总是从 /mio/client/v1/models 拉取模型列表并全部标记开启，
-        // 不限于 provider 首次创建，避免老用户列表停留在历史数据。
+        await syncZrProvider(authService, providerRuntime, { force })
+        // 拉取模型列表并全部标记开启，避免列表停留在历史数据
         await refreshZrModelsWithSettings(authService, providerSettings)
       } catch (e) {
-        console.warn('[ZrProvider] post-login sync failed:', e)
+        console.warn('[ZrProvider] post-auth sync failed:', e)
       }
-    })
+    }
+
+    const authRoutes = createAuthRoutes(
+      authService,
+      async () => {
+        if (await handleAccountSwitch()) {
+          // 重启已触发，新账号的服务商同步会在重启后的启动流程中完成
+          return
+        }
+        await syncZrAfterAuth(false)
+      },
+      async () => {
+        await syncZrAfterAuth(true)
+      }
+    )
     const fileRoutes = createFileRoutes(fileService)
     const ocrRoutes = createOcrRoutes({ runtime: ocrRuntimeService })
     const toolchainRoutes = createToolchainRoutes({
