@@ -1,5 +1,6 @@
 {
   "input": {
+    "suggestions": "候補",
     "placeholder": "MioWork に何でも聞いてください。{'@'} でファイルをメンション、/ でコマンドを使用できます",
     "fileArea": "ファイルエリア",
     "inputArea": "入力エリア",
@@ -114,6 +115,7 @@
   "features": {
     "webSearch": "ウェブ検索",
     "artifactThinking": "アーティファクト思考",
+    "thoughtForLessThanOneSecond": "思考時間は1秒未満",
     "thoughtForSeconds": "{seconds}秒間思考しました",
     "thoughtForSecondsLoading": "{seconds}秒間思考中...",
     "modeChanged": "モードが次のように切り替わりました: {mode}"
@@ -128,6 +130,9 @@
     "error": "検索に失敗しました"
   },
   "messages": {
+    "loadEarlier": "以前のメッセージを読み込む",
+    "scrollToLatest": "最新へ移動",
+    "minimap": "メッセージマップ",
     "thinking": "思考中...",
     "rateLimitWaiting": "レート制限により、キューで待機中...",
     "rateLimitCompactLoading": "制限中（{seconds}秒）",
@@ -180,7 +185,8 @@
   "mode": {
     "acpAgent": "ACPエージェント",
     "agent": "エージェント",
-    "current": "現在のモード: {mode}"
+    "current": "現在のモード: {mode}",
+    "saveFailed": "モードの選択を保存できませんでした"
   },
   "topbar": {
     "share": "共有",
@@ -229,6 +235,12 @@
       "contextMenu": {
         "insertPath": "入力ボックスに挿入",
         "openFile": "ファイルを開く",
+        "openInApp": "{app} で開く",
+        "openInTerminalApp": "{app} でフォルダを開く",
+        "openFailed": "そのアプリでファイルを開けませんでした",
+        "preferredAppUnavailable": "優先アプリは現在利用できないため、システムの既定のアプリで開きます。",
+        "openWith": "開き方",
+        "openWithSystemDefault": "システムの既定のアプリで開く",
         "revealInFolder": "ファイルマネージャーで開く"
       },
       "empty": "まだファイルがありません",

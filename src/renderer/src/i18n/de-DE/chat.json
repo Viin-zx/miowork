@@ -1,5 +1,6 @@
 {
   "input": {
+    "suggestions": "Vorschläge",
     "placeholder": "Nachricht an MioWork senden, {'@'} zum Verweisen auf Dateien, / für Befehle",
     "fileArea": "Dateibereich",
     "inputArea": "Eingabebereich",
@@ -113,6 +114,7 @@
   },
   "features": {
     "webSearch": "Websuche",
+    "thoughtForLessThanOneSecond": "Weniger als 1 Sekunde nachgedacht",
     "thoughtForSeconds": "{seconds} Sekunden nachgedacht",
     "thoughtForSecondsLoading": "Denkt nach ({seconds}. Sekunde)",
     "artifactThinking": "artifact-Denken",
@@ -128,6 +130,9 @@
     "error": "Suche fehlgeschlagen"
   },
   "messages": {
+    "loadEarlier": "Frühere Nachrichten laden",
+    "scrollToLatest": "Zum Neuesten scrollen",
+    "minimap": "Nachrichtenkarte",
     "thinking": "Denkt nach...",
     "rateLimitWaiting": "Anfragelimit erreicht, wartet in der Warteschlange...",
     "rateLimitCompactLoading": "Rate Limit aktiv ({seconds} Sekunden)",
@@ -197,7 +202,8 @@
   "mode": {
     "current": "Aktueller Modus: {mode}",
     "agent": "Agent",
-    "acpAgent": "ACP Agent"
+    "acpAgent": "ACP Agent",
+    "saveFailed": "Modusauswahl konnte nicht gespeichert werden"
   },
   "topbar": {
     "backToParent": "Zur übergeordneten Sitzung zurück",
@@ -295,8 +301,14 @@
       },
       "contextMenu": {
         "openFile": "Datei öffnen",
+        "openWith": "Öffnen mit",
+        "openInApp": "In {app} öffnen",
+        "openInTerminalApp": "Ordner in {app} öffnen",
+        "openFailed": "Die Datei konnte nicht mit dieser Anwendung geöffnet werden",
+        "preferredAppUnavailable": "Die bevorzugte App ist gerade nicht verfügbar. Es wird mit der Systemstandard-App geöffnet.",
         "revealInFolder": "Im Dateimanager anzeigen",
-        "insertPath": "In Eingabe einfügen"
+        "insertPath": "In Eingabe einfügen",
+        "openWithSystemDefault": "Mit Systemstandard öffnen"
       },
       "watchStatus": {
         "degraded": "Überwachung läuft im Fallback-Modus. Änderungen werden möglicherweise langsamer aktualisiert.",

@@ -1,5 +1,6 @@
 {
   "input": {
+    "suggestions": "Cadangan",
     "placeholder": "Hantar mesej kepada MioWork, {'@'} boleh merujuk fail, / boleh menggunakan arahan",
     "fileArea": "kawasan fail",
     "inputArea": "kawasan input",
@@ -113,6 +114,7 @@
   },
   "features": {
     "webSearch": "carian internet",
+    "thoughtForLessThanOneSecond": "Berfikir kurang daripada 1 saat",
     "thoughtForSeconds": "Terfikir tentang {seconds} saat",
     "thoughtForSecondsLoading": "Berfikir ({seconds} kedua)",
     "artifactThinking": "artifact Fikiran",
@@ -128,6 +130,9 @@
     "error": "Carian gagal"
   },
   "messages": {
+    "loadEarlier": "Muatkan mesej terdahulu",
+    "scrollToLatest": "Pergi ke terkini",
+    "minimap": "Peta mesej",
     "thinking": "Berfikir...",
     "rateLimitWaiting": "Minta had kekerapan, menunggu dalam baris gilir...",
     "rateLimitCompactLoading": "Had kelajuan ({seconds} saat)",
@@ -197,7 +202,8 @@
   "mode": {
     "current": "Mod semasa: {mode}",
     "agent": "Agent",
-    "acpAgent": "ACP Agent"
+    "acpAgent": "ACP Agent",
+    "saveFailed": "Gagal menyimpan pilihan mod"
   },
   "topbar": {
     "backToParent": "Kembali ke sesi ibu bapa",
@@ -295,8 +301,14 @@
       },
       "contextMenu": {
         "openFile": "buka fail",
+        "openWith": "Buka dengan",
+        "openInApp": "Buka dalam {app}",
+        "openInTerminalApp": "Buka folder dalam {app}",
+        "openFailed": "Tidak dapat membuka fail dengan aplikasi tersebut",
+        "preferredAppUnavailable": "Aplikasi pilihan tidak tersedia buat masa ini. Membuka dengan aplikasi lalai sistem.",
         "revealInFolder": "Buka dalam pengurus fail",
-        "insertPath": "Masukkan ke dalam kotak input"
+        "insertPath": "Masukkan ke dalam kotak input",
+        "openWithSystemDefault": "Buka dengan aplikasi lalai sistem"
       },
       "watchStatus": {
         "degraded": "Pemantauan berjalan dalam mod sandaran. Perubahan mungkin dimuat semula dengan lebih perlahan.",

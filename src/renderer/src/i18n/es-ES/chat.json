@@ -1,5 +1,6 @@
 {
   "input": {
+    "suggestions": "Sugerencias",
     "placeholder": "Envía un mensaje a MioWork, {'@'} para mencionar archivos, / para comandos",
     "fileArea": "Área de archivos",
     "inputArea": "Área de entrada",
@@ -113,6 +114,7 @@
   },
   "features": {
     "webSearch": "Búsqueda web",
+    "thoughtForLessThanOneSecond": "Ha pensado durante menos de 1 s",
     "thoughtForSeconds": "Ha pensado durante {seconds}s",
     "thoughtForSecondsLoading": "Pensando durante {seconds}s...",
     "artifactThinking": "Razonamiento de Artifact",
@@ -128,6 +130,9 @@
     "error": "La búsqueda ha fallado"
   },
   "messages": {
+    "loadEarlier": "Cargar mensajes anteriores",
+    "scrollToLatest": "Ir a lo más reciente",
+    "minimap": "Mapa de mensajes",
     "thinking": "Pensando...",
     "rateLimitWaiting": "Límite de frecuencia alcanzado; esperando en cola...",
     "rateLimitCompactLoading": "Límite de frecuencia durante {seconds}s...",
@@ -197,7 +202,8 @@
   "mode": {
     "current": "Modo actual: {mode}",
     "agent": "Agent",
-    "acpAgent": "ACP Agent"
+    "acpAgent": "ACP Agent",
+    "saveFailed": "No se pudo guardar la selección de modo"
   },
   "topbar": {
     "backToParent": "Volver a la sesión principal",
@@ -295,8 +301,14 @@
       },
       "contextMenu": {
         "openFile": "Abrir archivo",
+        "openWith": "Abrir con",
+        "openInApp": "Abrir en {app}",
+        "openInTerminalApp": "Abrir la carpeta en {app}",
+        "openFailed": "No se pudo abrir el archivo con esa aplicación",
+        "preferredAppUnavailable": "La aplicación preferida no está disponible ahora. Se abrirá con la aplicación predeterminada.",
         "revealInFolder": "Mostrar en el administrador de archivos",
-        "insertPath": "Insertar en el campo de entrada"
+        "insertPath": "Insertar en el campo de entrada",
+        "openWithSystemDefault": "Abrir con la aplicación predeterminada"
       },
       "watchStatus": {
         "degraded": "La supervisión está en modo de reserva. Los cambios pueden actualizarse más lentamente.",

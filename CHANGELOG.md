@@ -1,5 +1,105 @@
 # Changelog
 
+## v1.1.2 (2026-09-20)
+- Added an Open With picker for workspace files, with detected editors and terminals, remembered preferences, and system-default fallback
+- Added installation and management of Codex-compatible user plugin packages from Git repositories, ZIP archives, and local folders, including Skills, supported context hooks, and MCP configurations
+- Added a scroll-to-latest pill and message map that counts the messages below the viewport and jumps straight to a chosen one
+- Added type-to-focus so typing anywhere in the chat reaches the composer without dropping the keystroke
+- Added Tibetan, Uyghur, and Mongolian locales and full keyboard navigation across chat, files, panels, settings, and setup flows
+- Added a Cloudflare Tunnel host sync endpoint for device pairing, snapshots, and transfers, and scoped plugin settings windows to the owning plugin
+- Added the API Route, Cheaper Inference, and AnonRouter providers, plus You.com, Serply, and Baizhi MCP server examples
+- Discovered workspace skills from the current project directory and preserved skill bodies when resuming a session
+- Restored DeepSeek Responses tool streaming, native web search, and follow-up replay, and made delegated sessions inherit the parent tool mode
+- Hardened OAuth credential storage and provider credential validation, refreshed provider settings without UI lag, and reaped orphaned child processes through a shared registry
+- Repaired memory recall, extraction, atomicity, and recovery, hardened recalled text against forged prompt markers, and clarified that forgetting a memory archives it
+- Reduced stalls and background load with asynchronous backup reads under a WAL read lock, coalesced model discovery, batched preference lookups, canceled embeddings, and faster Tape reads and message rendering
+- Restored partially migrated legacy databases, preserved session recency, cached generated image previews, and brought back macOS browser preview capture
+- Upgraded dependencies with security patches, capped Electron at 43.6.0, upgraded markstream-vue to 2.0.11, and refreshed the built-in model and ACP catalogs
+- 新增工作区文件“打开方式”选择器，支持检测编辑器与终端、记住所选应用，并在不可用时回退到系统默认应用
+- 新增兼容 Codex 的用户插件包安装与管理，支持 Git 仓库、ZIP 压缩包和本地文件夹，并可选择导入 Skills、受支持的上下文钩子及 MCP 配置
+- 新增“回到最新消息”浮标与消息地图，可显示视口下方的消息数量，并直接跳转到指定消息
+- 新增输入即聚焦：在聊天界面任意位置输入都会进入输入框，且不会丢失该次按键
+- 新增藏文、维吾尔文与蒙古文语言，并为聊天、文件、面板、设置与初始化流程启用完整键盘导航
+- 新增 Cloudflare Tunnel 主机端同步端点，支持设备配对、快照与传输；并将插件设置窗口限定在所属插件内
+- 新增 API Route、Cheaper Inference 与 AnonRouter Provider，以及 You.com、Serply 与 Baizhi MCP 服务示例
+- 支持从当前项目目录发现工作区 Skills，并在恢复会话时保留 Skill 正文
+- 恢复 DeepSeek Responses 的工具流式传输、原生网页搜索与后续对话回放，并使委派会话继承父会话的工具模式
+- 强化 OAuth 凭据存储与 Provider 凭据校验，刷新 Provider 设置不再出现 UI 卡顿，并通过共享注册表回收孤儿子进程
+- 修复记忆召回、提取、原子性与恢复问题，强化召回文本对伪造提示词标记的防护，并明确遗忘记忆会将其归档且可恢复
+- 通过 WAL 读锁下的异步备份读取、模型发现请求合并、项目偏好批量读取、嵌入请求取消，以及更快的 Tape 读取与消息渲染，减少卡顿与后台负载
+- 恢复部分迁移的旧版数据库，保留会话最近活动时间，缓存生成的图片预览，并恢复 macOS 浏览器预览画面
+- 升级依赖并修复安全公告，将 Electron 上限固定在 43.6.0，升级 markstream-vue 至 2.0.11，并刷新内置模型与 ACP 目录
+
+## v1.1.2-beta.5 (2026-09-10)
+- Reaped orphaned child processes via a shared registry that attests identity with pid start time and command-line fingerprint, guarding against pid reuse
+- Refreshed provider settings without UI lag and limited provider debug logs to development builds
+- Simplified memory service boundaries by separating bounded merging from maintenance scheduling
+- Upgraded dependencies and capped Electron at 43.6.0 to preserve compatibility
+- Upgraded markstream-vue to 2.0.11
+- 通过共享子进程注册表回收孤儿子进程，使用启动时间与命令行指纹进行身份校验，规避 pid 复用带来的误杀
+- 刷新 Provider 设置不再出现 UI 卡顿，并将 Provider 调试日志限制在开发版输出
+- 拆分记忆服务边界，将有界合并与维护调度分离
+- 升级依赖并将 Electron 上限固定在 43.6.0 以保持兼容性
+- 升级 markstream-vue 至 2.0.11
+
+## v1.1.2-beta.4 (2026-09-09)
+- Restored the live assistant response when resuming an Agent conversation
+- Preserved skill bodies when resuming a session
+- Discovered workspace skills from the current project directory
+- Enabled full keyboard navigation across chat, files, panels, settings, and setup flows
+- 恢复 Agent 对话恢复时的实时助手响应
+- 恢复会话时保留 Skill 正文内容
+- 从当前项目目录发现工作区 Skills
+- 为聊天、文件、面板、设置与初始化流程启用完整键盘导航
+
+## v1.1.2-beta.3 (2026-09-08)
+- Simplified tool, reasoning, and compaction activity with persistent expand/collapse state, readable historical plans, and restored parent-session navigation
+- Preserved workspace conversation history and pagination, kept Agent filters stable, and reused the workspace's latest Agent for new conversations
+- Restored browser preview frames and screenshots on macOS
+- Repaired vector recall recovery, prevented repeated memory extraction when forking conversations, recovered invalid memory records, and coordinated background maintenance with database operations
+- Improved memory recall on slow networks with adaptive timeouts and bounded embedding input, reduced repeated searches, and repaired missing vectors without rebuilding healthy data
+- Hardened recalled text against forged prompt markers, stopped extracting memories from Subagent task instructions, and clarified that forgetting a memory archives it for recovery
+- Restored partially migrated legacy databases and preserved conversation recency during migration
+- Reduced duplicate model discovery requests, project preference lookups, and plugin history scans; canceled abandoned embedding requests and released download probe responses
+- Refreshed the built-in model catalog
+- 简化工具、思考与上下文压缩活动展示，保留展开与折叠状态、提供可读的历史计划，并恢复返回父会话的导航
+- 保留工作区对话历史与分页状态，保持 Agent 筛选稳定，并为新对话沿用工作区最近使用的 Agent
+- 恢复 macOS 浏览器预览画面与截图
+- 修复向量召回恢复、分叉对话重复提取记忆及异常记忆记录问题，并协调后台维护与数据库操作
+- 通过自适应超时和嵌入输入长度限制改善慢速网络下的记忆召回，减少重复搜索，并在保留健康数据的同时修复缺失向量
+- 强化召回文本对伪造提示词标记的防护，停止从 Subagent 任务指令中提取记忆，并明确遗忘记忆会将其归档且可恢复
+- 恢复部分迁移的旧版数据库，并在迁移时保留对话最近活动时间
+- 减少重复模型发现请求、项目偏好读取和插件历史扫描；取消已放弃的嵌入请求，并释放下载探测响应
+- 刷新内置模型目录
+
+## v1.1.2-beta.2 (2026-09-07)
+- Added installation and management of Codex-compatible user plugin packages from Git repositories, ZIP archives, and local folders, with selectable Skills, supported context hooks, and MCP configurations
+- Preserved new conversation drafts across Agent switches and removed drafts when their Agent is deleted
+- Increased the pending message queue limit to 10 and restored queue capacity after messages leave the queue
+- Restored prompt editor scrolling and desktop notifications, and added error feedback when saving the tool mode fails
+- Improved conversation history recovery and prevented duplicated usage totals when forking sessions
+- Refreshed the built-in model and ACP catalogs
+- 新增兼容 Codex 的用户插件包安装与管理，支持 Git 仓库、ZIP 压缩包和本地文件夹，并可选择导入 Skills、受支持的上下文钩子及 MCP 配置
+- 在切换 Agent 时保留新对话草稿，并在删除 Agent 时清理对应草稿
+- 将待处理消息队列上限提升至 10 条，并在消息离开队列后恢复可用容量
+- 恢复提示词编辑器滚动与桌面通知，并在工具模式保存失败时显示错误反馈
+- 改进对话历史恢复，并修复分叉会话重复累计用量的问题
+- 刷新内置模型与 ACP 目录
+
+## v1.1.2-beta.1 (2026-09-04)
+- Added an Open With picker for workspace files, with detected editors and terminals, remembered preferences, and system-default fallback
+- Restored DeepSeek Responses tool streaming, native web search, and follow-up replay
+- Added visible waiting feedback during provider retry delays
+- Made delegated sessions inherit the parent tool mode
+- Improved agent turn performance and session consistency with faster Tape reads and atomic message and fact writes
+- Refreshed the built-in model and ACP catalogs
+- 新增工作区文件“打开方式”选择器，支持检测编辑器与终端、记住所选应用，并在不可用时回退到系统默认应用
+- 恢复 DeepSeek Responses 的工具流式传输、原生网页搜索与后续对话回放
+- 在 Provider 重试等待期间显示明确反馈
+- 使委派会话继承父会话的工具模式
+- 通过更快的 Tape 读取以及消息与事实的原子写入，提升 Agent 回合性能与会话一致性
+- 刷新内置模型与 ACP 目录
+
 ## v1.1.1 (2026-08-31)
 - Added Code and Minimal tool modes, on-demand tool discovery, and permission-scoped CLI tool access
 - Added a Tape Trace Inspector for Agent runs, provider requests, tool calls, and Skill usage

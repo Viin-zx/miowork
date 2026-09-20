@@ -20,6 +20,7 @@ import type { DeepChatProviderAttemptIdentity } from '@shared/types/provider-att
 import type { DeepchatEventName } from '@shared/contracts/events'
 import type { DeepChatInternalSessionUpdate } from './sessionUpdates'
 import type { SessionTranscript } from '@/session/data/transcript'
+import type { CacheImageOptions } from '@/platform/imageCache'
 import type { AgentPlanSnapshot, AgentPlanTerminalReason } from '@shared/types/agent-plan'
 import type { LoopRun } from '@/agent/deepchat/loop/loopRun'
 import type {
@@ -140,6 +141,7 @@ export interface StreamState {
   } | null
   toolCallCount: number
   dirty: boolean
+  blocksRevision: number
 }
 
 export type DeepChatEventPublisher = (name: DeepchatEventName, payload: unknown) => void
@@ -206,7 +208,7 @@ export interface ProcessControlCollaborators {
     operation: ExecutionOperationIdentity
     outcomeEntryId: number
   }) => Promise<void> | void
-  cacheImage?: (data: string) => Promise<string>
+  cacheImage?: (data: string, options?: CacheImageOptions) => Promise<string>
 }
 
 export interface ProcessInternalDiagnostics {
@@ -362,6 +364,12 @@ export function createState(): StreamState {
     stopReason: null,
     roundUsage: null,
     toolCallCount: 0,
-    dirty: false
+    dirty: false,
+    blocksRevision: 0
   }
+}
+
+export function markStreamChanged(state: StreamState): void {
+  state.dirty = true
+  state.blocksRevision += 1
 }

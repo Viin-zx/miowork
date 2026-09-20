@@ -1,5 +1,6 @@
 {
   "input": {
+    "suggestions": "Gợi ý",
     "placeholder": "Hỏi MioWork bất cứ điều gì, {'@'} đề cập đến các tập tin, / cho các lệnh",
     "fileArea": "Vùng tệp",
     "inputArea": "Khu vực đầu vào",
@@ -113,6 +114,7 @@
   },
   "features": {
     "webSearch": "Tìm kiếm trên web",
+    "thoughtForLessThanOneSecond": "Đã suy nghĩ chưa đến 1 giây",
     "thoughtForSeconds": "Suy nghĩ cho {seconds}",
     "thoughtForSecondsLoading": "Đang suy nghĩ về {seconds}...",
     "artifactThinking": "Tư duy tạo tác",
@@ -128,6 +130,9 @@
     "error": "Tìm kiếm không thành công"
   },
   "messages": {
+    "loadEarlier": "Tải tin nhắn trước đó",
+    "scrollToLatest": "Đi đến mới nhất",
+    "minimap": "Bản đồ tin nhắn",
     "thinking": "Đang suy nghĩ...",
     "rateLimitWaiting": "Đã đạt đến giới hạn tốc độ, đang chờ xếp hàng...",
     "rateLimitCompactLoading": "Tỷ lệ giới hạn cho {seconds}...",
@@ -197,7 +202,8 @@
   "mode": {
     "current": "Chế độ hiện tại: {mode}",
     "agent": "Agent",
-    "acpAgent": "ACP Agent"
+    "acpAgent": "ACP Agent",
+    "saveFailed": "Không thể lưu lựa chọn chế độ"
   },
   "topbar": {
     "backToParent": "Quay lại trang gốc",
@@ -295,8 +301,14 @@
       },
       "contextMenu": {
         "openFile": "Mở tập tin",
+        "openWith": "Mở bằng",
+        "openInApp": "Mở trong {app}",
+        "openInTerminalApp": "Mở thư mục trong {app}",
+        "openFailed": "Không thể mở tệp bằng ứng dụng đó",
+        "preferredAppUnavailable": "Ứng dụng ưa thích tạm thời không khả dụng. Đang mở bằng ứng dụng mặc định của hệ thống.",
         "revealInFolder": "Hiển thị trong trình quản lý tập tin",
-        "insertPath": "Chèn vào đầu vào"
+        "insertPath": "Chèn vào đầu vào",
+        "openWithSystemDefault": "Mở bằng ứng dụng mặc định của hệ thống"
       },
       "watchStatus": {
         "degraded": "Đang theo dõi ở chế độ dự phòng. Thay đổi có thể được làm mới chậm hơn.",

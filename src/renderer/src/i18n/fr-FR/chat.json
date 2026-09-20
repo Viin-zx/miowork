@@ -1,5 +1,6 @@
 {
   "input": {
+    "suggestions": "Suggestions",
     "placeholder": "Demandez n'importe quoi à MioWork, {'@'} pour mentionner des fichiers, / pour les commandes",
     "fileArea": "Zone de fichiers",
     "inputArea": "Zone de saisie",
@@ -114,6 +115,7 @@
   "features": {
     "webSearch": "Recherche web",
     "artifactThinking": "Réflexion sur les artefacts",
+    "thoughtForLessThanOneSecond": "Réflexion pendant moins de 1 s",
     "thoughtForSeconds": "Réflexion pendant {seconds}s",
     "thoughtForSecondsLoading": "Réflexion en cours ({seconds}s)",
     "modeChanged": "Mode commuté sur : {mode}"
@@ -128,6 +130,9 @@
     "error": "La recherche a échoué"
   },
   "messages": {
+    "loadEarlier": "Charger les messages précédents",
+    "scrollToLatest": "Aller au plus récent",
+    "minimap": "Carte des messages",
     "thinking": "Pensée...",
     "rateLimitWaiting": "Limitation de débit, en attente dans la file...",
     "rateLimitCompactLoading": "Limité par le débit ({seconds}s)",
@@ -180,7 +185,8 @@
   "mode": {
     "acpAgent": "Agent ACP",
     "agent": "Agent",
-    "current": "Mode actuel : {mode}"
+    "current": "Mode actuel : {mode}",
+    "saveFailed": "Impossible d’enregistrer le mode sélectionné"
   },
   "topbar": {
     "share": "Partager",
@@ -229,6 +235,12 @@
       "contextMenu": {
         "insertPath": "Insérer dans la zone de saisie",
         "openFile": "ouvrir le fichier",
+        "openInApp": "Ouvrir dans {app}",
+        "openInTerminalApp": "Ouvrir le dossier dans {app}",
+        "openFailed": "Impossible d’ouvrir le fichier avec cette application",
+        "preferredAppUnavailable": "L’application préférée n’est pas disponible pour le moment. Ouverture avec l’application par défaut.",
+        "openWith": "Ouvrir avec",
+        "openWithSystemDefault": "Ouvrir avec l’application par défaut",
         "revealInFolder": "Ouvrir dans le gestionnaire de fichiers"
       },
       "empty": "Aucun fichier pour l'instant",

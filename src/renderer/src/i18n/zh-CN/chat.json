@@ -1,5 +1,6 @@
 {
   "input": {
+    "suggestions": "补全建议",
     "placeholder": "向 MioWork 发送消息，{'@'} 可引用文件，/ 可使用命令",
     "fileArea": "文件区域",
     "inputArea": "输入区域",
@@ -198,6 +199,7 @@
   },
   "features": {
     "webSearch": "联网搜索",
+    "thoughtForLessThanOneSecond": "思考不足 1 秒",
     "thoughtForSeconds": "思考了 {seconds} 秒",
     "thoughtForSecondsLoading": "正在思考（第 {seconds} 秒）",
     "artifactThinking": "artifact 思考",
@@ -213,6 +215,9 @@
     "error": "搜索失败"
   },
   "messages": {
+    "loadEarlier": "加载更早的消息",
+    "scrollToLatest": "回到最新",
+    "minimap": "消息定位",
     "thinking": "正在思考...",
     "rateLimitWaiting": "请求频率限制，正在排队等待...",
     "rateLimitCompactLoading": "限速中（{seconds} 秒）",
@@ -282,7 +287,8 @@
   "mode": {
     "current": "当前模式：{mode}",
     "agent": "Agent",
-    "acpAgent": "ACP Agent"
+    "acpAgent": "ACP Agent",
+    "saveFailed": "无法保存模式选择"
   },
   "topbar": {
     "backToParent": "返回父会话",
@@ -380,8 +386,14 @@
       },
       "contextMenu": {
         "openFile": "打开文件",
+        "openWith": "打开方式",
+        "openInApp": "在 {app} 中打开",
+        "openInTerminalApp": "在 {app} 中打开所在目录",
+        "openFailed": "无法用该应用打开此文件",
+        "preferredAppUnavailable": "首选应用暂时不可用，本次改用系统默认方式打开。",
         "revealInFolder": "在文件管理器中打开",
-        "insertPath": "插入到输入框"
+        "insertPath": "插入到输入框",
+        "openWithSystemDefault": "用系统默认方式打开"
       },
       "watchStatus": {
         "degraded": "正在使用降级监听模式，文件变化刷新会变慢。",

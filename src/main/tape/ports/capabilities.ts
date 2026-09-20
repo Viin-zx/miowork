@@ -14,6 +14,7 @@ import type {
 } from '../domain/facts'
 import type {
   TapeProviderAttemptInput,
+  TapeProviderAttemptRecord,
   TapeProviderContextPressureRecord
 } from '../domain/providerAttempt'
 import type {
@@ -73,12 +74,35 @@ export type TapeBackfillResult = {
   historyRecords: ChatMessageRecord[]
 }
 
-export interface TapeTranscriptReader {
+/** Where the transcript tables stand relative to a Session's Tape. */
+export interface TapeProjectionCursor {
+  tapeIncarnationId: string
+  maxEntryId: number
+}
+
+/**
+ * The transcript as a projection of the Session's message facts. Tape reconciliation reads the
+ * cursor, hands the message rows appended past it to `applyTapeEntries`, and advances the cursor
+ * in the same transaction. `getMessages` is the source for the one-time backfill of a Session
+ * whose Tape predates the cursor.
+ */
+export interface TapeTranscriptProjection {
   getMessages(sessionId: string): ChatMessageRecord[]
+  readProjectionCursor(sessionId: string): TapeProjectionCursor | null
+  writeProjectionCursor(sessionId: string, cursor: TapeProjectionCursor): void
+  applyTapeEntries(rows: readonly DeepChatTapeEntryRow[]): void
 }
 
 export interface TapeReconciliationPort {
-  ensureSessionTapeReady(sessionId: string, messageStore: TapeTranscriptReader): TapeBackfillResult
+  ensureSessionTapeReady(
+    sessionId: string,
+    transcript: TapeTranscriptProjection
+  ): TapeBackfillResult
+}
+
+/** The head a terminal transcript write records as its projection cursor after appending. */
+export interface TapeProjectionHeadReader {
+  getProjectionHead(sessionId: string): TapeProjectionCursor | null
 }
 
 export type TapeViewManifestAssemblySources = {
@@ -334,7 +358,7 @@ export interface TapeMessageFactWriter {
 }
 
 export interface TapeNonContextEntryReader {
-  getBySession(sessionId: string): DeepChatTapeEntryRow[]
+  getBySession(sessionId: string, name?: string): DeepChatTapeEntryRow[]
 }
 
 export interface TapeAnchorReader {
@@ -343,6 +367,17 @@ export interface TapeAnchorReader {
     sessionId: string,
     compactionAttemptId: string
   ): DeepChatTapeEntryRow | undefined
+}
+
+export type TapeContextOccupancyEvidence = {
+  manifest: DeepChatTapeViewManifestRecord | null
+  providerAttempt: TapeProviderAttemptRecord | null
+  latestReconstructionAnchorEntryId: number | null
+}
+
+/** Context occupancy reads the latest View manifest, its provider attempt and the anchor cursor. */
+export interface TapeContextOccupancyReader {
+  getContextOccupancyEvidence(sessionId: string): TapeContextOccupancyEvidence
 }
 
 export interface TapeAnchorWriter {

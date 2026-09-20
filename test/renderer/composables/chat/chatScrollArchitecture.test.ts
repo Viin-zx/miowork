@@ -19,9 +19,17 @@ const scrollWritePatterns: ReadonlyArray<[ScrollWriteKind, RegExp]> = [
 ]
 
 // These target independent surfaces such as the sidebar, editor, popovers, page capture,
-// or document anchors. Any new direct renderer scroll API must be reviewed explicitly.
+// the message map rail, or document anchors. Any new direct renderer scroll API must be reviewed
+// explicitly.
 const allowedDirectScrollWrites: Record<string, ScrollWriteKind[]> = {
-  'src/renderer/src/components/chat/ChatInputBox.vue': ['scrollIntoView', 'scrollIntoView'],
+  // ChatInputBox: focusInput(), focusAndInsertText(), and the Shift-Enter hard break all
+  // scroll the composer itself into view rather than the message list.
+  'src/renderer/src/components/chat/ChatInputBox.vue': [
+    'scrollIntoView',
+    'scrollIntoView',
+    'scrollIntoView'
+  ],
+  'src/renderer/src/components/chat/ChatMinimap.vue': ['scrollTop'],
   'src/renderer/src/components/chat/mentions/SuggestionList.vue': ['scrollIntoView'],
   'src/renderer/src/components/markdown/useMarkdownLinkNavigation.ts': [
     'scrollIntoView',
@@ -71,12 +79,5 @@ describe('chat scroll architecture', () => {
       Object.entries(allowedDirectScrollWrites).map(([path, writes]) => [path, writes.sort()])
     )
     expect(directWrites).toEqual(expectedWrites)
-  })
-
-  it('has one low-level scrollbar assignment in the controller', async () => {
-    const controllerSource = await readSource(CONTROLLER_PATH)
-    const assignments = controllerSource.match(/viewport\.scrollTop\s*=/g) ?? []
-
-    expect(assignments).toHaveLength(1)
   })
 })

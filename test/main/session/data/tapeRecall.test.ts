@@ -19,6 +19,7 @@ import {
   itIfSqlite,
   createTapeTableMock,
   createRecord,
+  createTranscriptProjectionMock,
   createTapeService
 } from './tapeTestHarness'
 import { TapeSkillMaterializationService } from '@/tape/application/skillMaterializationService'
@@ -50,23 +51,24 @@ describe('SessionTape recall', () => {
     {
       projectionVersion: 7,
       eventName: 'view/programmatic_tool_surface',
+      writer: 'appendToolSurfaceEvent' as const,
       marker: 'historical-private-programmatic-surface'
     },
     {
       projectionVersion: 8,
       eventName: 'view/assembled',
+      writer: 'appendEvent' as const,
       marker: 'historical-private-provider-view'
     }
   ])(
     'rebuilds a same-head v$projectionVersion projection that exposed $eventName provenance',
-    ({ projectionVersion, eventName, marker }) => {
+    ({ projectionVersion, eventName, writer, marker }) => {
       const { table } = createTapeTableMock()
-      table.append({
+      table[writer]({
         sessionId: 's1',
-        kind: 'event',
         name: eventName,
         source: { type: 'runtime_event', id: 'm1', seq: 1 },
-        payload: { marker },
+        data: { marker },
         createdAt: 100
       })
       let storedVersion = projectionVersion
@@ -233,22 +235,20 @@ describe('SessionTape recall', () => {
       deepchatTapeEntriesTable: table,
       deepchatSessionsTable: { getSummaryState: vi.fn().mockReturnValue(null) }
     } as any)
-    const messageStore = {
-      getMessages: vi.fn().mockReturnValue([
-        createRecord({ id: 'u1' }),
-        createRecord({
-          id: 'a1',
-          orderSeq: 2,
-          role: 'assistant',
-          content: JSON.stringify([
-            { type: 'content', content: 'answer', status: 'success', timestamp: 101 }
-          ]),
-          metadata: JSON.stringify({ totalTokens: 9 }),
-          createdAt: 101,
-          updatedAt: 101
-        })
-      ])
-    }
+    const messageStore = createTranscriptProjectionMock([
+      createRecord({ id: 'u1' }),
+      createRecord({
+        id: 'a1',
+        orderSeq: 2,
+        role: 'assistant',
+        content: JSON.stringify([
+          { type: 'content', content: 'answer', status: 'success', timestamp: 101 }
+        ]),
+        metadata: JSON.stringify({ totalTokens: 9 }),
+        createdAt: 101,
+        updatedAt: 101
+      })
+    ])
 
     service.ensureSessionTapeReady('s1', messageStore as any)
     service.handoff('s1', 'phase_done', { summary: '  done  ' })
@@ -469,12 +469,12 @@ describe('SessionTape recall', () => {
         cacheReadTokens: 150
       }
     })
-    table.appendEvent({
+    table.appendProviderAttemptEvent({
       sessionId: 's1',
       name: 'provider/attempt_completed',
       data: { schemaVersion: 1, messageId: 'malformed' }
     })
-    table.appendEvent({
+    table.appendProviderAttemptEvent({
       sessionId: 's1',
       name: 'provider/attempt_completed',
       source: { type: 'runtime_event', id: 'a1', seq: 2 },
@@ -499,7 +499,7 @@ describe('SessionTape recall', () => {
         cacheHitRate: null
       }
     })
-    table.appendEvent({
+    table.appendProviderAttemptEvent({
       sessionId: 's1',
       name: 'provider/attempt_completed',
       source: { type: 'runtime_event', id: 'a1', seq: 3 },
@@ -560,7 +560,7 @@ describe('SessionTape recall', () => {
       deepchatSessionsTable: { getSummaryState: vi.fn().mockReturnValue(null) }
     } as any)
 
-    table.appendEvent({
+    table.appendProviderAttemptEvent({
       sessionId: 's1',
       name: 'provider/attempt_completed',
       source: { type: 'runtime_event', id: 'a1', seq: 1 },
@@ -640,13 +640,13 @@ describe('SessionTape recall', () => {
       stopReason: 'complete',
       usage: null
     })
-    table.appendEvent({
+    table.appendProviderAttemptEvent({
       sessionId: 's1',
       name: 'provider/attempt_completed',
       source: { type: 'runtime_event', id: 'a1', seq: 7 },
       data: { schemaVersion: 1, messageId: 'malformed' }
     })
-    table.appendEvent({
+    table.appendProviderAttemptEvent({
       sessionId: 's1',
       name: 'provider/attempt_completed',
       source: { type: 'runtime_event', id: 'a2', seq: 9 },
@@ -792,13 +792,12 @@ describe('SessionTape recall', () => {
       },
       meta: { status: 'sent' }
     })
-    const hidden = table.append({
+    const hidden = table.appendSkillMaterialization({
       sessionId: 's1',
-      kind: 'context',
-      name: 'skill/materialized',
-      source: { type: 'runtime_event', id: 'skill-source', seq: 0 },
+      sourceId: 'skill-source',
+      provenanceKey: 'skill:s1:skill-source',
       payload: { effectiveContent: 'private-skill-materialization-needle' },
-      meta: {}
+      payloadHash: 'a'.repeat(64)
     })
     const second = table.append({
       sessionId: 's1',

@@ -17,7 +17,7 @@ import type {
 import type { DeepChatAgentConfig } from '@shared/types/agent-interface'
 
 vi.mock('tokenx', () => ({
-  approximateTokenSize: vi.fn((text: string) => text.length)
+  estimateTokenCount: vi.fn((text: string) => text.length)
 }))
 
 vi.mock('@/agent/deepchat/runtime/contextBuilder', async (importOriginal) => {
@@ -1314,7 +1314,8 @@ describe('CompactionService', () => {
     expect(result).toEqual({
       outcome: 'boundary_only',
       anchorCommitted: true,
-      summaryState: boundaryState
+      summaryState: boundaryState,
+      summaryError: 'provider request id must not be persisted'
     })
     expect(sessionStore.compareAndSetSummaryState).toHaveBeenCalledWith(
       's1',

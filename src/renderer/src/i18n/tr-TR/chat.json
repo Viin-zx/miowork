@@ -1,5 +1,6 @@
 {
   "input": {
+    "suggestions": "Öneriler",
     "placeholder": "MioWork'ye herhangi bir şey sor, {'@'}'a dosyalardan bahsetmesini ve / komutlarını sor",
     "fileArea": "Dosya Alanı",
     "inputArea": "Giriş Alanı",
@@ -113,6 +114,7 @@
   },
   "features": {
     "webSearch": "Web Araması",
+    "thoughtForLessThanOneSecond": "1 saniyeden az düşündü",
     "thoughtForSeconds": "{seconds}s için düşünceler",
     "thoughtForSecondsLoading": "{seconds}s için düşünüyorum...",
     "artifactThinking": "Yapay Düşünce",
@@ -128,6 +130,9 @@
     "error": "Arama başarısız oldu"
   },
   "messages": {
+    "loadEarlier": "Önceki mesajları yükle",
+    "scrollToLatest": "En sona git",
+    "minimap": "Mesaj haritası",
     "thinking": "Düşünüyorum...",
     "rateLimitWaiting": "Oran sınırına ulaşıldı, kuyrukta bekleniyor...",
     "rateLimitCompactLoading": "{seconds}s için oran sınırlı...",
@@ -197,7 +202,8 @@
   "mode": {
     "current": "Geçerli mod: {mode}",
     "agent": "Agent",
-    "acpAgent": "ACP Agent"
+    "acpAgent": "ACP Agent",
+    "saveFailed": "Mod seçimi kaydedilemedi"
   },
   "topbar": {
     "backToParent": "Ebeveyne Geri Dön",
@@ -295,8 +301,14 @@
       },
       "contextMenu": {
         "openFile": "Dosyayı aç",
+        "openWith": "Birlikte aç",
+        "openInApp": "{app} ile aç",
+        "openInTerminalApp": "Klasörü {app} ile aç",
+        "openFailed": "Dosya bu uygulamayla açılamadı",
+        "preferredAppUnavailable": "Tercih edilen uygulama şu anda kullanılamıyor. Sistem varsayılanıyla açılıyor.",
         "revealInFolder": "Dosya yöneticisinde göster",
-        "insertPath": "Girişe ekle"
+        "insertPath": "Girişe ekle",
+        "openWithSystemDefault": "Sistem varsayılan uygulamasıyla aç"
       },
       "watchStatus": {
         "degraded": "İzleme yedek modda çalışıyor. Değişiklikler daha yavaş yenilenebilir.",

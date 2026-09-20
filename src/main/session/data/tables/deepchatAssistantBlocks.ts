@@ -3,6 +3,7 @@ import { isDeepStrictEqual } from 'node:util'
 import { BaseTable } from '@/data/baseTable'
 import type { AssistantMessageBlock } from '@shared/types/agent-interface'
 import type { McpAppDescriptor } from '@shared/types/mcp'
+import { toAssistantBlockRowInput, type PersistedBlockExtra } from '../messageContent'
 
 export interface DeepChatAssistantBlockRow {
   message_id: string
@@ -32,43 +33,94 @@ export interface DeepChatAssistantResultBlockRow {
 
 const NORMALIZATION_SCHEMA_VERSION = 26
 
-type PersistedBlockExtra = {
-  id?: string
-  timestamp?: number
-  imageData?: string
-  extra?: AssistantMessageBlock['extra']
-  toolCallExtra?: Omit<
-    NonNullable<AssistantMessageBlock['tool_call']>,
-    'id' | 'name' | 'params' | 'response'
-  >
-  reasoningTime?: number
-}
-
 type McpAppSourceRow = Pick<
   DeepChatAssistantBlockRow,
   'tool_call_id' | 'tool_params' | 'extra_json'
 >
 
-function buildPersistedExtra(block: AssistantMessageBlock): PersistedBlockExtra {
-  return {
-    id: block.id,
-    timestamp: block.timestamp,
-    imageData: block.image_data?.data,
-    extra: block.extra,
-    toolCallExtra: block.tool_call
-      ? {
-          rtkApplied: block.tool_call.rtkApplied,
-          rtkMode: block.tool_call.rtkMode,
-          rtkFallbackReason: block.tool_call.rtkFallbackReason,
-          imagePreviews: block.tool_call.imagePreviews,
-          server_name: block.tool_call.server_name,
-          server_icons: block.tool_call.server_icons,
-          server_description: block.tool_call.server_description,
-          mcpResult: block.tool_call.mcpResult
-        }
-      : undefined,
-    reasoningTime: typeof block.reasoning_time === 'number' ? block.reasoning_time : undefined
+// Streaming flushes call replaceForMessage every ~600ms with the full block list, and
+// projection/migration rebuilds call it with an explicit source timestamp. SessionDatabase
+// exposes tables via getters that construct a fresh table instance per access, so statements
+// are cached per underlying Database instance instead.
+const replaceStatementsCache = new WeakMap<
+  Database.Database,
+  {
+    upsertStream: Database.Statement
+    upsertExact: Database.Statement
+    pruneFromIndex: Database.Statement
   }
+>()
+
+// Null-safe (`IS NOT`) comparisons skip rewriting rows whose compared columns did not
+// change, so untouched blocks produce no WAL writes.
+function buildUpsertStatement(db: Database.Database, includeUpdatedAtGuard: boolean) {
+  return db.prepare(
+    `INSERT INTO deepchat_assistant_blocks (
+      message_id,
+      block_index,
+      block_type,
+      status,
+      text_content,
+      tool_call_id,
+      tool_name,
+      tool_params,
+      tool_response,
+      action_type,
+      image_mime_type,
+      reasoning_start_at,
+      reasoning_end_at,
+      extra_json,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(message_id, block_index) DO UPDATE SET
+      block_type = excluded.block_type,
+      status = excluded.status,
+      text_content = excluded.text_content,
+      tool_call_id = excluded.tool_call_id,
+      tool_name = excluded.tool_name,
+      tool_params = excluded.tool_params,
+      tool_response = excluded.tool_response,
+      action_type = excluded.action_type,
+      image_mime_type = excluded.image_mime_type,
+      reasoning_start_at = excluded.reasoning_start_at,
+      reasoning_end_at = excluded.reasoning_end_at,
+      extra_json = excluded.extra_json,
+      updated_at = excluded.updated_at
+    WHERE block_type IS NOT excluded.block_type
+      OR status IS NOT excluded.status
+      OR text_content IS NOT excluded.text_content
+      OR tool_call_id IS NOT excluded.tool_call_id
+      OR tool_name IS NOT excluded.tool_name
+      OR tool_params IS NOT excluded.tool_params
+      OR tool_response IS NOT excluded.tool_response
+      OR action_type IS NOT excluded.action_type
+      OR image_mime_type IS NOT excluded.image_mime_type
+      OR reasoning_start_at IS NOT excluded.reasoning_start_at
+      OR reasoning_end_at IS NOT excluded.reasoning_end_at
+      OR extra_json IS NOT excluded.extra_json${
+        includeUpdatedAtGuard
+          ? `
+      OR updated_at IS NOT excluded.updated_at`
+          : ''
+      }`
+  )
+}
+
+function getReplaceStatements(db: Database.Database) {
+  const cached = replaceStatementsCache.get(db)
+  if (cached) {
+    return cached
+  }
+
+  const statements = {
+    upsertStream: buildUpsertStatement(db, false),
+    upsertExact: buildUpsertStatement(db, true),
+    pruneFromIndex: db.prepare(
+      'DELETE FROM deepchat_assistant_blocks WHERE message_id = ? AND block_index >= ?'
+    )
+  }
+  replaceStatementsCache.set(db, statements)
+  return statements
 }
 
 export class DeepChatAssistantBlocksTable extends BaseTable {
@@ -112,56 +164,44 @@ export class DeepChatAssistantBlocksTable extends BaseTable {
     return NORMALIZATION_SCHEMA_VERSION
   }
 
-  replaceForMessage(messageId: string, blocks: AssistantMessageBlock[]): void {
-    const insert = this.db.prepare(
-      `INSERT INTO deepchat_assistant_blocks (
-        message_id,
-        block_index,
-        block_type,
-        status,
-        text_content,
-        tool_call_id,
-        tool_name,
-        tool_params,
-        tool_response,
-        action_type,
-        image_mime_type,
-        reasoning_start_at,
-        reasoning_end_at,
-        extra_json,
-        updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
+  /**
+   * `updatedAt` is what a block without its own timestamp reports back; the projection passes the
+   * record's time so replaying a fact reproduces the rows it wrote the first time.
+   *
+   * - Without `updatedAt` (streaming persistence): rows whose visible columns are unchanged keep
+   *   their stored `updated_at`; changed rows are stamped with the current time.
+   * - With `updatedAt` (projection/migration rebuilds): the row set reproduces the source record
+   *   exactly, including `updated_at`; a fully identical rebuild writes nothing.
+   */
+  replaceForMessage(messageId: string, blocks: AssistantMessageBlock[], updatedAt?: number): void {
+    const { upsertStream, upsertExact, pruneFromIndex } = getReplaceStatements(this.db)
+    const exact = updatedAt !== undefined
+    const upsert = exact ? upsertExact : upsertStream
 
     this.db.transaction(() => {
-      this.delete(messageId)
       blocks.forEach((block, index) => {
-        const reasoningRange =
-          block.reasoning_time &&
-          typeof block.reasoning_time === 'object' &&
-          typeof block.reasoning_time.start === 'number' &&
-          typeof block.reasoning_time.end === 'number'
-            ? block.reasoning_time
-            : null
-
-        insert.run(
+        const row = toAssistantBlockRowInput(block, updatedAt ?? Date.now())
+        upsert.run(
           messageId,
           index,
-          block.type,
-          block.status,
-          block.content ?? null,
-          block.tool_call?.id ?? null,
-          block.tool_call?.name ?? null,
-          block.tool_call?.params ?? null,
-          block.tool_call?.response ?? null,
-          block.action_type ?? null,
-          block.image_data?.mimeType ?? null,
-          reasoningRange?.start ?? null,
-          reasoningRange?.end ?? null,
-          JSON.stringify(buildPersistedExtra(block)),
-          Date.now()
+          row.block_type,
+          row.status,
+          row.text_content,
+          row.tool_call_id,
+          row.tool_name,
+          row.tool_params,
+          row.tool_response,
+          row.action_type,
+          row.image_mime_type,
+          row.reasoning_start_at,
+          row.reasoning_end_at,
+          row.extra_json,
+          row.updated_at
         )
       })
+      // Drop rows beyond the new block list (cleared rate-limit placeholder, regenerated
+      // shorter content). block_index >= blocks.length also covers the empty case.
+      pruneFromIndex.run(messageId, blocks.length)
     })()
   }
 

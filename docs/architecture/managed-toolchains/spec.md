@@ -2,28 +2,28 @@
 
 ## Status
 
-Accepted design. First-run persist and the ToolchainService resolver are
-implemented. RuntimeHelper still owns RTK only; leftover Node/uv getters are
-inert.
+The resolver, first-run persistence, managed downloader, Settings surface, and Electron-hosted CLI
+are implemented. Default runtime installation excludes Node. `RuntimeHelper` owns RTK; the
+ToolchainService owns Node/uv resolution. The plan retains the integration and packaging acceptance
+work until its required validation is recorded.
 
 Related: [GitHub issue #2153](https://github.com/ThinkInAIXYZ/deepchat/issues/2153).
 
 ## Context
 
-DeepChat currently copies Node, uv, and RTK into the installer via
-`scripts/install-runtime.mjs` and `electron-builder.yml`. Consumers then poke
-`RuntimeHelper` independently and disagree on missing-runtime behavior:
+Before managed toolchains, DeepChat copied Node, uv, and RTK into the installer via
+`scripts/install-runtime.mjs` and `electron-builder.yml`. Consumers queried
+`RuntimeHelper` independently and disagreed on missing-runtime behavior:
 
-| Consumer | Missing bundled runtime |
-| --- | --- |
-| MCP stdio | Whole tree missing → original command / system PATH. Half-install → spawn a nonexistent path. |
-| ACP npx/uvx | Original command / silent PATH. |
-| Skill `auto` | System first, then bundled; throw if both fail. |
-| OCR / CLI | Fail closed on bundled Node. |
+| Consumer     | Missing bundled runtime                                                                       |
+| ------------ | --------------------------------------------------------------------------------------------- |
+| MCP stdio    | Whole tree missing → original command / system PATH. Half-install → spawn a nonexistent path. |
+| ACP npx/uvx  | Original command / silent PATH.                                                               |
+| Skill `auto` | System first, then bundled; throw if both fail.                                               |
+| OCR / CLI    | Fail closed on bundled Node.                                                                  |
 
-`bunRuntimePath` is a leftover alias of `nodeRuntimePath`. Bun was a real bundled
-runtime from v0.2.4 through v0.4.8 and was removed in v0.4.9. It is not installed
-today.
+The removed `bunRuntimePath` field was an alias of `nodeRuntimePath`. Bun was bundled
+from v0.2.4 through v0.4.8 and removed in v0.4.9. It is not installed today.
 
 Issue #2153 asks to stop shipping language runtimes in the app artifact and treat
 them as optional, independently managed installs. This RFC keeps uv as a bundled
@@ -82,13 +82,13 @@ Node v24.18.0 is coincidence, not an invariant.
 
 ### Sources
 
-| Source | Meaning |
-| --- | --- |
-| `bundled` | Read-only files shipped in the app. Default for uv. Valid for Node only while the installer still ships Node. |
-| `managed` | DeepChat-owned download under `userData`. Atomic activate via `state.json` pointer, not a symlink. |
-| `system` | User's existing binary on PATH. Never a second DeepChat download. |
-| `custom` | User-chosen absolute executable or toolchain root. |
-| `unconfigured` | Honest empty state. Do not spawn. Ask the next time a feature needs it. |
+| Source         | Meaning                                                                                                       |
+| -------------- | ------------------------------------------------------------------------------------------------------------- |
+| `bundled`      | Read-only files shipped in the app. Default for uv. Valid for Node only while the installer still ships Node. |
+| `managed`      | DeepChat-owned download under `userData`. Atomic activate via `state.json` pointer, not a symlink.            |
+| `system`       | User's existing binary on PATH. Never a second DeepChat download.                                             |
+| `custom`       | User-chosen absolute executable or toolchain root.                                                            |
+| `unconfigured` | Honest empty state. Do not spawn. Ask the next time a feature needs it.                                       |
 
 `auto` is not a source.
 
@@ -117,10 +117,10 @@ explicit system/custom pick.
 
 ### Completeness
 
-| Kind | Bundled / system / custom | Managed |
-| --- | --- | --- |
-| Node | `node` + `npm` + `npx` | `node` + `npm` + `npx` + `corepack` |
-| uv | `uv` + `uvx` | `uv` + `uvx` |
+| Kind | Bundled / system / custom | Managed                             |
+| ---- | ------------------------- | ----------------------------------- |
+| Node | `node` + `npm` + `npx`    | `node` + `npm` + `npx` + `corepack` |
+| uv   | `uv` + `uvx`              | `uv` + `uvx`                        |
 
 Half-installs are `incomplete`, not a PATH fallback.
 
@@ -185,11 +185,11 @@ There is no Bun downloader.
 
 ### Skill policy mapping
 
-| Skill preference | Resolution |
-| --- | --- |
-| `auto` | `ToolchainService` persisted source |
-| `builtin` | bundled only; fail if incomplete |
-| `system` | system only; fail if missing |
+| Skill preference | Resolution                          |
+| ---------------- | ----------------------------------- |
+| `auto`           | `ToolchainService` persisted source |
+| `builtin`        | bundled only; fail if incomplete    |
+| `system`         | system only; fail if missing        |
 
 Skill `auto` no longer prefers system over bundled. The first-run migration
 plus an explicit Settings pick replace that implicit chain.
@@ -306,13 +306,13 @@ writer.
 
 ## Rejected alternatives
 
-| Alternative | Why rejected |
-| --- | --- |
-| mise | Extra tool to ship, implicit shims, version-manager UX we do not want. Download the official Node distro directly. |
-| Implicit PATH fallback chain | Production pain; silent source changes. |
-| Electron Node for OCR / npx | ABI 145 vs 137; no npm/npx/corepack. |
-| Two managed Node versions | OCR and MCP share one pin. System Node is the user's binary, not a second download. |
-| Restore Bun | Historical only; removed in v0.4.9. Schema stub, UI hidden, no downloader. |
+| Alternative                   | Why rejected                                                                                                                             |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| mise                          | Extra tool to ship, implicit shims, version-manager UX we do not want. Download the official Node distro directly.                       |
+| Implicit PATH fallback chain  | Production pain; silent source changes.                                                                                                  |
+| Electron Node for OCR / npx   | ABI 145 vs 137; no npm/npx/corepack.                                                                                                     |
+| Two managed Node versions     | OCR and MCP share one pin. System Node is the user's binary, not a second download.                                                      |
+| Restore Bun                   | Historical only; removed in v0.4.9. Schema stub, UI hidden, no downloader.                                                               |
 | Drop uv from the artifact now | Removing the seed and re-downloading it is worse, and a CVE-decoupled override still needs a managed path. Keep seed + managed override. |
 
 ## Open questions

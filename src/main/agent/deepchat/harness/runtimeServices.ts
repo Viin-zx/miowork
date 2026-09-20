@@ -1,3 +1,4 @@
+import type { PluginContextPort } from '@shared/types/userPlugin'
 import type { ProviderExecutionPort } from '@shared/types/provider'
 import type { SkillMetadataSnapshotPort, SkillServicePort } from '@shared/types/skill'
 import type { ToolServicePort } from '@shared/types/tool'
@@ -13,6 +14,7 @@ import type { SessionData } from '@/session/data'
 import type { SessionDatabase } from '@/session/data/database'
 import type { SessionPermissionPort, SessionUiPort } from '@/session/contracts'
 import type { SkillSettingsPort } from '@/skill/settings'
+import type { CacheImageOptions } from '@/platform/imageCache'
 import type { AcpAgentInstanceDependencyFactory } from '@/agent/acp/instance'
 import type { DeepChatAgentRuntime } from '@/agent/deepchat/instance/deepChatAgentRuntime'
 import type { CommandShellService } from '@/agent/shared/process/commandShellService'
@@ -63,6 +65,7 @@ export type DeepChatHarnessSkillPort = Pick<
   SkillMetadataSnapshotPort
 
 export interface DeepChatHarnessDependencies {
+  pluginContext?: PluginContextPort
   providerRuntime: ProviderExecutionPort
   providerSettings: ProviderModelResolutionPort
   agentSettings: AgentSettingsPort
@@ -70,6 +73,7 @@ export interface DeepChatHarnessDependencies {
   sessionData: SessionData
   toolService: ToolServicePort
   hookObserver: HookObserver
+  onSessionCompleted?: (sessionId: string) => void
   publishEvent: DeepChatEventPublisher
   publishSessionUpdate: DeepChatSessionUpdatePublisher
   providerCatalogPort: Pick<ProviderCatalogPort, 'getProviderModels' | 'getCustomModels'>
@@ -78,7 +82,7 @@ export interface DeepChatHarnessDependencies {
   sessionUiPort: SessionUiPort
   memoryPort: MemoryRuntimePort
   getMemoryIngestionProjection(): MemoryIngestionProjection
-  cacheImage(data: string): Promise<string>
+  cacheImage(data: string, options?: CacheImageOptions): Promise<string>
   skillService: DeepChatHarnessSkillPort
   skillSettings: SkillSettingsPort
   traceSettings: AgentTraceSettingsPort

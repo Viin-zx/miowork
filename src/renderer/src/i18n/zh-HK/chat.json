@@ -1,5 +1,6 @@
 {
   "input": {
+    "suggestions": "補全建議",
     "placeholder": "向 MioWork 發送訊息，{'@'} 可引用檔案，/ 可使用指令",
     "fileArea": "文件區域",
     "inputArea": "輸入區域",
@@ -114,6 +115,7 @@
   "features": {
     "webSearch": "網絡搜索",
     "artifactThinking": "artifact 思考",
+    "thoughtForLessThanOneSecond": "思考不足 1 秒",
     "thoughtForSeconds": "思考了 {seconds} 秒",
     "thoughtForSecondsLoading": "正在思考（第 {seconds} 秒）",
     "modeChanged": "模式已切換至：{mode}"
@@ -128,6 +130,9 @@
     "error": "搜索失败"
   },
   "messages": {
+    "loadEarlier": "載入較早的訊息",
+    "scrollToLatest": "回到最新",
+    "minimap": "訊息定位",
     "thinking": "正在思考...",
     "rateLimitWaiting": "速率限制，正在佇列等待...",
     "rateLimitCompactLoading": "限速中（第 {seconds} 秒）",
@@ -197,7 +202,8 @@
   "mode": {
     "acpAgent": "ACP Agent",
     "agent": "Agent",
-    "current": "當前模式：{mode}"
+    "current": "當前模式：{mode}",
+    "saveFailed": "無法儲存模式選擇"
   },
   "topbar": {
     "share": "分享",
@@ -246,6 +252,12 @@
       "contextMenu": {
         "insertPath": "插入到輸入框",
         "openFile": "打開文件",
+        "openInApp": "在 {app} 中開啟",
+        "openInTerminalApp": "在 {app} 中開啟所在目錄",
+        "openFailed": "無法用該應用開啟此檔案",
+        "preferredAppUnavailable": "首選應用程式暫時無法使用，本次改用系統預設方式開啟。",
+        "openWith": "開啟方式",
+        "openWithSystemDefault": "用系統預設方式開啟",
         "revealInFolder": "在文件管理器中打開"
       },
       "empty": "暫無文件",

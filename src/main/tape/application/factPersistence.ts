@@ -1,4 +1,5 @@
 import type { AssistantMessageBlock, ChatMessageRecord } from '@shared/types/agent-interface'
+import logger from '@shared/logger'
 import {
   toTapeSessionId,
   type TapeFactSource,
@@ -7,12 +8,12 @@ import {
 } from '@/tape/domain/facts'
 import type { DeepChatTapeEntryRow } from '@/tape/domain/entry'
 import type { TapeBootstrapStore, TapeEntryStore } from '@/tape/ports/storage'
-import { buildEffectiveTapeView } from '@/tape/domain/effectiveView'
 import {
   parseAssistantBlocks,
   parseTapeJsonObject,
   readTapeToolIdentity,
-  readTapeToolStatus
+  readTapeToolStatus,
+  tapeEntryToMessageRecord
 } from '@/tape/domain/effectiveSemantics'
 import { hashJson } from '@/tape/domain/viewManifest'
 import {
@@ -25,7 +26,7 @@ export { tapeEntryToMessageRecord } from '@/tape/domain/effectiveSemantics'
 export type { TapeFactSource } from '@/tape/domain/facts'
 
 type TapeFactWriter = Pick<TapeEntryStore, 'append' | 'appendEvent'> & TapeBootstrapStore
-type TapeFactStore = TapeFactWriter & Pick<TapeEntryStore, 'getBySessionExcludingContext'>
+type TapeFactStore = TapeFactWriter & Pick<TapeEntryStore, 'getEffectiveViewInputRows'>
 
 interface TapeToolRevisionState {
   semanticFingerprint: string
@@ -128,6 +129,47 @@ function buildMessageProvenanceKey(
     return undefined
   }
   return `message:${record.id}:revision:${record.status}:${record.updatedAt}`
+}
+
+const MESSAGE_RECORD_DIVERGENCE_FIELDS = [
+  'content',
+  'status',
+  'orderSeq',
+  'metadata',
+  'isContextEdge'
+] as const
+
+/**
+ * A sent record's live or backfill fact is keyed by message id alone, so the store returns the
+ * entry it already holds without looking at the payload. That is the intended idempotency for a
+ * message that is finalized once; it also means a transcript row whose content changed without a
+ * replacement fact would leave Tape stale in silence. Compare what came back with what was asked
+ * for and say so when they differ. Payload text stays out of the log. Only live appends report:
+ * a backfill re-reading an old Session compares today's materialized content with a fact written
+ * by an earlier version, and that difference is format history rather than a bypassed write.
+ */
+function warnOnDivergentMessageFact(
+  row: DeepChatTapeEntryRow,
+  payload: Record<string, unknown>,
+  record: ChatMessageRecord
+): void {
+  if (row.payload_json === JSON.stringify(payload)) {
+    return
+  }
+  const stored = tapeEntryToMessageRecord(row)
+  if (!stored) {
+    return
+  }
+  const fields = MESSAGE_RECORD_DIVERGENCE_FIELDS.filter((field) => stored[field] !== record[field])
+  if (fields.length === 0) {
+    return
+  }
+  logger.warn('[Tape] message fact append returned an existing entry with a different record', {
+    sessionId: record.sessionId,
+    messageId: record.id,
+    entryId: row.entry_id,
+    fields
+  })
 }
 
 function buildMessageReplacementProvenanceKey(
@@ -271,6 +313,21 @@ function describeTapeToolFact(input: TapeToolFactInput): {
     prepared,
     semanticFingerprint: buildToolFactSemanticFingerprint(prepared)
   }
+}
+
+/**
+ * The provenance key a live `appendTapeToolFact` would assign to this input; null when the input
+ * is not appendable. Callers use it to recognise facts they already appended without a lookup.
+ */
+export function buildTapeToolFactProvenanceKey(input: TapeToolFactInput): string | null {
+  const prepared = prepareTapeToolFact(input)
+  if (!prepared) return null
+  return buildToolFactProvenanceKey(
+    prepared.kind,
+    input.messageId,
+    prepared.toolCallId,
+    prepared.payload
+  )
 }
 
 export function buildTapeToolRevisionIndex(rows: DeepChatTapeEntryRow[]): TapeToolRevisionIndex {
@@ -457,7 +514,23 @@ export function appendMessageRecordToTape(
     return 1
   }
 
-  table.append({
+  const provenanceKey = buildMessageProvenanceKey(record, source)
+  const payload = {
+    record: {
+      id: record.id,
+      sessionId: record.sessionId,
+      orderSeq: record.orderSeq,
+      role: record.role,
+      content: record.content,
+      status: record.status,
+      isContextEdge: record.isContextEdge,
+      metadata: record.metadata,
+      traceCount: record.traceCount,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt
+    }
+  }
+  const row = table.append({
     sessionId: record.sessionId,
     kind: 'message',
     name: `message/${record.role}`,
@@ -466,22 +539,8 @@ export function appendMessageRecordToTape(
       id: record.id,
       seq: 0
     },
-    provenanceKey: buildMessageProvenanceKey(record, source),
-    payload: {
-      record: {
-        id: record.id,
-        sessionId: record.sessionId,
-        orderSeq: record.orderSeq,
-        role: record.role,
-        content: record.content,
-        status: record.status,
-        isContextEdge: record.isContextEdge,
-        metadata: record.metadata,
-        traceCount: record.traceCount,
-        createdAt: record.createdAt,
-        updatedAt: record.updatedAt
-      }
-    },
+    provenanceKey,
+    payload,
     meta: {
       source,
       orderSeq: record.orderSeq,
@@ -491,6 +550,9 @@ export function appendMessageRecordToTape(
     createdAt: record.createdAt,
     idempotent: true
   })
+  if (provenanceKey === undefined && source === 'live') {
+    warnOnDivergentMessageFact(row, payload, record)
+  }
 
   const toolInputs = buildTapeToolFactInputs(record)
   return (
@@ -519,7 +581,7 @@ export function appendMessageReplacementToTape(
   const toolInputs = options.revisionKind === 'record' ? buildTapeToolFactInputs(record) : []
   const toolRevisionIndex =
     toolInputs.length > 0
-      ? buildTapeToolRevisionIndex(table.getBySessionExcludingContext(record.sessionId))
+      ? buildTapeToolRevisionIndex(table.getEffectiveViewInputRows(record.sessionId))
       : null
 
   table.append({
@@ -596,10 +658,4 @@ export function appendMessageRetractionToTape(
   })
 
   return 1
-}
-
-export function tapeEntriesToEffectiveMessageRecords(
-  rows: DeepChatTapeEntryRow[]
-): ChatMessageRecord[] {
-  return buildEffectiveTapeView(rows, { includePending: true }).messageRecords
 }

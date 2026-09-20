@@ -1,5 +1,6 @@
 {
   "input": {
+    "suggestions": "Suggestions",
     "placeholder": "Ask MioWork anything, {'@'} to mention files, / for commands",
     "fileArea": "File Area",
     "inputArea": "Input Area",
@@ -198,6 +199,7 @@
   },
   "features": {
     "webSearch": "Web Search",
+    "thoughtForLessThanOneSecond": "Thought for less than 1s",
     "thoughtForSeconds": "Thought for {seconds}s",
     "thoughtForSecondsLoading": "Thinking for {seconds}s...",
     "artifactThinking": "Artifact Thinking",
@@ -213,6 +215,9 @@
     "error": "Search failed"
   },
   "messages": {
+    "loadEarlier": "Load earlier messages",
+    "scrollToLatest": "Scroll to latest",
+    "minimap": "Message map",
     "thinking": "Thinking...",
     "rateLimitWaiting": "Rate limit reached, waiting in queue...",
     "rateLimitCompactLoading": "Rate limited for {seconds}s...",
@@ -282,7 +287,8 @@
   "mode": {
     "current": "Current mode: {mode}",
     "agent": "Agent",
-    "acpAgent": "ACP Agent"
+    "acpAgent": "ACP Agent",
+    "saveFailed": "Failed to save mode selection"
   },
   "topbar": {
     "backToParent": "Back to Parent",
@@ -380,8 +386,14 @@
       },
       "contextMenu": {
         "openFile": "Open file",
+        "openWith": "Open with",
+        "openInApp": "Open in {app}",
+        "openInTerminalApp": "Open folder in {app}",
+        "openFailed": "Could not open the file with that application",
+        "preferredAppUnavailable": "Preferred app is unavailable right now. Opening with the system default.",
         "revealInFolder": "Show in file manager",
-        "insertPath": "Insert into input"
+        "insertPath": "Insert into input",
+        "openWithSystemDefault": "Open with system default"
       },
       "watchStatus": {
         "degraded": "Watching in fallback mode. Changes may refresh slower.",

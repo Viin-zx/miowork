@@ -2,7 +2,7 @@ import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { performance } from 'node:perf_hooks'
 import { nanoid } from 'nanoid'
-import { approximateTokenSize } from 'tokenx'
+import { estimateTokenCount } from 'tokenx'
 import { z } from 'zod'
 import {
   LIVE_DELEGATION_HANDOFF_TOKEN_BUDGET,
@@ -1058,6 +1058,7 @@ export class LiveDelegationService {
           providerId: executionSnapshot.providerId,
           modelId: executionSnapshot.modelId,
           permissionMode: safety.parent.permissionMode,
+          toolModeOverride: executionSnapshot.toolModeOverride,
           generationSettings: executionSnapshot.generationSettings ?? undefined,
           disabledAgentTools: safety.parent.disabledAgentTools,
           activeSkills: safety.parent.activeSkills,
@@ -2032,7 +2033,8 @@ function createTurnExecutionSnapshot(
     modelId: session.modelId,
     generationSettings: session.generationSettings
       ? structuredClone(session.generationSettings)
-      : null
+      : null,
+    toolModeOverride: session.toolModeOverride
   }
 }
 
@@ -2158,7 +2160,7 @@ function sanitizeDelegationText(value: string): string {
 
 function estimateTokens(value: string): number {
   try {
-    const estimated = approximateTokenSize(value)
+    const estimated = estimateTokenCount(value)
     if (Number.isFinite(estimated) && estimated >= 0) {
       return Math.min(Number.MAX_SAFE_INTEGER, Math.ceil(estimated))
     }

@@ -65,6 +65,31 @@ describe('useChatScrollController', () => {
     }
   }
 
+  it('restores user ownership when an indicator navigation completes', () => {
+    const { controller, epoch } = setup()
+
+    // The user owns the viewport after scrolling away from the bottom.
+    controller.notifyUserGestureStart('wheel')
+    controller.notifyUserGestureEnd()
+    expect(controller.state.value.userOwned).toBe(true)
+
+    const requestId = controller.request({
+      sessionEpoch: epoch,
+      reason: 'indicator-navigation',
+      target: { kind: 'message', messageId: 'm1', align: 'one-third' }
+    })
+    expect(requestId).not.toBeNull()
+    expect(controller.state.value.mode).toBe('navigating')
+
+    flushFrame()
+    controller.notifyViewportScroll()
+
+    // Without a completion transition the state would stay 'navigating' with userOwned false,
+    // silently blocking measurement anchoring, history prepend and auto-follow.
+    expect(controller.state.value.mode).toBe('reading')
+    expect(controller.state.value.userOwned).toBe(true)
+  })
+
   it('commits at most one operation in a frame and drops lower-priority competitors', () => {
     const { controller, epoch, writes } = setup()
 
@@ -263,6 +288,30 @@ describe('useChatScrollController', () => {
     expect(controller.notifyViewportScroll()).toBe('user')
     expect(controller.state.value.mode).toBe('reading')
     expect(controller.state.value.userOwned).toBe(true)
+  })
+
+  it('keeps explicit earlier-history navigation above automatic bottom following', () => {
+    const { controller, epoch, getScrollTop } = setup()
+    controller.requestImmediate({
+      sessionEpoch: epoch,
+      reason: 'session-restore',
+      target: { kind: 'bottom' }
+    })
+    controller.notifyViewportScroll()
+    flushFrame()
+
+    controller.requestImmediate({
+      sessionEpoch: epoch,
+      reason: 'history-navigation',
+      target: { kind: 'absolute', top: 0 }
+    })
+    flushFrame()
+    controller.notifyViewportScroll()
+    expect(getScrollTop()).toBe(0)
+    expect(controller.notifyViewportResize()).toBeNull()
+    flushFrame()
+    expect(getScrollTop()).toBe(0)
+    controller.dispose()
   })
 
   it('rejects resize-driven following when auto-scroll is disabled', () => {

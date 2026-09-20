@@ -427,6 +427,10 @@ function createRuntime() {
     }),
     getLightweightByIds: vi.fn().mockResolvedValue([]),
     getSearchResults: vi.fn().mockResolvedValue([]),
+    requireSession: vi.fn((sessionId: string) => {
+      if (sessionId !== 'session-1') throw new Error(`Session not found: ${sessionId}`)
+      return sessionSnapshot
+    }),
     getTapeContext: vi.fn().mockResolvedValue({ entries: [] }),
     listTapeInspectorPage: vi.fn().mockResolvedValue({
       status: 'ok',
@@ -467,7 +471,6 @@ function createRuntime() {
       operations: [],
       truncated: false
     }),
-    exportMessageTapeReplaySlice: vi.fn().mockResolvedValue(null),
     renameSession: vi.fn().mockResolvedValue(undefined),
     toggleSessionPinned: vi.fn().mockResolvedValue(undefined),
     getMessage: vi.fn().mockResolvedValue({
@@ -1335,6 +1338,7 @@ function createRuntime() {
       })
     ),
     attachSessionBrowser: vi.fn().mockResolvedValue(true),
+    focusSessionBrowser: vi.fn().mockReturnValue(true),
     updateSessionBrowserBounds: vi.fn().mockResolvedValue(undefined),
     detachSessionBrowser: vi.fn().mockResolvedValue(undefined),
     setPreviewMode: vi.fn().mockResolvedValue({ updated: true, surface: 'renderer-canvas' }),
@@ -1612,7 +1616,12 @@ function createRuntime() {
     recordSettingsActivity: (input) => sqlitePresenter.recordSettingsActivity(input)
   })
   const toolRoutes = createToolRoutes(toolService)
-  const pluginRoutes = createPluginRoutes(pluginService)
+  const pluginRoutes = createPluginRoutes(pluginService, {
+    open: async () => {},
+    close: () => {},
+    closeAll: () => {},
+    getPluginIdForWebContents: () => null
+  })
   const assertSessionActiveSkillsMutable = vi.fn().mockResolvedValue(undefined)
   const skillRoutes = createSkillRoutes({
     skillService,
@@ -5188,6 +5197,16 @@ describe('dispatchDeepchatRoute', () => {
       )
     ).rejects.toThrow('Route requires a renderer caller')
     expect(tapeInspectorHeadWatcher.subscribe).toHaveBeenCalledOnce()
+
+    await expect(
+      dispatchDeepchatRoute(
+        runtime,
+        'sessions.subscribeTapeInspectorHead',
+        { sessionId: 'missing-session', subscriptionId: 'subscription-3' },
+        renderer
+      )
+    ).rejects.toThrow('Session not found: missing-session')
+    expect(tapeInspectorHeadWatcher.subscribe).toHaveBeenCalledOnce()
   })
 
   it('dispatches provider query and tool interaction routes through typed services', async () => {
@@ -6225,6 +6244,25 @@ describe('dispatchDeepchatRoute', () => {
     expect(destroyResult).toEqual({ destroyed: true })
     expect(yoBrowserPresenter.clearSandboxData).toHaveBeenCalledTimes(1)
     expect(clearSandboxResult).toEqual({ cleared: true })
+  })
+
+  it('restricts browser keyboard entry to the caller window and active session', async () => {
+    const { runtime, desktopSessionBinding, yoBrowserPresenter } = createRuntime()
+    desktopSessionBinding.getActiveId.mockReturnValue('session-1')
+    const focus = (sessionId: string, windowId: number | null = 3) =>
+      dispatchDeepchatRoute(
+        runtime,
+        'browser.focusContent',
+        { sessionId },
+        createRendererRouteContext(88, windowId)
+      )
+
+    expect(await focus('session-1')).toEqual({ focused: true })
+    expect(yoBrowserPresenter.focusSessionBrowser).toHaveBeenCalledWith('session-1', 3)
+    expect(desktopSessionBinding.getActiveId).toHaveBeenCalledWith(88)
+    expect(await focus('other-session')).toEqual({ focused: false })
+    expect(await focus('session-1', null)).toEqual({ focused: false })
+    expect(yoBrowserPresenter.focusSessionBrowser).toHaveBeenCalledTimes(1)
   })
 
   it('scopes Computer Use preview routes to the active sender session', async () => {

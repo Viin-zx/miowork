@@ -3,11 +3,10 @@ import type {
   DeepChatTapeViewExcludedRange,
   DeepChatTapeViewManifest
 } from '@shared/types/tape-view-manifest'
-import type { DeepChatTapeReplaySlice } from '@shared/types/tape-replay'
 import { isDeepChatExecutionContract } from './executionContract'
-import { hashJson } from './viewManifest'
 import { validateSchema6SkillContexts, validateSchema7SkillContexts } from './skillContext'
 import { isBoundedSkillTapeIdentity } from './skillIdentity'
+import { isRecordObject, SHA256_HEX_PATTERN } from './primitives'
 
 const VIEW_POLICIES = new Set([
   'cache_aware_context_v2',
@@ -36,7 +35,6 @@ const SCHEMA_V3_ENTRY_REASONS = new Set([
   'reconstruction_checkpoint',
   'memory_context'
 ])
-const SHA256_HEX_PATTERN = /^[a-f0-9]{64}$/
 
 const VIEW_EXCLUDED_REASONS = new Set([
   'before_summary_cursor',
@@ -47,10 +45,6 @@ const VIEW_EXCLUDED_REASONS = new Set([
   'superseded',
   'retracted'
 ])
-
-function isRecordObject(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
-}
 
 function isNullableString(value: unknown): value is string | null {
   return value === null || typeof value === 'string'
@@ -304,21 +298,4 @@ export function collectEntryIds(values: Array<number | null>): number[] {
   return [...new Set(values.filter((value): value is number => typeof value === 'number'))].sort(
     (left, right) => left - right
   )
-}
-
-export function withReplaySliceHash(
-  slice: Omit<DeepChatTapeReplaySlice, 'hashes'> & {
-    hashes: Omit<DeepChatTapeReplaySlice['hashes'], 'sliceHash'> & { sliceHash: '' }
-  }
-): DeepChatTapeReplaySlice {
-  const sliceForHash = { ...slice } as Partial<DeepChatTapeReplaySlice>
-  delete sliceForHash.createdAt
-  delete sliceForHash.integrity
-  return {
-    ...slice,
-    hashes: {
-      ...slice.hashes,
-      sliceHash: hashJson(sliceForHash)
-    }
-  }
 }

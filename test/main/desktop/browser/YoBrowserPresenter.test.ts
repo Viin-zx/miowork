@@ -57,6 +57,7 @@ class MockWebContents extends EventEmitter {
       this.pendingLoad = { resolve, reject }
     })
   })
+  focus = vi.fn()
   goBack = vi.fn()
   goForward = vi.fn()
   reload = vi.fn(() => {
@@ -70,7 +71,10 @@ class MockWebContents extends EventEmitter {
     this.emit('destroyed')
   })
   sendInputEvent = vi.fn()
-  setBackgroundThrottling = vi.fn()
+  backgroundThrottling = true
+  setBackgroundThrottling = vi.fn((allowed: boolean) => {
+    this.backgroundThrottling = allowed
+  })
   capturePage = vi.fn(async () => ({
     resize: vi.fn(() => ({
       toJPEG: vi.fn(() => Buffer.from('preview-frame'))
@@ -197,7 +201,7 @@ describe('YoBrowserPresenter', () => {
     vi.useRealTimers()
   })
 
-  const setupPresenter = async () => {
+  const setupPresenter = async (backgroundThrottling = true) => {
     let nextWebContentsId = 100
     const windows = new Map<number, MockBrowserWindow>()
     const viewConfigs: Array<Record<string, any>> = []
@@ -214,6 +218,7 @@ describe('YoBrowserPresenter', () => {
         constructor(options: Record<string, any>) {
           viewConfigs.push(options)
           this.webContents = new MockWebContents(nextWebContentsId++)
+          this.webContents.backgroundThrottling = backgroundThrottling
         }
       }
 
@@ -333,6 +338,43 @@ describe('YoBrowserPresenter', () => {
       getSessionWebContents
     }
   }
+
+  it('focuses only the visible attached browser and returns to its host with F6', async () => {
+    const { presenter, windows, getSessionWebContents } = await setupPresenter()
+    const host = new MockBrowserWindow(1)
+    windows.set(1, host)
+    windows.set(2, new MockBrowserWindow(2))
+    const navigation = presenter.loadUrl('session-a', 'https://example.com')
+    await Promise.resolve()
+    const contents = getSessionWebContents('session-a')!
+    contents.emitDomReady()
+    await navigation
+    expect(presenter.focusSessionBrowser('session-a', 1)).toBe(false)
+    await presenter.attachSessionBrowser('session-a', 1)
+    await presenter.updateSessionBrowserBounds(
+      'session-a',
+      1,
+      { x: 0, y: 0, width: 300, height: 200 },
+      true
+    )
+    expect(presenter.focusSessionBrowser('session-a', 2)).toBe(false)
+    expect(presenter.focusSessionBrowser('session-a', 1)).toBe(true)
+    expect(contents.focus).toHaveBeenCalledTimes(1)
+    const event = { preventDefault: vi.fn() }
+    contents.emit('before-input-event', event, { type: 'keyDown', key: 'F6' })
+    expect(event.preventDefault).toHaveBeenCalledTimes(1)
+    expect(host.webContents.focus).toHaveBeenCalledTimes(1)
+    contents.emit('before-input-event', event, { type: 'keyDown', key: 'Tab' })
+    contents.emit('before-input-event', event, { type: 'keyDown', key: 'F6', control: true })
+    contents.emit('before-input-event', event, { type: 'keyDown', key: 'F6', shift: true })
+    expect(event.preventDefault).toHaveBeenCalledTimes(1)
+    await presenter.detachSessionBrowser('session-a')
+    expect(presenter.focusSessionBrowser('session-a', 1)).toBe(false)
+    contents.emit('before-input-event', event, { type: 'keyDown', key: 'F6' })
+    expect(host.webContents.focus).toHaveBeenCalledTimes(1)
+    contents.finishLoad()
+    await presenter.shutdown()
+  })
 
   it('starts session navigation immediately and resolves after dom-ready', async () => {
     const { presenter, windows, getSessionWebContents } = await setupPresenter()
@@ -810,30 +852,58 @@ describe('YoBrowserPresenter', () => {
     expect(previewHosts[0].destroyed).toBe(true)
   })
 
-  it('releases the hidden preview host when its Agent session becomes inactive', async () => {
-    const { presenter, windows, previewHosts, getSessionWebContents } = await setupPresenter()
-    windows.set(1, new MockBrowserWindow(1))
+  describe.each(['darwin', 'win32', 'linux'] as const)('preview cleanup on %s', (platform) => {
+    const originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform')!
 
-    const loadPromise = presenter.loadUrl(
-      'session-a',
-      'https://example.com',
-      undefined,
-      1,
-      'agent',
-      'run-1'
+    afterEach(() => {
+      Object.defineProperty(process, 'platform', originalPlatform)
+    })
+
+    it.each([
+      [true, 'release'],
+      [false, 'release'],
+      [true, 'close'],
+      [false, 'close']
+    ] as const)(
+      'preserves backgroundThrottling=%s after preview host %s',
+      async (backgroundThrottling, cleanup) => {
+        const { presenter, windows, previewHosts, getSessionWebContents } =
+          await setupPresenter(backgroundThrottling)
+        Object.defineProperty(process, 'platform', { value: platform })
+        windows.set(1, new MockBrowserWindow(1))
+
+        const loadPromise = presenter.loadUrl(
+          'session-a',
+          'https://example.com',
+          undefined,
+          1,
+          'agent',
+          'run-1'
+        )
+        await Promise.resolve()
+        const webContents = getSessionWebContents('session-a')
+        webContents?.emitDomReady()
+        await loadPromise
+
+        expect(previewHosts).toHaveLength(1)
+        expect(previewHosts[0].destroyed).toBe(false)
+        expect(webContents?.backgroundThrottling).toBe(
+          platform === 'darwin' && backgroundThrottling
+        )
+
+        if (cleanup === 'release') {
+          await presenter.releaseInactivePreview('session-a')
+        } else {
+          previewHosts[0].destroy()
+        }
+
+        expect(previewHosts[0].destroyed).toBe(true)
+        expect(webContents?.backgroundThrottling).toBe(backgroundThrottling)
+        if (platform === 'darwin' || !backgroundThrottling) {
+          expect(webContents?.setBackgroundThrottling).not.toHaveBeenCalled()
+        }
+      }
     )
-    await Promise.resolve()
-    const webContents = getSessionWebContents('session-a')
-    webContents?.emitDomReady()
-    await loadPromise
-
-    expect(previewHosts).toHaveLength(1)
-    expect(previewHosts[0].destroyed).toBe(false)
-
-    await presenter.releaseInactivePreview('session-a')
-
-    expect(previewHosts[0].destroyed).toBe(true)
-    expect(webContents?.setBackgroundThrottling).toHaveBeenLastCalledWith(true)
   })
 
   it('resumes preview capture after a previous capture times out while stopping', async () => {

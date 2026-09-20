@@ -156,8 +156,9 @@ jobs:
       - name: Validate portable memory behavior
         run: pnpm run test:memory
 
-      - name: Prepare native SQLite for the Node ABI
-        run: pnpm --dir node_modules/better-sqlite3-multiple-ciphers run install
+      # better-sqlite3-multiple-ciphers 13+ ships N-API prebuilds and no longer
+      # has an `install` script; the shipped prebuild already runs on the CI
+      # Node ABI (validated by test:memory above).
 
       - name: Smoke native SQLite
         run: node scripts/smoke-memory-native-sqlite.js
@@ -167,15 +168,22 @@ jobs:
           DEEPCHAT_REQUIRE_NATIVE_SQLITE: '1'
         run: >-
           pnpm exec vitest --config vitest.config.ts --run
+          test/main/tape/compactionUsage.test.ts
           test/main/tape/skillMaterialization.test.ts
           test/main/tape/executionJournal.test.ts
           test/main/tape/taskContractPersistence.test.ts
           test/main/tape/traceInspector.test.ts
-          test/main/session/data/tapeFork.test.ts
           test/main/session/data/tapeLifecycle.test.ts
           test/main/session/data/tapeLineage.test.ts
           test/main/session/data/tapeRecall.test.ts
+          test/main/session/data/tapeTableMockContract.test.ts
+          test/main/session/data/tapeToolSurfacePersistence.test.ts
           test/main/session/data/tapeViewReplay.test.ts
+          test/main/session/data/tables/deepchatTapeEntriesTable.test.ts
+          test/main/session/data/tables/deepchatPendingInputsTable.test.ts
+          test/main/session/data/messageContent.test.ts
+          test/main/session/data/transcriptAtomicity.test.ts
+          test/main/session/data/transcriptProjection.test.ts
 
       - name: Validate encrypted OCR artifact storage
         env:

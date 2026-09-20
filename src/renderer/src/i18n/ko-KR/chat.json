@@ -1,5 +1,6 @@
 {
   "input": {
+    "suggestions": "추천",
     "placeholder": "MioWork에 무엇이든 물어보세요. {'@'}로 파일을 언급하고 /로 명령을 사용할 수 있습니다",
     "fileArea": "파일 영역",
     "inputArea": "입력 영역",
@@ -114,6 +115,7 @@
   "features": {
     "webSearch": "웹 검색",
     "artifactThinking": "아티팩트 추론",
+    "thoughtForLessThanOneSecond": "1초 미만 동안 생각했습니다",
     "thoughtForSeconds": "{seconds}초 동안 생각했습니다",
     "thoughtForSecondsLoading": "{seconds}초째 생각 중...",
     "modeChanged": "모드가 다음으로 전환되었습니다: {mode}"
@@ -128,6 +130,9 @@
     "error": "검색 실패"
   },
   "messages": {
+    "loadEarlier": "이전 메시지 불러오기",
+    "scrollToLatest": "최신으로 이동",
+    "minimap": "메시지 맵",
     "thinking": "생각...",
     "rateLimitWaiting": "속도 제한으로 대기열에서 대기 중...",
     "rateLimitCompactLoading": "속도 제한 중 ({seconds}초)",
@@ -180,7 +185,8 @@
   "mode": {
     "acpAgent": "ACP 에이전트",
     "agent": "대리인",
-    "current": "현재 모드: {mode}"
+    "current": "현재 모드: {mode}",
+    "saveFailed": "모드 선택을 저장하지 못했습니다"
   },
   "topbar": {
     "share": "공유",
@@ -229,6 +235,12 @@
       "contextMenu": {
         "insertPath": "입력창에 삽입",
         "openFile": "파일 열기",
+        "openInApp": "{app}에서 열기",
+        "openInTerminalApp": "{app}에서 폴더 열기",
+        "openFailed": "해당 앱으로 파일을 열 수 없습니다",
+        "preferredAppUnavailable": "기본 앱을 지금은 사용할 수 없어 시스템 기본 앱으로 엽니다.",
+        "openWith": "연결 프로그램",
+        "openWithSystemDefault": "시스템 기본 앱으로 열기",
         "revealInFolder": "파일 관리자에서 열기"
       },
       "empty": "아직 파일이 없습니다",

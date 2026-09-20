@@ -63,6 +63,7 @@ type SessionBrowserState = {
   owner: 'agent' | 'user'
   agentRunId?: string
   previewHost: BaseWindow | null
+  previewThrottlingDisabled: boolean
   previewMode: BrowserPreviewMode
   previewSurface: BrowserPreviewSurface
   previewTargetWindowId: number | null
@@ -239,6 +240,24 @@ export class YoBrowserPresenter implements IYoBrowserPresenter {
       }
       throw error
     }
+  }
+
+  focusSessionBrowser(sessionId: string, hostWindowId: number): boolean {
+    const state = this.sessionBrowsers.get(sessionId)
+    const hostWindow = BrowserWindow.fromId(hostWindowId)
+    if (
+      !state ||
+      !state.visible ||
+      state.attachedWindowId !== hostWindowId ||
+      state.page.contents.isDestroyed() ||
+      !hostWindow ||
+      hostWindow.isDestroyed() ||
+      !hostWindow.isVisible() ||
+      !hostWindow.isFocused()
+    )
+      return false
+    state.page.contents.focus()
+    return true
   }
 
   async attachSessionBrowser(sessionId: string, hostWindowId: number): Promise<boolean> {
@@ -660,6 +679,7 @@ export class YoBrowserPresenter implements IYoBrowserPresenter {
       lastBounds: null,
       owner: 'user',
       previewHost: null,
+      previewThrottlingDisabled: false,
       previewMode: 'stopped',
       previewSurface: 'none',
       previewTargetWindowId: null,
@@ -718,6 +738,25 @@ export class YoBrowserPresenter implements IYoBrowserPresenter {
   private setupPageListeners(state: SessionBrowserState, contents: WebContents): void {
     const sessionId = state.sessionId
     const getState = () => this.sessionBrowsers.get(sessionId)
+
+    // The host's active toolbar control is preserved while its child view owns keyboard focus.
+    contents.on('before-input-event', (event, input) => {
+      if (
+        input.type !== 'keyDown' ||
+        input.key !== 'F6' ||
+        input.shift ||
+        input.alt ||
+        input.control ||
+        input.meta
+      )
+        return
+      const current = getState()
+      if (!current?.visible || current.attachedWindowId == null) return
+      const host = BrowserWindow.fromId(current.attachedWindowId)
+      if (!host || host.isDestroyed() || host.webContents.isDestroyed()) return
+      event.preventDefault()
+      host.webContents.focus()
+    })
 
     contents.on('did-navigate', (_event, url) => {
       const current = getState()
@@ -1495,9 +1534,13 @@ export class YoBrowserPresenter implements IYoBrowserPresenter {
       host.contentView.addChildView(state.view)
       state.view.setBounds({ x: 0, y: 0, ...PREVIEW_VIEWPORT })
       state.view.setVisible(true)
-      state.page.contents.setBackgroundThrottling(false)
       if (isMac) {
+        // The shown host keeps frames active. Unthrottling while hidden breaks capture on macOS.
+        // https://github.com/electron/electron/pull/52844
         host.showInactive()
+      } else if (state.page.contents.backgroundThrottling) {
+        state.page.contents.setBackgroundThrottling(false)
+        state.previewThrottlingDisabled = true
       }
       state.previewHost = host
       host.once('closed', () => {
@@ -1509,9 +1552,10 @@ export class YoBrowserPresenter implements IYoBrowserPresenter {
           state.previewTargetWindowId = null
           state.previewEpoch += 1
           state.view.setVisible(false)
-          if (!state.page.contents.isDestroyed()) {
+          if (state.previewThrottlingDisabled && !state.page.contents.isDestroyed()) {
             state.page.contents.setBackgroundThrottling(true)
           }
+          state.previewThrottlingDisabled = false
         }
       })
       return true
@@ -1577,9 +1621,10 @@ export class YoBrowserPresenter implements IYoBrowserPresenter {
       // Ignore already detached views during shutdown.
     }
     state.view.setVisible(false)
-    if (!state.page.contents.isDestroyed()) {
+    if (state.previewThrottlingDisabled && !state.page.contents.isDestroyed()) {
       state.page.contents.setBackgroundThrottling(true)
     }
+    state.previewThrottlingDisabled = false
     host.destroy()
   }
 

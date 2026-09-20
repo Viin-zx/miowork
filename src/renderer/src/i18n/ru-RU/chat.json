@@ -1,5 +1,6 @@
 {
   "input": {
+    "suggestions": "Подсказки",
     "placeholder": "Спросите MioWork о чем угодно, {'@'} чтобы упомянуть файлы, / для команд",
     "fileArea": "Область файлов",
     "inputArea": "Область ввода",
@@ -114,6 +115,7 @@
   "features": {
     "webSearch": "Поиск в интернете",
     "artifactThinking": "Артефакт мышление",
+    "thoughtForLessThanOneSecond": "Размышление заняло меньше секунды",
     "thoughtForSeconds": "Мышление {seconds} секунд",
     "thoughtForSecondsLoading": "Мышление ({seconds} секунд)",
     "modeChanged": "Режим переключен на: {mode}"
@@ -128,6 +130,9 @@
     "error": "Ошибка поиска"
   },
   "messages": {
+    "loadEarlier": "Загрузить предыдущие сообщения",
+    "scrollToLatest": "Перейти к последнему",
+    "minimap": "Карта сообщений",
     "thinking": "Думаю ...",
     "rateLimitWaiting": "Ограничение скорости, ожидание в очереди...",
     "rateLimitCompactLoading": "Ограничение скорости ({seconds}с)",
@@ -180,7 +185,8 @@
   "mode": {
     "acpAgent": "Агент АШП",
     "agent": "Агент",
-    "current": "Текущий режим: {mode}"
+    "current": "Текущий режим: {mode}",
+    "saveFailed": "Не удалось сохранить выбранный режим"
   },
   "topbar": {
     "share": "Поделиться",
@@ -229,6 +235,12 @@
       "contextMenu": {
         "insertPath": "Вставить в поле ввода",
         "openFile": "открыть файл",
+        "openInApp": "Открыть в {app}",
+        "openInTerminalApp": "Открыть папку в {app}",
+        "openFailed": "Не удалось открыть файл в этом приложении",
+        "preferredAppUnavailable": "Предпочтительное приложение сейчас недоступно. Файл будет открыт в приложении по умолчанию.",
+        "openWith": "Открыть с помощью",
+        "openWithSystemDefault": "Открыть в приложении по умолчанию",
         "revealInFolder": "Открыть в файловом менеджере"
       },
       "empty": "Файлов пока нет",

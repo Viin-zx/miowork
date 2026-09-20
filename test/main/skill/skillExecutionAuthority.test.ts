@@ -186,7 +186,9 @@ describe('SkillExecutionAuthorityResolver', () => {
       expect(environments.resolveSkillRuntimeEnvironmentBinding).toHaveBeenCalledWith(
         'agent-1',
         'review',
-        BINDING_ID
+        BINDING_ID,
+        authority.identity.sourceId,
+        authority.identity.sourceType
       )
     }
   )

@@ -1,6 +1,6 @@
 import type { ProviderModelResolutionPort } from '@/provider/settings'
 import { randomUUID } from 'node:crypto'
-import { approximateTokenSize } from 'tokenx'
+import { estimateTokenCount } from 'tokenx'
 import type {
   ChatMessageRecord,
   SendMessageInput,
@@ -99,6 +99,7 @@ export type CompactionExecutionResult = {
   outcome: 'summarized' | 'boundary_only' | 'unchanged'
   anchorCommitted: boolean
   summaryState: SessionSummaryState
+  summaryError?: string
 }
 
 export type CompactionModelCallObservation = {
@@ -632,6 +633,7 @@ export class CompactionService {
   ): Promise<CompactionExecutionResult> {
     assertValidContextLength(intent.currentModel.contextLength)
     let nextSummary: string | null = null
+    let summaryError: string | undefined
     try {
       throwIfAbortRequested(signal)
       nextSummary = await this.generateRollingSummary({
@@ -653,11 +655,15 @@ export class CompactionService {
         `[CompactionService] Summary generation failed for session ${intent.sessionId}; advancing a boundary-only reconstruction anchor.`,
         redactRuntimeErrorForLog(error)
       )
+      summaryError = error instanceof Error ? error.message || error.name : String(error)
     }
 
     throwIfAbortRequested(signal)
     if (!nextSummary) {
-      return this.commitBoundaryOnly(intent)
+      return {
+        ...this.commitBoundaryOnly(intent),
+        ...(summaryError ? { summaryError } : {})
+      }
     }
 
     const summaryAnchor = this.buildSummaryAnchor(intent, nextSummary)
@@ -1047,7 +1053,7 @@ export class CompactionService {
   ): number {
     return (
       this.getSummarizationInputBudget(contextLength, reserveTokens) -
-      approximateTokenSize(previousSummary || '')
+      estimateTokenCount(previousSummary || '')
     )
   }
 
@@ -1086,9 +1092,9 @@ export class CompactionService {
       params.signal
     )
     throwIfAbortRequested(params.signal)
-    const previousSummaryTokens = approximateTokenSize(params.previousSummary || '')
+    const previousSummaryTokens = estimateTokenCount(params.previousSummary || '')
     const blockTokens = params.summaryBlocks.reduce(
-      (total, block) => total + approximateTokenSize(block),
+      (total, block) => total + estimateTokenCount(block),
       0
     )
     const fullPayloadTokens = previousSummaryTokens + blockTokens
@@ -1134,8 +1140,8 @@ export class CompactionService {
     }
 
     const fullPayloadTokens =
-      normalizedBlocks.reduce((total, block) => total + approximateTokenSize(block), 0) +
-      approximateTokenSize(options.previousSummary || '')
+      normalizedBlocks.reduce((total, block) => total + estimateTokenCount(block), 0) +
+      estimateTokenCount(options.previousSummary || '')
     const inputBudget = this.getSummarizationInputBudget(
       options.model.contextLength,
       options.reserveTokens
@@ -1160,7 +1166,7 @@ export class CompactionService {
       )
       if (splitBlocks.length === normalizedBlocks.length) {
         const joinedSplitBlocks = splitBlocks.join('\n\n')
-        const joinedSplitTokens = approximateTokenSize(joinedSplitBlocks)
+        const joinedSplitTokens = estimateTokenCount(joinedSplitBlocks)
         const remainingSpanBudget = this.getRemainingSpanTokenBudget(
           options.previousSummary,
           options.model.contextLength,
@@ -1233,7 +1239,7 @@ export class CompactionService {
     let currentTokens = 0
 
     for (const block of blocks) {
-      const blockTokens = approximateTokenSize(block)
+      const blockTokens = estimateTokenCount(block)
       if (blockTokens > maxChunkTokens) {
         if (currentGroup.length > 0) {
           grouped.push(currentGroup)
@@ -1266,7 +1272,7 @@ export class CompactionService {
   }
 
   private splitLargeBlock(block: string, maxChunkTokens: number): string[] {
-    if (approximateTokenSize(block) <= maxChunkTokens) {
+    if (estimateTokenCount(block) <= maxChunkTokens) {
       return [block]
     }
 

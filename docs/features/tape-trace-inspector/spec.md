@@ -319,6 +319,9 @@ versions.
 
 - Generic row `payloadHash` is SHA-256 over the exact stored `payload_json` string.
 - Generic row `metaHash` is SHA-256 over the exact stored `meta_json` string.
+- Generic hashes are computed by the detail projection only; page-list rows carry no
+  `payloadHash`/`metaHash`, and View rows carry `manifestHash` plus `integrity` so the detail pane
+  can announce the integrity section before the detail loads.
 - The Inspector reuses `hashString`; it does not canonicalize or parse before hashing.
 - Manifest hashes and integrity use the existing manifest verifier.
 - Other artifact integrity is exposed only when an existing authoritative verifier owns it.
@@ -522,7 +525,6 @@ sanitized raw representation rather than the unfiltered database JSON.
 | Provider evidence | Existing message trace diagnostics |
 | View manifest | Existing manifest diagnostics |
 | Nested execution | Existing nested execution audit |
-| Message replay/export | Existing bounded ReplaySlice route |
 | Message Entry | Hash/metadata plus transcript navigation |
 | Context/Skill | Hash and approved references only |
 | Unknown/no-message Entry | Identity, provenance, hash, size, and timestamp only |
@@ -544,7 +546,7 @@ sessions.exportTapeInspectorSupportTrace({
 })
 ```
 
-The export is a versioned diagnostic document, not a ReplaySlice and not a lossless history dump.
+The export is a versioned diagnostic document, not a lossless history dump.
 It contains two separate arrays and never invents a total order across them:
 
 - at most 200 of the most recent Tape Entries, returned in chronological `entryId` order;

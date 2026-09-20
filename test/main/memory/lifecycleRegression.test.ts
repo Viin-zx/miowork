@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { buildMemoryProvenanceKey } from '@/memory/core/scoring'
-import { type IMemoryVectorStore, type MemoryVectorMatch } from '@/memory/types'
+import {
+  type IMemoryVectorStore,
+  type MemoryServiceDeps,
+  type MemoryVectorMatch
+} from '@/memory/types'
 import type { DeepChatAgentConfig } from '@shared/types/agent-interface'
 import {
   FakeAuditRepository,
@@ -14,6 +18,7 @@ import {
   DAY,
   decisionCalls,
   embeddingConfig,
+  flushMicrotasks,
   makeLLMPresenter,
   routedLLM,
   seedEmbedded
@@ -505,12 +510,14 @@ describe('MemoryService lifecycle revival (SDD-8)', () => {
         extraction: '[{"kind":"semantic","content":"user likes redis","importance":0.8}]',
         decision: '{"decision":"ADD","targetIndex":null,"mergedContent":null}'
       })
-      const { presenter } = makeLLMPresenter(generateText)
-      let resolvePass = (): void => {}
-      const passGate = new Promise<void>((resolve) => {
-        resolvePass = resolve
+      const { presenter, store } = makeLLMPresenter(generateText)
+      // Block the real pass inside its vector neighbor query: dispose aborts provider
+      // requests, so an LLM gate would release the pass on its own.
+      let releaseNeighborQuery = (): void => {}
+      const neighborQueryGate = new Promise<MemoryVectorMatch[]>((resolve) => {
+        releaseNeighborQuery = () => resolve([])
       })
-      vi.spyOn(presenter, 'runConsolidationPass').mockReturnValue(passGate)
+      const neighborQuery = vi.spyOn(store, 'queryByMemoryId').mockReturnValue(neighborQueryGate)
 
       await presenter.extractAndStore({
         agentId: 'a',
@@ -518,15 +525,16 @@ describe('MemoryService lifecycle revival (SDD-8)', () => {
         model: { providerId: 'main', modelId: 'main' }
       })
       await vi.advanceTimersByTimeAsync(5 * 60 * 1000)
+      expect(neighborQuery).toHaveBeenCalledTimes(1)
 
       let disposed = false
       const disposePromise = presenter.dispose().then(() => {
         disposed = true
       })
-      await Promise.resolve()
+      await flushMicrotasks(20)
       expect(disposed).toBe(false)
 
-      resolvePass()
+      releaseNeighborQuery()
       await disposePromise
       expect(disposed).toBe(true)
     } finally {
@@ -549,7 +557,7 @@ describe('MemoryService lifecycle revival (SDD-8)', () => {
     expect(repo.listByAgent('a')[0]?.status).toBe('fts_only')
 
     config = { memoryEnabled: true, memoryEmbedding: { providerId: 'p', modelId: 'm' } }
-    const spy = vi.spyOn(presenter, 'backfillEmbeddings')
+    const spy = vi.spyOn(memoryRuntimeForTests(presenter).embeddingService, 'backfillEmbeddings')
     await presenter.dispose()
     await presenter.recall('a', 'redis')
 
@@ -644,7 +652,7 @@ describe('MemoryService lifecycle revival (SDD-8)', () => {
     const auditRepo = new FakeAuditRepository()
     const store = new FakeVectorStore()
     const now = 1_000 * DAY
-    const make = (gen: ReturnType<typeof vi.fn>) =>
+    const make = (gen: MemoryServiceDeps['generateText']) =>
       new MemoryService({
         repository: repo,
         auditRepository: auditRepo,
@@ -784,8 +792,14 @@ describe('MemoryService lifecycle revival (SDD-8)', () => {
     blockCreate = true
     const getByIdSpy = vi.spyOn(repo, 'getById')
     const recordSpy = vi.spyOn(repo, 'recordAccessBatch')
-    const backfillSpy = vi.spyOn(presenter, 'backfillEmbeddings')
-    const reindexSpy = vi.spyOn(presenter, 'reindexEmbeddings')
+    const backfillSpy = vi.spyOn(
+      memoryRuntimeForTests(presenter).embeddingService,
+      'backfillEmbeddings'
+    )
+    const reindexSpy = vi.spyOn(
+      memoryRuntimeForTests(presenter).embeddingService,
+      'reindexEmbeddings'
+    )
     const closeSpy = vi.spyOn(store, 'close')
     const recall = presenter.recall('a', 'redis')
     await new Promise((r) => setTimeout(r, 0)) // background warm is parked inside createVectorStore
@@ -862,7 +876,10 @@ describe('MemoryService lifecycle revival (SDD-8)', () => {
     blockQuery = true
     const getByIdSpy = vi.spyOn(repo, 'getById')
     const recordSpy = vi.spyOn(repo, 'recordAccessBatch')
-    const backfillSpy = vi.spyOn(presenter, 'backfillEmbeddings')
+    const backfillSpy = vi.spyOn(
+      memoryRuntimeForTests(presenter).embeddingService,
+      'backfillEmbeddings'
+    )
     const recall = presenter.recall('a', 'redis')
     await new Promise((r) => setTimeout(r, 0)) // park inside store.query
 
@@ -1134,7 +1151,9 @@ describe('MemoryService lifecycle revival (SDD-8)', () => {
       embeddingDim: 4,
       embeddingModel: 'p:m'
     })
-    const reindexSpy = vi.spyOn(presenter, 'reindexEmbeddings').mockResolvedValue()
+    const reindexSpy = vi
+      .spyOn(memoryRuntimeForTests(presenter).embeddingService, 'reindexEmbeddings')
+      .mockResolvedValue()
 
     expect(await presenter.deleteMemory('a', 'm1')).toEqual({ action: 'applied' })
 

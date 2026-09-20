@@ -5,6 +5,15 @@
       :data-generating="String(isGenerating)"
       class="chat-page-shell relative grid h-full min-h-0 w-full min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden"
     >
+      <div
+        data-testid="chat-generation-status"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        class="sr-only"
+      >
+        {{ generationAnnouncement }}
+      </div>
       <ChatTopBar
         class="chat-capture-hide"
         :session-id="props.sessionId"
@@ -30,11 +39,16 @@
           />
         </div>
       </div>
-      <div data-testid="chat-viewport-region" class="relative min-h-0 min-w-0">
+      <!-- The message map gets a column of its own beside the scroll container, so it is never
+           clipped by the side panel and never squeezed when the window is narrow. -->
+      <div data-testid="chat-viewport-region" class="relative flex min-h-0 min-w-0 flex-row">
         <div
           ref="scrollContainer"
           data-testid="chat-page"
-          class="message-list-container relative h-full min-h-0 w-full min-w-0 overflow-y-auto"
+          role="region"
+          :aria-label="sessionTitle"
+          tabindex="0"
+          class="message-list-container relative h-full min-h-0 min-w-0 flex-1 overflow-y-auto"
           :class="{ 'dc-list-scrolling': isListScrolling }"
           @scroll.passive="onScroll"
           @scrollend.passive="listGestures.onListScrollEnd"
@@ -83,6 +97,19 @@
                 </DcButton>
               </div>
             </div>
+            <div v-if="messageStore.hasMoreHistory" class="px-6 pt-3 text-center">
+              <DcButton
+                type="button"
+                variant="outline"
+                size="sm"
+                data-testid="history-load-earlier"
+                :disabled="messageStore.isLoadingHistory"
+                :aria-busy="messageStore.isLoadingHistory"
+                @click="loadEarlierMessagesForReading"
+              >
+                {{ t('chat.messages.loadEarlier') }}
+              </DcButton>
+            </div>
             <MessageList
               ref="messageListRef"
               :messages="visibleDisplayMessages"
@@ -110,6 +137,15 @@
             <div class="h-px w-full" aria-hidden="true" />
           </div>
         </div>
+        <!-- Sits outside the scroll container so the rail keeps its position while the list moves. -->
+        <ChatMinimap
+          :visible="showChatMinimap"
+          :ticks="minimapTicks"
+          :viewport="minimapViewport"
+          :preview-text="minimapPreviewText"
+          @jump="jumpToPendingMessage"
+          @hover="onMinimapHover"
+        />
         <div
           v-if="isSessionViewPreparing"
           data-testid="chat-session-loading-overlay"
@@ -165,8 +201,10 @@
             <!-- Anchor the plan/question float to the outer .relative (which includes the queue lane)
                  so bottom:calc(100%+0.75rem) lifts it above PendingInputLane instead of covering it. -->
             <div>
+              <!-- Always mounted: unmounting this container in the same tick the pill hides would
+                   skip the pill's leave transition. Its children are conditional and it has no size
+                   of its own while they are all hidden. -->
               <div
-                v-if="latestPlanSnapshot || activePendingInteraction"
                 class="pointer-events-none absolute inset-x-0 bottom-[calc(100%+0.75rem)] flex w-full flex-col items-center gap-2"
                 style="z-index: var(--dc-z-float)"
                 data-testid="agent-progress-float-layer"
@@ -180,6 +218,13 @@
                   @set-plan-collapsed="agentPlanStore.setCollapsed(props.sessionId, $event)"
                   @dismiss-plan="onDismissPlanFloat"
                   @respond="onToolInteractionRespond"
+                />
+                <!-- Last child of the bottom-anchored column, so the pill stays directly above the
+                     composer instead of riding to the top of an expanded plan panel. -->
+                <ScrollToLatestPill
+                  :visible="showScrollToLatest"
+                  :count="messagesBelowViewport.length"
+                  @return="returnToLatest"
                 />
               </div>
               <div
@@ -289,9 +334,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted, onUnmounted, inject } from 'vue'
+import type { ToolInteractionResponse } from '@shared/types/agent-interface'
+import {
+  ref,
+  computed,
+  watch,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  onUnmounted,
+  inject
+} from 'vue'
 import type { JSONContent } from '@tiptap/core'
 import { useI18n } from 'vue-i18n'
+import { useAccessibilitySupport } from '@/composables/useAccessibilitySupport'
 import { TooltipProvider } from '@shadcn/components/ui/tooltip'
 import { DcButton } from '@dc-ui/components/button'
 import { DcConfirmDialog } from '@dc-ui/components/confirm-dialog'
@@ -307,7 +363,14 @@ import {
   type ChatStatusBarModelPicker
 } from '@/components/chat/attachmentModelPicker'
 import ChatInteractionDock from '@/components/chat/ChatInteractionDock.vue'
+import ChatMinimap from '@/components/chat/ChatMinimap.vue'
 import PendingInputLane from '@/components/chat/PendingInputLane.vue'
+import ScrollToLatestPill from '@/components/chat/ScrollToLatestPill.vue'
+import {
+  canAttemptMessageJump,
+  isSupersededMessageJump,
+  shouldRetryMessageJump
+} from './model/messageJumpRetry'
 import ChatStatusBar from '@/components/chat/ChatStatusBar.vue'
 import ChatToolInteractionOverlay from '@/components/chat/ChatToolInteractionOverlay.vue'
 import MemoryTurnDialog from '@/components/chat/MemoryTurnDialog.vue'
@@ -346,7 +409,9 @@ import { usePlanFloatLifecycle } from './composables/usePlanFloatLifecycle'
 import { useDisplayMessages } from './composables/useDisplayMessages'
 import { useChatSearch } from './composables/useChatSearch'
 import { useListGestures } from './composables/useListGestures'
+import { extractDisplayContentText } from '@/lib/chatSearch'
 import { useMessageVirtualization } from './composables/useMessageVirtualization'
+import { buildMinimapTicks, buildMinimapViewportWindow } from './model/minimapTicks'
 import { useComposerSubmit } from './composables/useComposerSubmit'
 import { useSessionRestore } from './composables/useSessionRestore'
 import { useVoiceInput } from './composables/useVoiceInput'
@@ -354,10 +419,13 @@ import { useToolInteraction } from './composables/useToolInteraction'
 import { useMessageActions } from './composables/useMessageActions'
 import { usePendingInputActions } from './composables/usePendingInputActions'
 import { useChatPageEventBridge } from './composables/useChatPageEventBridge'
+import { useComposerTypeToFocus } from './composables/useComposerTypeToFocus'
+import { isEditableKeyboardTarget } from '@/lib/keyboardFocus'
 import type { UserMessageInlineItem } from '@shared/types/agent-interface'
 import { findLatestAssistantMessageId } from '@/features/chat-page/model/displayMessage'
 
 const props = defineProps<{
+  focusComposerOnMount?: boolean
   sessionId: string
 }>()
 
@@ -388,6 +456,7 @@ const modelClient = createModelClient()
 const providerClient = createProviderClient()
 const sessionClient = createSessionClient()
 const { t } = useI18n()
+const { accessibilityEnabled } = useAccessibilitySupport()
 const isSessionViewCommitted = computed(
   () =>
     messageStore.currentSessionId === props.sessionId &&
@@ -407,6 +476,7 @@ const isGenerating = computed(
   () => sessionStore.activeSession?.status === 'working' || isCurrentSessionStreaming.value
 )
 const stoppingSessionIds = ref<Set<string>>(new Set())
+const manualCompactionSessionIds = ref<Set<string>>(new Set())
 const isStopping = computed(() => stoppingSessionIds.value.has(props.sessionId))
 const streamingMessageId = computed(() =>
   isCurrentSessionStreaming.value ? messageStore.currentStreamMessageId : null
@@ -468,19 +538,50 @@ const TOP_HISTORY_THRESHOLD = 80
 const MESSAGE_JUMP_RETRY_INTERVAL = 80
 const MESSAGE_HIGHLIGHT_DURATION = 2000
 const MAX_MESSAGE_JUMP_RETRIES = 8
+// Space is intentionally absent: it is composer input now (type-to-focus claims
+// it and prevents the native scroll), so it must not mark restore-time scroll
+// intent either.
 const SESSION_RESTORE_SCROLL_INTENT_KEYS = new Set([
   'ArrowUp',
   'ArrowDown',
   'PageUp',
   'PageDown',
   'Home',
-  'End',
-  ' ',
-  'Spacebar'
+  'End'
 ])
 const traceMessageId = ref<string | null>(null)
 const sidepanelStore = useSidepanelStore()
-let spotlightJumpTimer: number | null = null
+/**
+ * Scheduled retries, keyed by message. Each entry carries the resolver of the promise the caller is
+ * awaiting, so cancelling a retry can report "not reached" instead of leaving that caller waiting
+ * forever for a timer that will never fire.
+ */
+const messageJumpTimers = new Map<string, { timer: number; resolve: (reached: boolean) => void }>()
+
+/**
+ * Generation counter for message jumps. Every fresh jump bumps it, and a jump that awaited the DOM
+ * compares it before acting, so a superseded jump stops instead of dragging the viewport back.
+ */
+let messageJumpSeq = 0
+
+/**
+ * Ends every pending jump: cancels the scheduled retries, tells their callers the target was not
+ * reached, and moves the generation on so a jump still awaiting the DOM stops acting.
+ */
+function cancelPendingMessageJumps(): void {
+  messageJumpSeq += 1
+  for (const pending of messageJumpTimers.values()) {
+    window.clearTimeout(pending.timer)
+    pending.resolve(false)
+  }
+  messageJumpTimers.clear()
+}
+
+/**
+ * Counts user gestures on the message list. `jumpToMessage` compares this before retrying so a
+ * retry can never override a gesture that already cancelled the pending navigation.
+ */
+let userGestureSeq = 0
 let scrollReadFrame: number | null = null
 // The immediate session watcher can call clearMessageWindowMeasurements before
 // messageWindow exists; keep this no-op forward reference and rebind it to
@@ -509,16 +610,6 @@ const resolveChatInputBoxElement = () =>
     '[data-testid="chat-input-box"]'
   ) as HTMLElement | null) ?? null
 
-function isEditableKeyboardTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) {
-    return false
-  }
-
-  return Boolean(
-    target.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]')
-  )
-}
-
 function isSessionRestoreKeyboardScrollIntent(event: KeyboardEvent): boolean {
   return (
     !event.defaultPrevented &&
@@ -545,6 +636,42 @@ function isBottomFollowingMode(): boolean {
     (chatScrollController.state.value.mode === 'restoring' ||
       chatScrollController.state.value.mode === 'following')
   )
+}
+
+/**
+ * The indicator appears whenever the viewport is not at the bottom. `nearBottom` is the controller's
+ * own 80px proximity flag, so the indicator cannot disagree with auto-follow about where "the
+ * bottom" is. Message count is separate because a single tall message can leave the viewport far
+ * from the bottom with nothing below it.
+ */
+const showScrollToLatest = computed(
+  () => displayMessages.value.length > 0 && !chatScrollController.state.value.nearBottom
+)
+
+/**
+ * Explicit user action: hand ownership back to the controller as a bottom request. `bottom` targets
+ * always resolve, so unlike message targets this cannot be accepted and then dropped without a
+ * write, which is why no retry loop is needed here.
+ */
+function returnToLatest(): void {
+  // A pending jump retry would re-issue an explicit navigation, which the controller accepts
+  // unconditionally, and pull the viewport away from the bottom the user just asked for.
+  cancelPendingMessageJumps()
+  requestChatScroll('user-return-to-bottom', { kind: 'bottom' })
+}
+
+/**
+ * Starts a new jump generation. Any jump still awaiting the DOM becomes superseded the moment this
+ * is called, which is what keeps a rapid sequence of clicks on the message map from being undone by
+ * a retry that belongs to an earlier one.
+ */
+function startMessageJump(messageId: string, reason: ChatScrollReason): Promise<boolean> {
+  cancelPendingMessageJumps()
+  return jumpToMessage(messageId, reason, 0, userGestureSeq, messageJumpSeq)
+}
+
+function jumpToPendingMessage(messageId: string): void {
+  void startMessageJump(messageId, 'indicator-navigation')
 }
 
 function requestChatScroll(
@@ -641,6 +768,7 @@ function scheduleScrollMetricsRead() {
 
 function onWheel(event: WheelEvent) {
   if (event.deltaY === 0) return
+  userGestureSeq += 1
   chatScrollController.notifyUserGestureStart('wheel')
   listGestures.markWheelScrollIntent(event.deltaY < 0)
 }
@@ -673,6 +801,15 @@ function onScroll() {
 
 async function retryOlderMessages(): Promise<void> {
   await loadOlderMessagesAtTop({ force: true })
+}
+
+async function loadEarlierMessagesForReading() {
+  const sessionId = props.sessionId
+  await loadOlderMessagesAtTop({ force: true })
+  if (sessionId !== props.sessionId || messageStore.historyLoadError) return
+  requestChatScroll('history-navigation', { kind: 'absolute', top: 0 }, true)
+  await nextTick()
+  scrollContainer.value?.focus({ preventScroll: true })
 }
 
 async function loadOlderMessagesAtTop(options: { force?: boolean } = {}): Promise<void> {
@@ -727,8 +864,9 @@ async function loadOlderMessagesAtTop(options: { force?: boolean } = {}): Promis
     ? messageWindow.getEntry(historyAnchor.messageId)
     : undefined
   const usesWindowedMessages =
-    previousEntryCount > MESSAGE_WINDOWING_THRESHOLD ||
-    messageWindow.entries.value.length > MESSAGE_WINDOWING_THRESHOLD
+    !accessibilityEnabled.value &&
+    (previousEntryCount > MESSAGE_WINDOWING_THRESHOLD ||
+      messageWindow.entries.value.length > MESSAGE_WINDOWING_THRESHOLD)
 
   if (!usesWindowedMessages || !historyAnchor || !nextAnchorEntry) {
     await nextTick()
@@ -772,43 +910,92 @@ async function loadOlderMessagesAtTop(options: { force?: boolean } = {}): Promis
   requestChatScroll('history-prepend', { kind: 'absolute', top: targetScrollTop }, true)
 }
 
-async function focusPendingSpotlightMessageJump(attempt = 0): Promise<void> {
-  const pendingJump = spotlightStore.pendingMessageJump
-  if (!pendingJump || pendingJump.sessionId !== props.sessionId) {
-    return
+/**
+ * Requests a controller navigation to a message and highlights it once it is on screen.
+ *
+ * Shared by the Spotlight deep link and the "scroll to latest" indicator. Returns whether the
+ * target was reached: a caller with its own pending state keeps it until this resolves true.
+ * Retries are keyed by message so a repeated request cannot stack timers.
+ */
+async function jumpToMessage(
+  messageId: string,
+  reason: ChatScrollReason,
+  attempt = 0,
+  gestureSeqAtStart: number = userGestureSeq,
+  jumpSeqAtStart: number = messageJumpSeq
+): Promise<boolean> {
+  // Checked before any request: a retry that arrives after the user gestured must not re-issue an
+  // explicit navigation, which the controller would accept and use to pull the viewport back.
+  if (!canAttemptMessageJump({ attempt, gestureSeqAtStart, currentGestureSeq: userGestureSeq })) {
+    return false
   }
 
   await nextTick()
 
-  const selector = messageIdSelector(pendingJump.messageId)
-  const entry = messageWindow.getEntry(pendingJump.messageId)
-  if (entry) {
-    const requestId = requestChatScroll('spotlight-navigation', {
-      kind: 'message',
-      messageId: pendingJump.messageId,
-      align: 'one-third'
-    })
-    if (requestId === null) return
-    await waitForNextAnimationFrame()
-    await nextTick()
+  // Cancelling the pending jumps only covers the timers that existed at that moment. This jump may
+  // have been awaiting the DOM while a newer one started, so it re-checks its generation before it
+  // acts — otherwise it would register a fresh timer below and drag the viewport back to its own
+  // message.
+  if (isSupersededMessageJump({ jumpSeqAtStart, currentJumpSeq: messageJumpSeq })) {
+    return false
   }
 
-  const target = messageSearchRoot.value?.querySelector<HTMLElement>(selector)
+  const entry = messageWindow.getEntry(messageId)
+  if (entry) {
+    const requestId = requestChatScroll(reason, {
+      kind: 'message',
+      messageId,
+      align: 'one-third'
+    })
+    if (requestId === null) return false
+    await waitForNextAnimationFrame()
+    await nextTick()
+    if (isSupersededMessageJump({ jumpSeqAtStart, currentJumpSeq: messageJumpSeq })) {
+      return false
+    }
+  }
+
+  const target = messageSearchRoot.value?.querySelector<HTMLElement>(messageIdSelector(messageId))
 
   if (!target) {
-    // Retry briefly while virtualized / async-rendered message content settles after session switch.
-    if (attempt >= MAX_MESSAGE_JUMP_RETRIES) {
-      return
+    // Retry briefly while virtualized / async-rendered message content settles after session switch,
+    // but never after the user has taken the viewport back: re-issuing an explicit navigation would
+    // override the cancellation their gesture just performed.
+    if (
+      !shouldRetryMessageJump({
+        attempt,
+        maxAttempts: MAX_MESSAGE_JUMP_RETRIES,
+        gestureSeqAtStart,
+        currentGestureSeq: userGestureSeq
+      })
+    ) {
+      return false
     }
 
-    if (spotlightJumpTimer) {
-      window.clearTimeout(spotlightJumpTimer)
+    // The caller keeps its own pending state until this resolves, so a retry reports the outcome of
+    // the whole chain rather than an immediate "not yet" — otherwise a jump that succeeds on a later
+    // attempt leaves that pending state behind forever.
+    const scheduled = messageJumpTimers.get(messageId)
+    if (scheduled) {
+      window.clearTimeout(scheduled.timer)
+      scheduled.resolve(false)
     }
 
-    spotlightJumpTimer = window.setTimeout(() => {
-      void focusPendingSpotlightMessageJump(attempt + 1)
-    }, MESSAGE_JUMP_RETRY_INTERVAL)
-    return
+    return new Promise<boolean>((resolve) => {
+      messageJumpTimers.set(messageId, {
+        timer: window.setTimeout(() => {
+          messageJumpTimers.delete(messageId)
+          void jumpToMessage(
+            messageId,
+            reason,
+            attempt + 1,
+            gestureSeqAtStart,
+            jumpSeqAtStart
+          ).then(resolve)
+        }, MESSAGE_JUMP_RETRY_INTERVAL),
+        resolve
+      })
+    })
   }
 
   target.classList.add('message-highlight')
@@ -817,7 +1004,18 @@ async function focusPendingSpotlightMessageJump(attempt = 0): Promise<void> {
     target.classList.remove('message-highlight')
   }, MESSAGE_HIGHLIGHT_DURATION)
 
-  spotlightStore.clearPendingMessageJump()
+  return true
+}
+
+async function focusPendingSpotlightMessageJump(): Promise<void> {
+  const pendingJump = spotlightStore.pendingMessageJump
+  if (!pendingJump || pendingJump.sessionId !== props.sessionId) {
+    return
+  }
+
+  if (await startMessageJump(pendingJump.messageId, 'spotlight-navigation')) {
+    spotlightStore.clearPendingMessageJump()
+  }
 }
 
 function cacheCurrentMessageMeasurements(): void {
@@ -837,7 +1035,13 @@ const {
   messageStore,
   sessionStore,
   modelStore,
-  isGenerating,
+  // Compaction keeps the session busy without starting an assistant reply.
+  isGenerating: computed(
+    () =>
+      isGenerating.value &&
+      !manualCompactionSessionIds.value.has(props.sessionId) &&
+      sessionStore.activeCompactionState?.status !== 'compacting'
+  ),
   isSessionViewCommitted,
   isCurrentSessionStreaming
 })
@@ -879,7 +1083,10 @@ const listGestures = useListGestures({
   viewport: scrollContainer,
   scrollIdleMs: SCROLL_IDLE_MS,
   topHistoryThreshold: TOP_HISTORY_THRESHOLD,
-  onGestureStart: (kind) => chatScrollController.notifyUserGestureStart(kind),
+  onGestureStart: (kind) => {
+    userGestureSeq += 1
+    chatScrollController.notifyUserGestureStart(kind)
+  },
   onGestureEnd: () => chatScrollController.notifyUserGestureEnd(),
   onScrollingStart: () => virtualization.pinWindowToViewport(),
   onScrollingSettled: () => {
@@ -897,6 +1104,7 @@ const virtualization = useMessageVirtualization({
   viewport: scrollContainer,
   displayMessages,
   messageWindow,
+  disableWindowing: accessibilityEnabled,
   windowingThreshold: MESSAGE_WINDOWING_THRESHOLD,
   initialWindowCount: MESSAGE_INITIAL_WINDOW_COUNT,
   overscanPx: MESSAGE_WINDOW_OVERSCAN_PX,
@@ -916,8 +1124,51 @@ const {
   visibleDisplayMessages,
   messageWindowBeforeHeight,
   messageWindowAfterHeight,
-  onMessageMeasure
+  onMessageMeasure,
+  messagesBelowViewport
 } = virtualization
+
+const minimapTicks = computed(() =>
+  buildMinimapTicks({
+    entries: messageWindow.entries.value,
+    messages: displayMessages.value,
+    totalHeight: messageWindow.totalHeight.value
+  })
+)
+
+const minimapViewport = computed(() =>
+  buildMinimapViewportWindow({
+    // Entries live in message-window coordinates, so the scroll offset is rebased exactly like the
+    // windowing range and the below-viewport count rebase it.
+    viewportTop: Math.max(scrollViewportTop.value - messageWindowOriginTop.value, 0),
+    viewportHeight: scrollViewportHeight.value,
+    totalHeight: messageWindow.totalHeight.value
+  })
+)
+
+/**
+ * The rail is worth a column of its own as soon as there is more than one message to navigate. It
+ * scrolls itself when the marks no longer fit, so it does not need the conversation to overflow the
+ * viewport first.
+ */
+const showChatMinimap = computed(() => minimapTicks.value.length > 0)
+
+/**
+ * Text for the map's hover card. Only the hovered message is projected, so the preview costs one
+ * message no matter how long the conversation is.
+ */
+const hoveredMinimapMessageId = ref<string | null>(null)
+const minimapPreviewText = computed(() => {
+  const messageId = hoveredMinimapMessageId.value
+  if (!messageId) return null
+
+  const message = displayMessages.value.find((candidate) => candidate.id === messageId)
+  return message ? extractDisplayContentText(message.content) : null
+})
+
+function onMinimapHover(messageId: string | null): void {
+  hoveredMinimapMessageId.value = messageId
+}
 
 const {
   isChatSearchOpen,
@@ -1066,6 +1317,7 @@ function handleWindowKeydown(event: KeyboardEvent) {
 
 const chatInputRef = ref<{
   triggerAttach: () => void
+  focusInput?: () => void
   insertRecognizedText?: (text: string) => void
   insertWorkspaceReference?: (targetPath: string) => boolean
   getInlineItemsSnapshot?: () => UserMessageInlineItem[]
@@ -1086,7 +1338,7 @@ const {
   pendingInteractions,
   activePendingInteraction,
   isHandlingInteraction,
-  onToolInteractionRespond
+  onToolInteractionRespond: submitToolInteraction
 } = useToolInteraction({
   sessionId: () => props.sessionId,
   messageStore,
@@ -1095,6 +1347,76 @@ const {
   applyRestoredSessionSummary,
   currentRestoreRequestId,
   canWriteSessionView
+})
+
+async function onToolInteractionRespond(response: ToolInteractionResponse) {
+  const sessionId = props.sessionId
+  await submitToolInteraction(response)
+  await nextTick()
+  if (sessionId !== props.sessionId || activePendingInteraction.value) return
+  // Do not steal focus if the user moved elsewhere while the response was saving.
+  const active = document.activeElement
+  if (active !== document.body && !active?.closest('[data-testid="agent-interaction-dock"]')) {
+    return
+  }
+  if (isReadOnlySession.value) scrollContainer.value?.focus({ preventScroll: true })
+  else chatInputRef.value?.focusInput?.()
+}
+
+let composerFocusRequested = props.focusComposerOnMount === true
+watch(
+  isSessionViewPreparing,
+  async (preparing) => {
+    if (preparing || !composerFocusRequested) return
+    composerFocusRequested = false
+    await nextTick()
+    if (
+      !activePendingInteraction.value &&
+      !isReadOnlySession.value &&
+      document.activeElement === document.body
+    ) {
+      chatInputRef.value?.focusInput?.()
+    }
+  },
+  { immediate: true, flush: 'post' }
+)
+
+/**
+ * Type-to-focus only when the composer can actually take focus: a read-only
+ * (subagent) session does not render it at all, and a pending tool interaction
+ * leaves it inert.
+ */
+const isComposerTypeToFocusEnabled = computed(
+  () =>
+    !isReadOnlySession.value &&
+    !isSessionViewPreparing.value &&
+    !activePendingInteraction.value &&
+    !isHandlingInteraction.value
+)
+useComposerTypeToFocus({
+  isEnabled: () => isComposerTypeToFocusEnabled.value,
+  chatInputRef
+})
+
+// Announce state transitions, not token updates; users read response content in the transcript.
+const generationAnnouncement = computed(() => {
+  if (isSessionViewPreparing.value) return ''
+  if (activePendingInteraction.value) {
+    return activePendingInteraction.value.actionType === 'tool_call_permission'
+      ? t('chat.toolCall.subagents.status.waiting_permission')
+      : t('chat.toolCall.subagents.status.waiting_question')
+  }
+  if (isGenerating.value) return t('chat.toolCall.subagents.status.running')
+  const latestResponse = displayMessages.value.find(
+    (message) => message.id === latestAssistantMessageId.value
+  )
+  if (latestResponse?.role === 'assistant' && latestResponse.runStopReason === 'user_stop') {
+    return t('common.error.userCanceledGeneration')
+  }
+  if (sessionStore.activeSession?.status === 'error' || latestResponse?.status === 'error') {
+    return t('chat.notify.generationError')
+  }
+  return latestResponse?.status === 'sent' ? t('chat.notify.generationComplete') : ''
 })
 
 const {
@@ -1193,6 +1515,10 @@ const {
   isSessionViewPreparing,
   isAcpWorkdirMissing,
   isGenerating,
+  setManualCompacting: (sessionId, compacting) => {
+    if (compacting) manualCompactionSessionIds.value.add(sessionId)
+    else manualCompactionSessionIds.value.delete(sessionId)
+  },
   hasBlockingInteraction: () =>
     Boolean(activePendingInteraction.value) || isHandlingInteraction.value,
   getActiveModelSelection,
@@ -1380,18 +1706,18 @@ onMounted(() => {
   })
 })
 
+onBeforeUnmount(() => {
+  disposeComposerSubmit()
+})
+
 onUnmounted(() => {
   deactivateSessionRestore()
-  disposeComposerSubmit()
   cacheCurrentMessageMeasurements()
   cleanupVoiceInput()
   cancelAllPlanSnapshotClearTimers()
   stopChatPageEventBridge()
   disposeChatSearch()
-  if (spotlightJumpTimer) {
-    window.clearTimeout(spotlightJumpTimer)
-    spotlightJumpTimer = null
-  }
+  cancelPendingMessageJumps()
   chatScrollController.dispose()
   viewportResizeObserver?.disconnect()
   viewportResizeObserver = null

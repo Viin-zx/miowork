@@ -1,12 +1,14 @@
 {
   "features": {
     "artifactThinking": "artifact tænkning",
+    "thoughtForLessThanOneSecond": "Tænkte i under 1 sekund",
     "thoughtForSeconds": "Tænkte i {seconds} sekunder",
     "thoughtForSecondsLoading": "Tænker (sekund {seconds})",
     "webSearch": "Netværkssøgning",
     "modeChanged": "Tilstand skiftet til: {mode}"
   },
   "input": {
+    "suggestions": "Forslag",
     "acpWorkdir": "arbejdskatalog",
     "acpWorkdirCurrent": "Nuværende arbejdsmappe: {path}",
     "acpWorkdirSelect": "Vælg arbejdsmappe",
@@ -119,6 +121,9 @@
     "steerFailed": "Kunne ikke afbryde denne tur"
   },
   "messages": {
+    "loadEarlier": "Indlæs tidligere beskeder",
+    "scrollToLatest": "Gå til nyeste",
+    "minimap": "Beskedkort",
     "rateLimitEstimated": "Forventet ventetid",
     "rateLimitImmediately": "med det samme",
     "rateLimitMinutes": "minut",
@@ -180,7 +185,8 @@
   "mode": {
     "acpAgent": "ACP-agent",
     "agent": "Agent",
-    "current": "Aktuel tilstand: {mode}"
+    "current": "Aktuel tilstand: {mode}",
+    "saveFailed": "Kunne ikke gemme tilstandsvalget"
   },
   "topbar": {
     "share": "Del",
@@ -229,6 +235,12 @@
       "contextMenu": {
         "insertPath": "Indsæt i inputboksen",
         "openFile": "åbne fil",
+        "openInApp": "Åbn i {app}",
+        "openInTerminalApp": "Åbn mappen i {app}",
+        "openFailed": "Filen kunne ikke åbnes med det program",
+        "preferredAppUnavailable": "Det foretrukne program er ikke tilgængeligt lige nu. Åbner med systemets standardprogram.",
+        "openWith": "Åbn med",
+        "openWithSystemDefault": "Åbn med systemets standardprogram",
         "revealInFolder": "Åbn i filhåndtering"
       },
       "empty": "Ingen filer endnu",

@@ -16,6 +16,7 @@ import {
 } from './routes/acp-auth.routes'
 import {
   browserAttachCurrentWindowRoute,
+  browserFocusContentRoute,
   browserApplyImportRoute,
   browserClearSandboxDataRoute,
   browserDismissPreviewRoute,
@@ -420,6 +421,12 @@ import {
   projectSelectDirectoryRoute
 } from './routes/project.routes'
 import {
+  pluginsInspectSourceRoute,
+  pluginsInstallUserRoute,
+  pluginsUninstallUserRoute,
+  pluginsDiscardPreparedRoute,
+  pluginsConfigureMcpRoute,
+  pluginsRetryHookRoute,
   pluginsDisableRoute,
   pluginsEnableRoute,
   pluginsGetRoute,
@@ -463,7 +470,6 @@ import {
   sessionsDeactivateRoute,
   sessionsEditUserMessageRoute,
   sessionsEnsureAcpDraftRoute,
-  sessionsExportMessageTapeReplaySliceRoute,
   sessionsExportTapeInspectorSupportTraceRoute,
   sessionsExportRoute,
   sessionsForkRoute,
@@ -565,6 +571,15 @@ import {
   skillSyncScanExternalToolsRoute
 } from './routes/skillSync.routes'
 import {
+  syncHostCreatePairingCodeRoute,
+  syncHostGetAuditRoute,
+  syncHostGetStatusRoute,
+  syncHostListDevicesRoute,
+  syncHostRenameDeviceRoute,
+  syncHostRevokeDeviceRoute,
+  syncHostSetEnabledRoute
+} from './routes/syncHost.routes'
+import {
   syncGetBackupStatusRoute,
   syncImportRoute,
   syncListBackupsRoute,
@@ -631,7 +646,9 @@ import {
   workspaceExpandDirectoryRoute,
   workspaceGetGitDiffRoute,
   workspaceGetGitStatusRoute,
+  workspaceListFileOpenAppsRoute,
   workspaceOpenFileRoute,
+  workspaceOpenFileWithAppRoute,
   workspaceReadDirectoryRoute,
   workspaceReadFilePreviewRoute,
   workspaceRegisterRoute,
@@ -688,6 +705,7 @@ export * from './routes/sessions.routes'
 export * from './routes/skills.routes'
 export * from './routes/skillSync.routes'
 export * from './routes/sync.routes'
+export * from './routes/syncHost.routes'
 export * from './routes/system.routes'
 export * from './routes/auth.routes'
 export * from './routes/toolchains.routes'
@@ -801,6 +819,12 @@ const DEEPCHAT_ROUTE_CATALOG_PART_1 = {
   [cronJobsRestartSchedulerRoute.name]: cronJobsRestartSchedulerRoute,
   [cronJobsValidateScheduleRoute.name]: cronJobsValidateScheduleRoute,
   [cronJobsPreviewScheduleRoute.name]: cronJobsPreviewScheduleRoute,
+  [pluginsInspectSourceRoute.name]: pluginsInspectSourceRoute,
+  [pluginsInstallUserRoute.name]: pluginsInstallUserRoute,
+  [pluginsUninstallUserRoute.name]: pluginsUninstallUserRoute,
+  [pluginsDiscardPreparedRoute.name]: pluginsDiscardPreparedRoute,
+  [pluginsConfigureMcpRoute.name]: pluginsConfigureMcpRoute,
+  [pluginsRetryHookRoute.name]: pluginsRetryHookRoute,
   [pluginsListRoute.name]: pluginsListRoute,
   [pluginsGetRoute.name]: pluginsGetRoute,
   [pluginsEnableRoute.name]: pluginsEnableRoute,
@@ -837,6 +861,8 @@ const DEEPCHAT_ROUTE_CATALOG_PART_2 = {
   [workspaceExpandDirectoryRoute.name]: workspaceExpandDirectoryRoute,
   [workspaceRevealFileInFolderRoute.name]: workspaceRevealFileInFolderRoute,
   [workspaceOpenFileRoute.name]: workspaceOpenFileRoute,
+  [workspaceListFileOpenAppsRoute.name]: workspaceListFileOpenAppsRoute,
+  [workspaceOpenFileWithAppRoute.name]: workspaceOpenFileWithAppRoute,
   [workspaceReadFilePreviewRoute.name]: workspaceReadFilePreviewRoute,
   [workspaceResolveMarkdownLinkedFileRoute.name]: workspaceResolveMarkdownLinkedFileRoute,
   [workspaceGetGitStatusRoute.name]: workspaceGetGitStatusRoute,
@@ -845,6 +871,7 @@ const DEEPCHAT_ROUTE_CATALOG_PART_2 = {
   [browserGetStatusRoute.name]: browserGetStatusRoute,
   [browserLoadUrlRoute.name]: browserLoadUrlRoute,
   [browserAttachCurrentWindowRoute.name]: browserAttachCurrentWindowRoute,
+  [browserFocusContentRoute.name]: browserFocusContentRoute,
   [browserUpdateCurrentWindowBoundsRoute.name]: browserUpdateCurrentWindowBoundsRoute,
   [browserDetachRoute.name]: browserDetachRoute,
   [browserDestroyRoute.name]: browserDestroyRoute,
@@ -989,7 +1016,6 @@ const DEEPCHAT_ROUTE_CATALOG_PART_4 = {
   [sessionsSubscribeTapeInspectorHeadRoute.name]: sessionsSubscribeTapeInspectorHeadRoute,
   [sessionsUnsubscribeTapeInspectorHeadRoute.name]: sessionsUnsubscribeTapeInspectorHeadRoute,
   [sessionsListMessageTracesRoute.name]: sessionsListMessageTracesRoute,
-  [sessionsExportMessageTapeReplaySliceRoute.name]: sessionsExportMessageTapeReplaySliceRoute,
   [sessionsTranslateTextRoute.name]: sessionsTranslateTextRoute,
   [sessionsGetAgentsRoute.name]: sessionsGetAgentsRoute,
   [sessionsGetUsageDashboardRoute.name]: sessionsGetUsageDashboardRoute,
@@ -1290,7 +1316,14 @@ const DEEPCHAT_ROUTE_CATALOG_PART_5 = {
   [authPurchasePlanRoute.name]: authPurchasePlanRoute,
   [authGetOrderRoute.name]: authGetOrderRoute,
   [authGetSubscriptionsRoute.name]: authGetSubscriptionsRoute,
-  [authGetQuotaRoute.name]: authGetQuotaRoute
+  [authGetQuotaRoute.name]: authGetQuotaRoute,
+  [syncHostGetStatusRoute.name]: syncHostGetStatusRoute,
+  [syncHostSetEnabledRoute.name]: syncHostSetEnabledRoute,
+  [syncHostCreatePairingCodeRoute.name]: syncHostCreatePairingCodeRoute,
+  [syncHostListDevicesRoute.name]: syncHostListDevicesRoute,
+  [syncHostRevokeDeviceRoute.name]: syncHostRevokeDeviceRoute,
+  [syncHostRenameDeviceRoute.name]: syncHostRenameDeviceRoute,
+  [syncHostGetAuditRoute.name]: syncHostGetAuditRoute
 } satisfies Record<string, RouteContract>
 
 export type DeepchatRouteCatalog = typeof DEEPCHAT_ROUTE_CATALOG_PART_1 &

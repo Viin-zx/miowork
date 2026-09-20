@@ -43,6 +43,7 @@ const useChatInputMentionsMock = vi.fn((_options?: unknown) => ({
   submitDialog: vi.fn(),
   closeDialog: closeDialogMock,
   isSuggestionMenuOpen: ref(false),
+  suggestionAttributes: ref({}),
   shouldSuppressSubmit: vi.fn(() => false)
 }))
 const useSkillsDataMock = vi.fn((_conversationId?: unknown, _agentId?: unknown) => ({
@@ -135,6 +136,7 @@ vi.mock('@tiptap/vue-3', () => {
     chain() {
       const api = {
         focus: () => api,
+        scrollIntoView: () => api,
         insertContent: (content: string) => {
           insertContentMock(content)
           return api
@@ -516,6 +518,19 @@ describe('ChatInputBox attachments', () => {
     expect(insertContentMock).toHaveBeenCalledWith('hello world')
   })
 
+  it('exposes focusAndInsertText and inserts the raw character without trimming', async () => {
+    const wrapper = await mountComponent()
+    ;(wrapper.vm as any).focusAndInsertText(' ')
+    expect(insertContentMock).toHaveBeenCalledWith({ type: 'text', text: ' ' })
+  })
+
+  it('ignores focusAndInsertText when the composer is not editable', async () => {
+    const wrapper = await mountComponent()
+    await wrapper.setProps({ editable: false })
+    ;(wrapper.vm as any).focusAndInsertText('a')
+    expect(insertContentMock).not.toHaveBeenCalled()
+  })
+
   it('exposes insertWorkspaceReference and inserts a workspace reference into the editor', async () => {
     const wrapper = await mountComponent()
     await wrapper.setProps({ workspacePath: '/repo' })
@@ -598,10 +613,10 @@ describe('ChatInputBox attachments', () => {
 
   it('configures the editor with a bounded scrollable input area', async () => {
     await mountComponent()
-    expect(lastEditorOptions?.editorProps?.attributes?.class).toContain('min-h-[60px]')
-    expect(lastEditorOptions?.editorProps?.attributes?.class).toContain('max-h-[240px]')
-    expect(lastEditorOptions?.editorProps?.attributes?.class).toContain('overflow-y-auto')
-    expect(lastEditorOptions?.editorProps?.attributes?.class).toContain('overscroll-contain')
+    expect(lastEditorOptions?.editorProps?.attributes()?.class).toContain('min-h-[60px]')
+    expect(lastEditorOptions?.editorProps?.attributes()?.class).toContain('max-h-[240px]')
+    expect(lastEditorOptions?.editorProps?.attributes()?.class).toContain('overflow-y-auto')
+    expect(lastEditorOptions?.editorProps?.attributes()?.class).toContain('overscroll-contain')
   })
 
   it('handles drop files via composable', async () => {
@@ -820,7 +835,26 @@ describe('ChatInputBox attachments', () => {
     }
     ;(wrapper.vm as any).restoreDocumentSnapshot(restored)
 
-    expect(lastEditorInstance.commands.setContent).toHaveBeenCalledWith(restored, false)
+    expect(lastEditorInstance.commands.setContent).toHaveBeenCalledWith(restored, {
+      emitUpdate: false
+    })
+  })
+
+  it('does not submit or queue when keyboard events originate in embedded controls', async () => {
+    const wrapper = await mountComponent()
+    await wrapper.setProps({ queueSubmitEnabled: true, queueSubmitDisabled: false })
+    for (const tag of ['button', 'input']) {
+      const control = document.createElement(tag)
+      wrapper.get('[data-testid="editor-content"]').element.append(control)
+      for (const key of ['Enter', 'Tab', ' ']) {
+        const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })
+        control.dispatchEvent(event)
+        expect(event.defaultPrevented).toBe(false)
+      }
+      control.remove()
+    }
+    expect(wrapper.emitted('submit')).toBeUndefined()
+    expect(wrapper.emitted('queue-submit')).toBeUndefined()
   })
 
   it('emits queue-submit on Tab only when queue submit is available', async () => {

@@ -13,11 +13,13 @@ const mocks = vi.hoisted(() => {
     pragma,
     key,
     close,
-    databaseCtor: vi.fn(() => ({
-      pragma,
-      key,
-      close
-    }))
+    databaseCtor: vi.fn(function Database() {
+      return {
+        pragma,
+        key,
+        close
+      }
+    })
   }
 })
 
@@ -45,7 +47,9 @@ describe('main database connection configuration', () => {
     expect(mocks.pragma.mock.calls.map(([statement]) => statement)).toEqual([
       `cipher='sqlcipher'`,
       'legacy=4',
-      'journal_mode = WAL'
+      'journal_mode = WAL',
+      'synchronous = NORMAL',
+      'cache_size = -65536'
     ])
     expect(mocks.key).toHaveBeenCalledWith(Buffer.from(password, 'utf8'))
     expect(mocks.key.mock.invocationCallOrder[0]).toBeGreaterThan(
@@ -60,13 +64,17 @@ describe('main database connection configuration', () => {
     expect(mocks.pragma).not.toHaveBeenCalledWith(expect.stringContaining(password))
   })
 
-  it('enables WAL directly for unencrypted databases', async () => {
+  it('enables WAL, NORMAL sync and the page cache ceiling directly for unencrypted databases', async () => {
     const { openSQLiteDatabase } = await import('../../../src/main/data/databaseConnection')
     const dbPath = path.join(process.cwd(), 'agent.db')
 
     openSQLiteDatabase(dbPath)
 
-    expect(mocks.pragma.mock.calls.map(([statement]) => statement)).toEqual(['journal_mode = WAL'])
+    expect(mocks.pragma.mock.calls.map(([statement]) => statement)).toEqual([
+      'journal_mode = WAL',
+      'synchronous = NORMAL',
+      'cache_size = -65536'
+    ])
   })
 
   it('closes the database when connection configuration fails', async () => {

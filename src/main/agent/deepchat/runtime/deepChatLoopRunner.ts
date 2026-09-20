@@ -1,4 +1,7 @@
+import type { PluginContextPort } from '@shared/types/userPlugin'
+import { projectPluginContext } from './pluginContext'
 import type { ProviderModelResolutionPort } from '@/provider/settings'
+import type { CacheImageOptions } from '@/platform/imageCache'
 import logger from '@shared/logger'
 import type {
   AssistantMessageBlock,
@@ -451,7 +454,7 @@ export interface DeepChatLoopRunnerPorts {
   memoryIngestionObserver: MemoryIngestionObserver
   toolExecutionPort: ToolExecutionPort
   toolResultPort: ToolResultPort
-  cacheImage(data: string): Promise<string>
+  cacheImage(data: string, options?: CacheImageOptions): Promise<string>
   registry: SessionScopeRegistry
   sessionSettings: Pick<SessionSettingsCoordinator, 'getEffectiveGenerationSettings'>
   promptAssembly: Pick<PromptAssemblyService, 'createBasePromptAssembler'>
@@ -464,6 +467,7 @@ export interface DeepChatLoopRunnerPorts {
   sessionPermissionPort: SessionPermissionPort
   reviewToolPermission: ToolPermissionReviewer
   hookSink: Pick<RuntimeHookSink, 'scope'>
+  pluginContext?: PluginContextPort
   compaction: Pick<CompactionRuntimeCoordinator, 'apply'>
   runJournalObserver?: RunJournalObserver
   diagnosticNow?: MonotonicClock
@@ -657,6 +661,7 @@ export function buildTapeViewSelection(
 
 export class DeepChatLoopRunner {
   private readonly toolSurfaceAdapterHistory = new ToolSurfaceAdapterHistory()
+  private rateLimitRevision = 0
 
   constructor(private readonly ports: DeepChatLoopRunnerPorts) {}
 
@@ -692,6 +697,18 @@ export class DeepChatLoopRunner {
       onRunRegistered,
       abortController: providedAbortController
     } = args
+    const anchorMessage =
+      !viewContext && this.ports.pluginContext
+        ? this.ports.messageStore.getMessage(messageId)
+        : undefined
+    const pluginInputMessageId =
+      viewContext?.selection.newUserMessageId ??
+      viewContext?.selection.includedRecords.findLast(({ record }) => record.role === 'user')
+        ?.record.id ??
+      (anchorMessage?.sessionId === sessionId
+        ? this.ports.messageStore.getLastUserMessageBeforeOrAt(sessionId, anchorMessage.orderSeq)?.id
+        : undefined) ??
+      ''
     let activeContextContributions = contextContributions
     const getOrCreateContextContributions = (): ContextRuntimeContributions => {
       activeContextContributions ??= createEmptyContextRuntimeContributions()
@@ -1096,6 +1113,8 @@ export class DeepChatLoopRunner {
     }
     let toolSurfaceController: ToolSurfaceRunController | null = null
     let frozenSkillRequirementByName: ReadonlyMap<string, RunSkillToolRequirements> | null = null
+    let removeProviderRetryAbortListener: (() => void) | undefined
+    let clearProviderRetryWaitingMessage: (() => void) | undefined
     try {
       if (toolSurfaceMode !== 'legacy') {
       const universe = await awaitWithAbort(
@@ -1545,7 +1564,10 @@ export class DeepChatLoopRunner {
       })
     }
 
+    let pluginRunStarted = false
     try {
+      this.ports.pluginContext?.beginRun?.(sessionId)
+      pluginRunStarted = true
       const activeGeneration = this.ports.runLifecycle.registerRun(resourceScope, loopRun)
       onRunRegistered?.(activeGeneration.runId)
       const rateLimitMessageId = `${RATE_LIMIT_STREAM_MESSAGE_PREFIX}${activeGeneration.runId}`
@@ -1560,6 +1582,7 @@ export class DeepChatLoopRunner {
       const commitTapeProviderView = this.commitTapeProviderView.bind(this)
       const persistMessageTrace = this.persistMessageTrace.bind(this)
       const emitRateLimitWaitingMessage = this.emitRateLimitWaitingMessage.bind(this)
+      const emitProviderRetryWaitingMessage = this.emitProviderRetryWaitingMessage.bind(this)
       const clearRateLimitWaitingMessage = this.clearRateLimitWaitingMessage.bind(this)
       const toolSurfaceAdapterHistory = this.toolSurfaceAdapterHistory
       const hooks = this.ports.hookSink.scope({
@@ -1574,6 +1597,23 @@ export class DeepChatLoopRunner {
 
       let reviewConversationMessages = messages
       let activeProviderAttemptIdentity: DeepChatProviderAttemptIdentity | null = null
+      let providerRetryWaiting = false
+      const clearProviderRetryWaiting = () => {
+        if (!providerRetryWaiting) return
+        clearRateLimitWaitingMessage(sessionId, rateLimitMessageId, activeGeneration.runId)
+        providerRetryWaiting = false
+      }
+      clearProviderRetryWaitingMessage = clearProviderRetryWaiting
+      activeGeneration.abortController.signal.addEventListener(
+        'abort',
+        clearProviderRetryWaiting,
+        { once: true }
+      )
+      removeProviderRetryAbortListener = () =>
+        activeGeneration.abortController.signal.removeEventListener(
+          'abort',
+          clearProviderRetryWaiting
+        )
       const result = await processStream({
         run: loopRun,
         onConversationMessagesChange: (nextMessages) => {
@@ -1623,6 +1663,22 @@ export class DeepChatLoopRunner {
                 currentRuntimeContextLimitTokens
               ).contextLength
             )
+          }
+          if (!acpBackedSubagent && state.providerId !== 'acp' && ports.pluginContext) {
+            const assembly = projectPluginContext(
+              loopRun.resources.promptAssembly ??
+                createOpaquePromptAssembly(activeBaseSystemPrompt ?? ''),
+              ports.pluginContext,
+              sessionId,
+              pluginInputMessageId
+            )
+            requestMessages.splice(
+              0,
+              requestMessages.length,
+              ...projectSystemPrompt(requestMessages, assembly.prompt)
+            )
+            loopRun.resources.promptAssembly = assembly
+            activeBaseSystemPrompt = assembly.prompt
           }
           const getEffectiveContextBudget = (requestedMaxTokens: number) =>
             resolveRequestContextBudget(
@@ -1897,6 +1953,23 @@ export class DeepChatLoopRunner {
             },
             authority: {
               assertCurrent: ({ authority, messages, tools }) => {
+                if (
+                  !acpBackedSubagent &&
+                  state.providerId !== 'acp' &&
+                  ports.pluginContext &&
+                  loopRun.resources.promptAssembly
+                ) {
+                  const current = projectPluginContext(
+                    loopRun.resources.promptAssembly,
+                    ports.pluginContext,
+                    sessionId,
+                    pluginInputMessageId
+                  )
+                  if (current.prompt !== loopRun.resources.promptAssembly.prompt)
+                    throw new Error(
+                      'Plugin context changed before provider dispatch; retry this input'
+                    )
+                }
                 ports.tape.assertSkillRequestAuthority({
                   ...authority,
                   promptHash: buildProviderMessagesHash(messages),
@@ -2053,6 +2126,21 @@ export class DeepChatLoopRunner {
                 )
             },
             retryObserver: (event) => {
+              if (event.type === 'retry_scheduled') {
+                providerRetryWaiting = true
+                emitProviderRetryWaitingMessage(
+                  sessionId,
+                  rateLimitMessageId,
+                  activeGeneration.runId,
+                  state.providerId,
+                  event.delayMs
+                )
+              } else if (
+                event.type === 'retry_started' ||
+                (event.type === 'retry_finished' && event.retryDecision !== 'retry_scheduled')
+              ) {
+                clearProviderRetryWaiting()
+              }
               logger.info('[DeepChatAgent] Provider retry lifecycle', {
                 sessionId,
                 messageId,
@@ -2397,6 +2485,9 @@ export class DeepChatLoopRunner {
       }
       throw errorToPropagate
     } finally {
+      if (pluginRunStarted) this.ports.pluginContext?.endRun?.(sessionId)
+      clearProviderRetryWaitingMessage?.()
+      removeProviderRetryAbortListener?.()
       if (
         toolSurfaceCanaryIdentity &&
         toolSurfaceMode !== 'legacy' &&
@@ -2590,6 +2681,29 @@ export class DeepChatLoopRunner {
     requestId: string,
     snapshot: RateLimitQueueSnapshot
   ): void {
+    this.emitRateLimitWaitingBlock(sessionId, messageId, requestId, snapshot)
+  }
+
+  private emitProviderRetryWaitingMessage(
+    sessionId: string,
+    messageId: string,
+    requestId: string,
+    providerId: string,
+    estimatedWaitTime: number
+  ): void {
+    this.emitRateLimitWaitingBlock(sessionId, messageId, requestId, {
+      providerId,
+      estimatedWaitTime
+    })
+  }
+
+  private emitRateLimitWaitingBlock(
+    sessionId: string,
+    messageId: string,
+    requestId: string,
+    snapshot: Pick<RateLimitQueueSnapshot, 'providerId' | 'estimatedWaitTime'> &
+      Partial<Pick<RateLimitQueueSnapshot, 'qpsLimit' | 'currentQps' | 'queueLength'>>
+  ): void {
     const block: AssistantMessageBlock = {
       type: 'action',
       action_type: 'rate_limit',
@@ -2598,9 +2712,11 @@ export class DeepChatLoopRunner {
       timestamp: Date.now(),
       extra: {
         providerId: snapshot.providerId,
-        qpsLimit: snapshot.qpsLimit,
-        currentQps: snapshot.currentQps,
-        queueLength: snapshot.queueLength,
+        ...(snapshot.qpsLimit === undefined ? {} : { qpsLimit: snapshot.qpsLimit }),
+        ...(snapshot.currentQps === undefined
+          ? {}
+          : { currentQps: snapshot.currentQps }),
+        ...(snapshot.queueLength === undefined ? {} : { queueLength: snapshot.queueLength }),
         estimatedWaitTime: snapshot.estimatedWaitTime
       }
     }
@@ -2611,6 +2727,7 @@ export class DeepChatLoopRunner {
       sessionId,
       messageId,
       updatedAt: Date.now(),
+      revision: ++this.rateLimitRevision,
       blocks: cloneBlocksForRenderer([block])
     })
   }
@@ -2622,6 +2739,7 @@ export class DeepChatLoopRunner {
       sessionId,
       messageId,
       updatedAt: Date.now(),
+      revision: ++this.rateLimitRevision,
       blocks: []
     })
   }

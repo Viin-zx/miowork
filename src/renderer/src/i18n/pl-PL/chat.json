@@ -1,5 +1,6 @@
 {
   "input": {
+    "suggestions": "Sugestie",
     "placeholder": "Zapytaj MioWork o cokolwiek, {'@'} o wzmiankę o plikach, / o polecenia",
     "fileArea": "Obszar pliku",
     "inputArea": "Obszar wejściowy",
@@ -113,6 +114,7 @@
   },
   "features": {
     "webSearch": "Wyszukiwanie w Internecie",
+    "thoughtForLessThanOneSecond": "Myślenie trwało mniej niż 1 s",
     "thoughtForSeconds": "Pomyślałem o {seconds}",
     "thoughtForSecondsLoading": "Myślenie za {seconds}...",
     "artifactThinking": "Myślenie artefaktowe",
@@ -128,6 +130,9 @@
     "error": "Wyszukiwanie nie powiodło się"
   },
   "messages": {
+    "loadEarlier": "Wczytaj wcześniejsze wiadomości",
+    "scrollToLatest": "Przejdź do najnowszych",
+    "minimap": "Mapa wiadomości",
     "thinking": "Myśląc...",
     "rateLimitWaiting": "Osiągnięto limit stawek, czekam w kolejce...",
     "rateLimitCompactLoading": "Stawka ograniczona dla {seconds}...",
@@ -197,7 +202,8 @@
   "mode": {
     "current": "Bieżący tryb: {mode}",
     "agent": "Agent",
-    "acpAgent": "ACP Agent"
+    "acpAgent": "ACP Agent",
+    "saveFailed": "Nie udało się zapisać wyboru trybu"
   },
   "topbar": {
     "backToParent": "Powrót do Rodzica",
@@ -295,8 +301,14 @@
       },
       "contextMenu": {
         "openFile": "Otwórz plik",
+        "openWith": "Otwórz za pomocą",
+        "openInApp": "Otwórz w {app}",
+        "openInTerminalApp": "Otwórz folder w {app}",
+        "openFailed": "Nie udało się otworzyć pliku w tej aplikacji",
+        "preferredAppUnavailable": "Preferowana aplikacja jest teraz niedostępna. Otwieranie w domyślnej aplikacji systemowej.",
         "revealInFolder": "Pokaż w menedżerze plików",
-        "insertPath": "Wstaw do wejścia"
+        "insertPath": "Wstaw do wejścia",
+        "openWithSystemDefault": "Otwórz w domyślnej aplikacji systemowej"
       },
       "watchStatus": {
         "degraded": "Obserwowanie działa w trybie awaryjnym. Zmiany mogą odświeżać się wolniej.",

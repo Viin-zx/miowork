@@ -248,7 +248,12 @@ function createDeepChatRuntimeServices(deps: DeepChatHarnessDependencies): DeepC
     projectDir: sessionSettings,
     memoryPromptContributor: memory
   })
-  const hookSink = new RuntimeHookSink({ observer: hookObserver, identity, sessionSettings })
+  const hookSink = new RuntimeHookSink({
+    observer: hookObserver,
+    identity,
+    sessionSettings,
+    onSessionCompleted: deps.onSessionCompleted
+  })
   const pendingInputWakeup = createPendingInputWakeupBinding()
   const runLifecycle = new RunLifecycleCoordinator({
     runtime,
@@ -292,6 +297,7 @@ function createDeepChatRuntimeServices(deps: DeepChatHarnessDependencies): DeepC
       await agentSettings.resolveDeepChatAgentConfig(identity.getAgentId(sessionId) ?? 'deepchat')
   )
   const compaction = new CompactionRuntimeCoordinator({
+    pluginContext: deps.pluginContext,
     publishEvent,
     compactionService,
     sessionStore,
@@ -376,6 +382,7 @@ function createDeepChatRuntimeServices(deps: DeepChatHarnessDependencies): DeepC
     tape: createSkillContextTapePort(tapeService)
   })
   const loopRunner = new DeepChatLoopRunner({
+    pluginContext: deps.pluginContext,
     publishEvent,
     publishSessionUpdate,
     providerRuntime,
@@ -412,6 +419,7 @@ function createDeepChatRuntimeServices(deps: DeepChatHarnessDependencies): DeepC
     diagnosticNow
   })
   const turnCoordinator = new TurnCoordinator({
+    pluginContext: deps.pluginContext,
     publishEvent,
     providerRuntime,
     providerSettings,

@@ -32,6 +32,36 @@ export const DEFAULT_PROVIDERS: LLM_PROVIDER_BASE[] = [
     }
   },
   {
+    id: 'cheaper-inference',
+    name: 'Cheaper Inference',
+    apiType: 'openai-completions',
+    apiKey: '',
+    baseUrl: 'https://api.cheaperinference.com/v1',
+    enable: false,
+    websites: {
+      official: 'https://www.cheaperinference.com/',
+      apiKey: 'https://www.cheaperinference.com/dashboard/keys',
+      docs: 'https://www.cheaperinference.com/docs',
+      models: 'https://www.cheaperinference.com/markets',
+      defaultBaseUrl: 'https://api.cheaperinference.com/v1'
+    }
+  },
+  {
+    id: 'api-route',
+    name: 'API Route',
+    apiType: 'openai-completions',
+    apiKey: '',
+    baseUrl: 'https://global.api-route.com/v1',
+    enable: false,
+    websites: {
+      official: 'https://www.api-route.com/',
+      apiKey: 'https://www.api-route.com/api-keys',
+      docs: 'https://www.api-route.com/docs/quickstart',
+      models: 'https://www.api-route.com/pricing',
+      defaultBaseUrl: 'https://global.api-route.com/v1'
+    }
+  },
+  {
     id: 'runinfra',
     name: 'RunInfra',
     apiType: 'openai-completions',
@@ -397,6 +427,21 @@ export const DEFAULT_PROVIDERS: LLM_PROVIDER_BASE[] = [
       docs: 'https://docs.anthropic.com/',
       models: 'https://docs.anthropic.com/claude/docs/models-overview',
       defaultBaseUrl: 'https://api.anthropic.com'
+    }
+  },
+  {
+    id: 'anonrouter',
+    name: 'AnonRouter',
+    apiType: 'openai-completions',
+    apiKey: '',
+    baseUrl: 'https://api.anonrouter.ai/v1',
+    enable: false,
+    websites: {
+      official: 'https://anonrouter.ai/',
+      apiKey: 'https://anonrouter.ai/home/api-keys',
+      docs: 'https://docs.anonrouter.ai/quickstart',
+      models: 'https://anonrouter.ai/models',
+      defaultBaseUrl: 'https://api.anonrouter.ai/v1'
     }
   },
   {

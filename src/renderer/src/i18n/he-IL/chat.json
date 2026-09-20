@@ -1,5 +1,6 @@
 {
   "input": {
+    "suggestions": "הצעות",
     "placeholder": "שאלו את MioWork כל דבר, השתמשו ב-{'@'} כדי להזכיר קבצים וב-/ לפקודות",
     "fileArea": "אזור קבצים",
     "inputArea": "אזור קלט",
@@ -113,6 +114,7 @@
   },
   "features": {
     "webSearch": "חיפוש אינטרנט",
+    "thoughtForLessThanOneSecond": "חשב במשך פחות משנייה",
     "thoughtForSeconds": "חשב במשך {seconds} שניות",
     "thoughtForSecondsLoading": "חושב במשך {seconds} שניות...",
     "artifactThinking": "חשיבת תוצר (Artifact Thinking)",
@@ -128,6 +130,9 @@
     "error": "החיפוש נכשל"
   },
   "messages": {
+    "loadEarlier": "טעינת הודעות קודמות",
+    "scrollToLatest": "מעבר לאחרון",
+    "minimap": "מפת הודעות",
     "thinking": "חושב...",
     "rateLimitWaiting": "הגעת למגבלת הקצב, ממתין בתור...",
     "rateLimitCompactLoading": "מוגבל קצב ({seconds}ש׳)",
@@ -180,7 +185,8 @@
   "mode": {
     "acpAgent": "סוכן ACP",
     "agent": "סוֹכֵן",
-    "current": "מצב נוכחי: {mode}"
+    "current": "מצב נוכחי: {mode}",
+    "saveFailed": "שמירת בחירת המצב נכשלה"
   },
   "topbar": {
     "share": "שיתוף",
@@ -229,6 +235,12 @@
       "contextMenu": {
         "insertPath": "הכנס לתוך תיבת הקלט",
         "openFile": "לפתוח קובץ",
+        "openInApp": "פתח ב־{app}",
+        "openInTerminalApp": "פתח את התיקייה ב־{app}",
+        "openFailed": "לא ניתן לפתוח את הקובץ באמצעות היישום הזה",
+        "preferredAppUnavailable": "היישום המועדף אינו זמין כרגע. נפתח באמצעות ברירת המחדל של המערכת.",
+        "openWith": "פתח באמצעות",
+        "openWithSystemDefault": "פתח באמצעות ברירת המחדל של המערכת",
         "revealInFolder": "פתח במנהל הקבצים"
       },
       "empty": "עדיין אין קבצים",

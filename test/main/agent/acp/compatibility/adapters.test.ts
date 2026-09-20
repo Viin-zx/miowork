@@ -7,7 +7,11 @@ import {
   AcpRequestTraceAdapter
 } from '@/agent/acp/compatibility/adapters'
 import { SessionTranscript } from '@/session/data/transcript'
-import { SessionTape } from '@/session/data/tape'
+import { SessionTape } from '@/tape/application/sessionTape'
+import {
+  isEffectiveMessageInputRow,
+  isEffectiveViewInputRow
+} from '@/tape/domain/effectiveSemantics'
 import type { MainDatabase } from '@/data/mainDatabase'
 
 const publishDeepchatEvent = vi.fn()
@@ -82,6 +86,39 @@ function createProjectionHarness() {
           .map((message) => message.order_seq)
       )
     ),
+    upsert: vi.fn(
+      (input: {
+        id: string
+        sessionId: string
+        orderSeq: number
+        role: 'user' | 'assistant'
+        content: string
+        status: 'pending' | 'sent' | 'error'
+        isContextEdge: number
+        metadata: string
+        createdAt: number
+        updatedAt: number
+      }) => {
+        const existing = messages.get(input.id)
+        const row = {
+          id: input.id,
+          session_id: input.sessionId,
+          order_seq: input.orderSeq,
+          role: input.role,
+          content: input.content,
+          status: input.status,
+          is_context_edge: input.isContextEdge,
+          metadata: input.metadata,
+          trace_count: existing?.trace_count ?? 0,
+          created_at: input.createdAt,
+          updated_at: input.updatedAt
+        }
+        messages.set(input.id, existing ? Object.assign(existing, row) : row)
+      }
+    ),
+    deleteByIds: vi.fn((ids: string[]) => {
+      for (const id of ids) messages.delete(id)
+    }),
     updateStatus: vi.fn((id: string, status: MessageRow['status']) => {
       const message = messages.get(id)
       if (message) Object.assign(message, { status, updated_at: clock++ })
@@ -127,6 +164,7 @@ function createProjectionHarness() {
     return row
   }
   const sqlitePresenter = {
+    getDatabase: () => ({ transaction: (operation: () => unknown) => operation }),
     newSessionsTable: { get: vi.fn() },
     deepchatMessagesTable,
     deepchatSessionsTable: {
@@ -157,8 +195,25 @@ function createProjectionHarness() {
       maxRequestSeqByMessageId: vi.fn(() => 0)
     },
     deepchatUsageStatsTable: { upsert: vi.fn() },
+    deepchatTranscriptProjectionMetaTable: (() => {
+      const cursors = new Map<string, { tapeIncarnationId: string; maxEntryId: number }>()
+      return {
+        get: vi.fn((sessionId: string) => cursors.get(sessionId) ?? null),
+        upsert: vi.fn(
+          (sessionId: string, cursor: { tapeIncarnationId: string; maxEntryId: number }) => {
+            cursors.set(sessionId, { ...cursor })
+          }
+        ),
+        delete: vi.fn((sessionId: string) => {
+          cursors.delete(sessionId)
+        })
+      }
+    })(),
     deepchatTapeEntriesTable: {
+      runInTransaction: vi.fn((operation: () => unknown) => operation()),
       ensureBootstrapAnchor: vi.fn(),
+      getBootstrapIncarnation: vi.fn(),
+      getMaxEntryId: vi.fn(() => tapeRows.length),
       append: vi.fn(appendTape),
       appendEvent: vi.fn(
         (input: {
@@ -182,6 +237,12 @@ function createProjectionHarness() {
       ),
       getBySessionExcludingContext: vi.fn((sessionId: string) =>
         tapeRows.filter((row) => row.session_id === sessionId && row.kind !== 'context')
+      ),
+      getEffectiveViewInputRows: vi.fn((sessionId: string) =>
+        tapeRows.filter((row) => row.session_id === sessionId && isEffectiveViewInputRow(row))
+      ),
+      getEffectiveMessageInputRows: vi.fn((sessionId: string) =>
+        tapeRows.filter((row) => row.session_id === sessionId && isEffectiveMessageInputRow(row))
       )
     }
   } as unknown as MainDatabase

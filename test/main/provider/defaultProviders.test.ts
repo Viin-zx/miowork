@@ -2,6 +2,63 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_PROVIDERS } from '../../../src/main/provider/defaults'
 
 describe('DEFAULT_PROVIDERS', () => {
+  it('includes AnonRouter as a disabled built-in OpenAI-compatible provider', () => {
+    expect(DEFAULT_PROVIDERS).toContainEqual(
+      expect.objectContaining({
+        id: 'anonrouter',
+        name: 'AnonRouter',
+        apiType: 'openai-completions',
+        baseUrl: 'https://api.anonrouter.ai/v1',
+        enable: false,
+        websites: expect.objectContaining({
+          official: 'https://anonrouter.ai/',
+          apiKey: 'https://anonrouter.ai/home/api-keys',
+          docs: 'https://docs.anonrouter.ai/quickstart',
+          models: 'https://anonrouter.ai/models',
+          defaultBaseUrl: 'https://api.anonrouter.ai/v1'
+        })
+      })
+    )
+  })
+
+  it('includes Cheaper Inference as a disabled built-in OpenAI-compatible provider', () => {
+    expect(DEFAULT_PROVIDERS).toContainEqual(
+      expect.objectContaining({
+        id: 'cheaper-inference',
+        name: 'Cheaper Inference',
+        apiType: 'openai-completions',
+        baseUrl: 'https://api.cheaperinference.com/v1',
+        enable: false,
+        websites: expect.objectContaining({
+          official: 'https://www.cheaperinference.com/',
+          apiKey: 'https://www.cheaperinference.com/dashboard/keys',
+          docs: 'https://www.cheaperinference.com/docs',
+          models: 'https://www.cheaperinference.com/markets',
+          defaultBaseUrl: 'https://api.cheaperinference.com/v1'
+        })
+      })
+    )
+  })
+
+  it('includes API Route as a disabled built-in OpenAI-compatible provider', () => {
+    expect(DEFAULT_PROVIDERS).toContainEqual(
+      expect.objectContaining({
+        id: 'api-route',
+        name: 'API Route',
+        apiType: 'openai-completions',
+        baseUrl: 'https://global.api-route.com/v1',
+        enable: false,
+        websites: expect.objectContaining({
+          official: 'https://www.api-route.com/',
+          apiKey: 'https://www.api-route.com/api-keys',
+          docs: 'https://www.api-route.com/docs/quickstart',
+          models: 'https://www.api-route.com/pricing',
+          defaultBaseUrl: 'https://global.api-route.com/v1'
+        })
+      })
+    )
+  })
+
   it('includes AMD GPU Cloud as a disabled built-in OpenAI-compatible provider', () => {
     expect(DEFAULT_PROVIDERS).toContainEqual(
       expect.objectContaining({

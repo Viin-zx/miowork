@@ -129,10 +129,13 @@ import { createDeviceRoutes } from '../device/routes'
 import { createOnboardingRoutes } from '../onboarding/routes'
 import { createUpgradeRoutes } from '../upgrade/routes'
 import { createSyncRoutes } from '../sync/routes'
+import { SyncHostService } from '../sync/host'
+import { createSyncHostRoutes } from '../sync/host/routes'
 import { createPlatformRoutes } from '../platform/routes'
 import { createHookRoutes } from '../hook/routes'
 import { createAppSettingsRoutes } from './settingsRoutes'
 import { createAppRoutes } from './routes'
+import { registerClipboardIpc } from './clipboardIpc'
 import { ApprovalBroker, createApprovalRoutes } from '@/approval'
 import {
   CommandPermissionService,
@@ -531,6 +534,7 @@ export async function createMainProcessControl(dependencies: {
   let ocrSettings: OcrSettings
   let mcpService: McpService
   let syncService: SyncService
+  let syncHostService: SyncHostService
   let deeplinkService: DeeplinkService
   let notificationService: NotificationService
   let tabPresenter: TabPresenter
@@ -1324,6 +1328,13 @@ export async function createMainProcessControl(dependencies: {
     providerDatabase,
     publishDeepchatEvent
   )
+  syncHostService = new SyncHostService({
+    listBackups: () => syncService.listBackups(),
+    getFolderPath: () => syncSettings.getFolderPath(),
+    getUserDataPath: () => app.getPath('userData'),
+    getAppVersion: () => app.getVersion(),
+    logger
+  })
   notificationService = new NotificationService(desktopSettings, publishDeepchatEvent)
   trayPresenter = new TrayPresenter(desktopSettings, windowPresenter)
   dialogService = new DialogService(publishDeepchatEvent)
@@ -1462,6 +1473,8 @@ export async function createMainProcessControl(dependencies: {
           })),
       getSessionAgentId: async (sessionId) =>
         (await sessionQuery.getSession(sessionId))?.agentId ?? null,
+      getSessionProjectDir: async (sessionId) =>
+        (await sessionQuery.getSession(sessionId))?.projectDir ?? null,
       listSessions: async () =>
         (await sessionQuery.listSessions({ includeSubagents: true })).map((session) => ({
           id: session.id,
@@ -1602,6 +1615,7 @@ export async function createMainProcessControl(dependencies: {
           projectDir: session.projectDir ?? null,
           permissionMode,
           orchestrationPolicy: session.orchestrationPolicy,
+          toolModeOverride: session.toolModeOverride ?? null,
           generationSettings,
           disabledAgentTools,
           activeSkills,
@@ -1707,7 +1721,7 @@ export async function createMainProcessControl(dependencies: {
       generateImageStandalone: (providerId, prompt, modelId, imageOptions, options) =>
         providerRuntime.generateImageStandalone(providerId, prompt, modelId, imageOptions, options)
     },
-    cacheImage: (data) => deviceService.cacheImage(data),
+    cacheImage: (data, options) => deviceService.cacheImage(data, options),
     desktop: {
       createSettingsWindow: () => windowPresenter.createSettingsWindow(),
       sendToWindow: (windowId, channel, ...args) =>
@@ -1757,6 +1771,7 @@ export async function createMainProcessControl(dependencies: {
   // Plugin activation is a shared startup barrier for Skill migration and MCP startup.
   const pluginSettingsWindow = new PluginSettingsWindow()
   pluginService = new PluginService({
+    contextTape: sessionData.tapeStore,
     mcpSettings: dependencies.mcpSettings,
     mcpService: mcpService,
     skillService: skillService,
@@ -1861,6 +1876,14 @@ export async function createMainProcessControl(dependencies: {
     sessionData,
     toolService,
     hookObserver: hookService,
+    pluginContext: pluginService.contextHooks,
+    onSessionCompleted: (sessionId) => {
+      const session = appSessionService.get(sessionId)
+      if (session?.sessionKind !== 'regular' || resolveSessionRunId(sessionId) !== null) return
+      void notificationService.showSessionCompletion(session).catch((error) => {
+        logger.warn('[Notification] Failed to notify session completion', { sessionId, error })
+      })
+    },
     publishEvent: publishDeepchatEvent,
     publishSessionUpdate: (update) => {
       sessionRuntimeEvents.publish(update)
@@ -1879,7 +1902,7 @@ export async function createMainProcessControl(dependencies: {
     sessionUiPort,
     memoryPort: memoryService,
     getMemoryIngestionProjection: () => memoryDatabase.ingestionProjectionTable,
-    cacheImage: (data) => deviceService.cacheImage(data),
+    cacheImage: (data, options) => deviceService.cacheImage(data, options),
     runJournalObserver: emitRunJournalObservation,
     skillService: skillService,
     skillSettings,
@@ -2629,6 +2652,7 @@ export async function createMainProcessControl(dependencies: {
   async function destroy(): Promise<void> {
     await runDestroyStep('agentCliTokenAuthority.clear', () => agentCliTokenAuthority.clear())
     await runDestroyStep('cliServer.stop', () => cliServer.stop())
+    await runDestroyStep('syncHostService.stop', () => syncHostService.stop())
     await runDestroyStep('tapeInspectorHeadWatcher.close', () => tapeInspectorHeadWatcher.close())
     await runDestroyStep('typedEventHub.close', () => typedEventHub.close())
     await runDestroyStep('cliMutationGuard.clear', () => cliMutationGuard.clear())
@@ -2783,7 +2807,7 @@ export async function createMainProcessControl(dependencies: {
       authService
     })
     const toolRoutes = createToolRoutes(toolService)
-    const pluginRoutes = createPluginRoutes(pluginService)
+    const pluginRoutes = createPluginRoutes(pluginService, pluginSettingsWindow)
     const skillRoutes = createSkillRoutes({
       skillService,
       skillSyncService,
@@ -2974,6 +2998,7 @@ export async function createMainProcessControl(dependencies: {
         })
       }
     })
+    const syncHostRoutes = createSyncHostRoutes({ host: syncHostService })
     const platformRoutes = createPlatformRoutes({
       proxySettings: dependencies.proxySettings,
       applyProxyMode: (mode) => {
@@ -3128,6 +3153,7 @@ export async function createMainProcessControl(dependencies: {
         upgradeRoutes,
         exporterRoutes,
         syncRoutes,
+        syncHostRoutes,
         platformRoutes,
         hookRoutes,
         notificationRoutes,
@@ -3146,9 +3172,14 @@ export async function createMainProcessControl(dependencies: {
       startupWorkloadCoordinator
     })
     registerDeepchatRoutes(ipcMain, routeDispatcher)
+    registerClipboardIpc(ipcMain)
   }
 
   function setupApplicationListeners(): void {
+    app.on('accessibility-support-changed', (_event, enabled) => {
+      publishDeepchatEvent('appRuntime.accessibilityChanged', { enabled })
+    })
+
     app.on('browser-window-created', (_, window) => {
       optimizer.watchWindowShortcuts(window)
     })
@@ -3385,6 +3416,7 @@ export async function createMainProcessControl(dependencies: {
     if (
       routeName.startsWith('chat.') ||
       routeName.startsWith('sessions.') ||
+      routeName.startsWith('memory.') ||
       routeName.startsWith('orchestration.') ||
       routeName.startsWith('remoteControl.') ||
       routeName.startsWith('cronJobs.')
@@ -3414,6 +3446,12 @@ export async function createMainProcessControl(dependencies: {
       if (drain.timedOut) {
         throw new Error(
           `Memory ingestion did not drain for sessions: ${drain.pendingSessions.join(', ')}`
+        )
+      }
+      const pendingMaintenanceAgents = await memoryService.drainBackgroundMaintenance()
+      if (pendingMaintenanceAgents.length > 0) {
+        throw new Error(
+          `Memory maintenance did not drain for agents: ${pendingMaintenanceAgents.join(', ')}`
         )
       }
       await suspendSessionRuntimes()
@@ -3624,6 +3662,12 @@ export async function createMainProcessControl(dependencies: {
   } catch (error) {
     reportMainStartupComponentFailure(dependencies.startupRunId, 'cli_control', 'unknown')
     logger.error('[CLI] Failed to start local control server', error)
+  }
+  try {
+    await syncHostService.startIfEnabled()
+  } catch (error) {
+    reportMainStartupComponentFailure(dependencies.startupRunId, 'sync_host', 'unknown')
+    logger.error('[SyncHost] Failed to start host mode', error)
   }
   if (cliServer.getStatus().running) {
     try {

@@ -1,3 +1,4 @@
+import type { PluginContextPort } from '@shared/types/userPlugin'
 import type { ProviderModelResolutionPort } from '@/provider/settings'
 import logger from '@shared/logger'
 import type {
@@ -157,6 +158,7 @@ export interface TurnExecutionContext extends TurnStartContext {
 }
 
 export interface TurnCoordinatorPorts {
+  pluginContext?: PluginContextPort
   publishEvent: DeepChatEventPublisher
   providerRuntime: Pick<ProviderExecutionPort, 'getRuntimeContextLimitTokens'>
   providerSettings: ProviderModelResolutionPort
@@ -183,7 +185,7 @@ export interface TurnCoordinatorPorts {
     'resolveProjectDir' | 'getEffectiveGenerationSettings'
   >
   promptAssembly: Pick<PromptAssemblyService, 'createBasePromptAssembler'>
-  identity: Pick<
+  identity: Partial<Pick<SessionIdentityService, 'getParentSessionId'>> & Pick<
     SessionIdentityService,
     'getAgentId' | 'getSessionKind' | 'isAcpBackedSubagentSession'
   >
@@ -485,6 +487,7 @@ export class TurnCoordinator {
       messageStart,
       claimedInputDisposition: claimedInput?.disposition ?? null
     })
+    let pluginRunStarted = false
     let initializedScope: SessionRuntimeScope | undefined
     let initializedAbortController: AbortController | undefined
     let statusTransitionAttempted = false
@@ -529,6 +532,8 @@ export class TurnCoordinator {
         `[DeepChatAgent] processMessage session=${sessionId} promptLength=${content.text.length} fileCount=${content.files?.length ?? 0} hasProjectDir=${projectDir !== null}`
       )
 
+      this.ports.pluginContext?.beginRun?.(sessionId)
+      pluginRunStarted = true
       const preStreamAbortController = this.ports.runLifecycle.ensureOperationController(scope)
       initializedAbortController = preStreamAbortController
       statusBeforeInitialization = state.status
@@ -558,6 +563,7 @@ export class TurnCoordinator {
       }
       initializedTurn = initializeTurn()
     } catch (error) {
+      if (pluginRunStarted) this.ports.pluginContext?.endRun?.(sessionId)
       if (claimedInput && !claimedInput.disposition) {
         try {
           if (isSteerClaim) {
@@ -996,6 +1002,16 @@ export class TurnCoordinator {
           projectDir
         })
         .emit({ event: 'UserPromptSubmit', promptPreview: content.text })
+
+      if (state.providerId !== 'acp' && this.ports.pluginContext?.hasHooks()) {
+        await this.ports.pluginContext.accept({
+          sessionId, messageId: userMessageId, prompt: content.text, cwd: projectDir,
+          model: state.modelId, parentSessionId: this.ports.identity.getParentSessionId?.(sessionId),
+          agentId: this.ports.identity.getAgentId(sessionId), signal: preStreamAbortSignal
+        })
+        scope.assertCurrent()
+        throwIfAbortRequested(preStreamAbortSignal)
+      }
 
       const buildContextView = (
         contextContributions: Awaited<
@@ -1471,6 +1487,7 @@ export class TurnCoordinator {
         messageId: assistantMessageId
       })
     } finally {
+      if (pluginRunStarted) this.ports.pluginContext?.endRun?.(sessionId)
       const ownsTurnLifecycle = this.ports.runLifecycle.canSettleOperation(
         scope,
         preStreamAbortController
@@ -1637,29 +1654,25 @@ export class TurnCoordinator {
       let basePromptAssembly = unguardedBasePromptAssembly
       let baseSystemPrompt = basePromptAssembly.prompt
       let resumeTargetOrderSeq: number | undefined
+      const readResumeHistory = () =>
+        runSynchronousPreStreamStep(sessionId, 'tape-ready', () => {
+          const { historyRecords } = this.ports.tapeReconciliation.ensureSessionTapeReady(
+            sessionId,
+            this.ports.messageStore
+          )
+          const target = this.ports.messageStore.getMessage(messageId)
+          if (!target || target.sessionId !== sessionId || target.role !== 'assistant') {
+            throw new Error('Resume target assistant message is no longer available.')
+          }
+          // Paused assistant blocks remain mutable until terminal settlement, so Tape may omit
+          // this message or hold an older revision without the latest interaction response.
+          return [...historyRecords.filter((record) => record.id !== messageId), target].sort(
+            (left, right) => left.orderSeq - right.orderSeq
+          )
+        })
       const preparedInput = await this.ports.inputPreparationCoordinator.prepareExisting({
-        ensureHistory: () =>
-          runSynchronousPreStreamStep(
-            sessionId,
-            'tape-ready',
-            () =>
-              this.ports.tapeReconciliation.ensureSessionTapeReady(
-                sessionId,
-                this.ports.messageStore
-              )
-                .historyRecords
-          ),
-        refreshHistory: () =>
-          runSynchronousPreStreamStep(
-            sessionId,
-            'tape-ready',
-            () =>
-              this.ports.tapeReconciliation.ensureSessionTapeReady(
-                sessionId,
-                this.ports.messageStore
-              )
-                .historyRecords
-          ),
+        ensureHistory: readResumeHistory,
+        refreshHistory: readResumeHistory,
         prepareIntent: async (historyRecords) => {
           if (historyContainsUntrustedAttachmentText(historyRecords)) {
             basePromptAssembly = appendAttachmentTextSafetySection(unguardedBasePromptAssembly)

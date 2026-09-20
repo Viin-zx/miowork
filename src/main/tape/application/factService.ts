@@ -23,6 +23,8 @@ import type {
   TapeAnchorWriter,
   TapeIncarnationReader,
   TapeMessageFactWriter,
+  TapeProjectionCursor,
+  TapeProjectionHeadReader,
   TapeToolFactAppendReceipt,
   TapeSkillViewResultFactWriter,
   TapeToolFactWriter
@@ -36,7 +38,6 @@ import {
   assertTapeToolFactPhysicalEnvelope
 } from './factPersistence'
 import { parseJsonObject, readCanonicalTapeIncarnationId } from './common'
-import type { TapeAnchorResult } from './contracts'
 
 type TapeFactProviders = Pick<TapeApplicationProviders, 'getEntryStore'>
 
@@ -107,6 +108,7 @@ export class TapeFactService
     TapeSkillViewResultFactWriter,
     TapeIncarnationReader,
     TapeMessageFactWriter,
+    TapeProjectionHeadReader,
     TapeAnchorWriter
 {
   constructor(private readonly providers: TapeFactProviders) {}
@@ -117,10 +119,6 @@ export class TapeFactService
 
   appendMessageRecord(record: ChatMessageRecord): number {
     return appendMessageRecordToTape(this.table, record, 'live')
-  }
-
-  appendMessageRecordForSession(sessionId: string, record: ChatMessageRecord): number {
-    return appendMessageRecordToTape(this.table, { ...record, sessionId }, 'live')
   }
 
   appendMessageReplacement(
@@ -285,9 +283,15 @@ export class TapeFactService
   }
 
   getMessageRecords(sessionId: string): ChatMessageRecord[] {
-    return buildEffectiveTapeView(this.table.getBySessionExcludingContext(sessionId), {
+    return buildEffectiveTapeView(this.table.getEffectiveMessageInputRows(sessionId), {
       includePending: true
     }).messageRecords
+  }
+
+  getProjectionHead(sessionId: string): TapeProjectionCursor | null {
+    const tapeIncarnationId = this.table.getBootstrapIncarnation(sessionId)
+    if (!tapeIncarnationId) return null
+    return { tapeIncarnationId, maxEntryId: this.table.getMaxEntryId(sessionId) }
   }
 
   appendAnchor(input: TapeAnchorAppendInput): DeepChatTapeEntryRow {
@@ -318,23 +322,5 @@ export class TapeFactService
         handoff: true
       }
     })
-  }
-
-  handoffResult(
-    sessionId: string,
-    name: string,
-    state: AgentTapeHandoffState,
-    meta: Record<string, unknown> = {}
-  ): TapeAnchorResult {
-    const row = this.handoff(sessionId, name, state, meta)
-    return {
-      sessionId: row.session_id,
-      entryId: row.entry_id,
-      kind: row.kind,
-      name: row.name,
-      payload: parseJsonObject(row.payload_json),
-      meta: parseJsonObject(row.meta_json),
-      createdAt: row.created_at
-    }
   }
 }

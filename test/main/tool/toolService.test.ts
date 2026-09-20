@@ -64,11 +64,36 @@ import {
   createToolSurfaceCanaryRunEvidenceRecorder
 } from '@/agent/deepchat/runtime/toolSurfaceCanaryDiagnostics'
 
-vi.mock('electron', () => ({
-  app: {
-    getPath: () => process.env.TEMP || process.env.TMP || 'C:\\\\temp'
+vi.mock('electron', async () => {
+  const { join } = await import('node:path')
+  const { tmpdir } = await import('node:os')
+  const { rmSync } = await import('node:fs')
+  // Isolate the mocked userData per worker process and clean it up on exit so
+  // parallel workers never share persistent electron-store state.
+  const userDataDir = join(tmpdir(), `deepchat-vitest-userdata-toolservice-${process.pid}`)
+  process.on('exit', () => {
+    try {
+      rmSync(userDataDir, { recursive: true, force: true })
+    } catch {
+      // best-effort cleanup
+    }
+  })
+  const electronModuleMock = {
+    app: {
+      getName: () => 'DeepChat',
+      getVersion: () => '0.0.0-test',
+      getPath: (type: string) => (type === 'userData' ? userDataDir : '/mock/path')
+    },
+    ipcMain: {
+      on: () => {},
+      handle: () => {}
+    },
+    shell: {
+      openPath: async () => ''
+    }
   }
-}))
+  return { ...electronModuleMock, default: electronModuleMock }
+})
 
 const buildToolDefinition = (name: string, serverName: string): MCPToolDefinition => ({
   execution: TOOL_EXECUTION.write,
@@ -4136,7 +4161,7 @@ describe('ToolService', () => {
     expect(withoutProgress).not.toContain('## Progress Checklist Tool')
     expect(withProgress).toContain('## Progress Checklist Tool')
     expect(withProgress).toContain('Use `update_plan` for non-trivial multi-step tasks.')
-    expect(withProgress).toContain('At most one step may be in_progress at a time.')
+    expect(withProgress).toContain('Multiple steps may be in_progress when work runs in parallel')
     expect(withProgress).toContain('Before ending the turn, reconcile the checklist')
   })
 

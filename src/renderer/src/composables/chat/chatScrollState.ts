@@ -11,8 +11,10 @@ export type ChatScrollReason =
   | 'submit'
   | 'history-prepend'
   | 'measurement-anchor'
+  | 'history-navigation'
   | 'search-navigation'
   | 'spotlight-navigation'
+  | 'indicator-navigation'
   | 'user-return-to-bottom'
 
 export type ChatScrollTarget =
@@ -50,6 +52,7 @@ export type ChatScrollEvent =
   | { type: 'bottom-proximity-changed'; nearBottom: boolean }
   | { type: 'return-to-bottom' }
   | { type: 'submit-started' }
+  | { type: 'history-navigation-start' }
   | { type: 'explicit-navigation-start' }
   | { type: 'explicit-navigation-complete' }
   | { type: 'history-preservation-start' }
@@ -102,11 +105,15 @@ export function reduceChatScrollState(
         nearBottom: true,
         resumeUserOwnedAfterNavigation: false
       }
+    case 'history-navigation-start':
     case 'explicit-navigation-start':
       return {
         ...state,
         mode: 'navigating',
-        resumeUserOwnedAfterNavigation: state.resumeUserOwnedAfterNavigation || state.userOwned,
+        resumeUserOwnedAfterNavigation:
+          event.type === 'history-navigation-start' ||
+          state.resumeUserOwnedAfterNavigation ||
+          state.userOwned,
         userOwned: false,
         hasExplicitNavigation: true
       }
@@ -138,8 +145,10 @@ export function reduceChatScrollState(
 export function getChatScrollRequestPriority(reason: ChatScrollReason): number {
   switch (reason) {
     case 'user-return-to-bottom':
+    case 'history-navigation':
     case 'search-navigation':
     case 'spotlight-navigation':
+    case 'indicator-navigation':
       return 100
     case 'submit':
       return 90
@@ -159,8 +168,10 @@ export function canAcceptChatScrollRequest(
   reason: ChatScrollReason
 ): boolean {
   switch (reason) {
+    case 'history-navigation':
     case 'search-navigation':
     case 'spotlight-navigation':
+    case 'indicator-navigation':
     case 'user-return-to-bottom':
     case 'submit':
       return true

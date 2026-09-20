@@ -31,6 +31,15 @@ import {
 } from '@shared/types/execution-contract'
 import type { DeepChatTaskContractContext } from '@shared/types/task-contract'
 import { canonicalJsonStringifyData, hashJsonData } from './canonicalJson'
+import {
+  canonicalUuid,
+  compareUtf16,
+  deepFreeze,
+  hasExactKeys,
+  isRecordObject,
+  SHA256_HEX_PATTERN,
+  utf8Length
+} from './primitives'
 import { isDeepChatTaskContract, isDeepChatTaskContractRef } from './taskContract'
 import {
   isWorkspacePathWithin,
@@ -49,8 +58,6 @@ const MAX_SOURCE_REF_BYTES = 2_048
 const MAX_WORKSPACE_PATH_BYTES = 32 * 1_024
 const MAX_ASSEMBLER_VERSION_BYTES = 256
 const MAX_SECTION_DEGRADATION_CODES = 16
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-const SHA_256_PATTERN = /^[0-9a-f]{64}$/
 const JSON_HASH_OPTIONS = Object.freeze({ omitUndefinedProperties: true })
 const PROMPT_SECTION_KINDS = new Set<string>(DEEPCHAT_PROMPT_SECTION_KINDS)
 const PROMPT_SECTION_INCLUSIONS = new Set<string>(DEEPCHAT_PROMPT_SECTION_INCLUSIONS)
@@ -218,10 +225,6 @@ export function restoreExecutionContract(value: unknown): DeepChatExecutionContr
   return isDeepChatExecutionContract(value) ? deepFreeze(value) : null
 }
 
-function utf8Length(value: string): number {
-  return Buffer.byteLength(value, 'utf8')
-}
-
 function requireString(
   value: unknown,
   label: string,
@@ -246,15 +249,15 @@ function requireString(
 }
 
 function requireUuid(value: unknown, label: string): string {
-  const uuid = requireString(value, label, MAX_IDENTITY_BYTES)
-  if (!UUID_PATTERN.test(uuid)) {
+  const uuid = canonicalUuid(requireString(value, label, MAX_IDENTITY_BYTES))
+  if (!uuid) {
     throw new ExecutionContractError(`${label} must be a UUID.`, 'invalid_input')
   }
-  return uuid.toLowerCase()
+  return uuid
 }
 
 function requireSha256(value: unknown, label: string): string {
-  if (typeof value !== 'string' || !SHA_256_PATTERN.test(value)) {
+  if (typeof value !== 'string' || !SHA256_HEX_PATTERN.test(value)) {
     throw new ExecutionContractError(`${label} must be a lowercase SHA-256 hash.`, 'invalid_input')
   }
   return value
@@ -294,25 +297,6 @@ function hashData(value: unknown, label: string, omitUndefinedProperties = false
   }
 }
 
-function isRecordObject(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
-}
-
-function hasExactKeys(
-  value: unknown,
-  requiredKeys: readonly string[],
-  optionalKeys: readonly string[] = []
-): value is Record<string, unknown> {
-  if (!isRecordObject(value)) return false
-  const actualKeys = Object.keys(value)
-  const allowedKeys = new Set([...requiredKeys, ...optionalKeys])
-  return (
-    requiredKeys.every((key) => Object.hasOwn(value, key)) &&
-    actualKeys.every((key) => allowedKeys.has(key)) &&
-    actualKeys.length >= requiredKeys.length
-  )
-}
-
 function matchesNormalizedString(
   value: unknown,
   label: string,
@@ -335,11 +319,7 @@ function matchesNormalizedUuid(value: unknown, label: string): value is string {
 }
 
 function isSha256(value: unknown): value is string {
-  return typeof value === 'string' && SHA_256_PATTERN.test(value)
-}
-
-function compareCodePoints(left: string, right: string): number {
-  return left < right ? -1 : left > right ? 1 : 0
+  return typeof value === 'string' && SHA256_HEX_PATTERN.test(value)
 }
 
 function normalizeExecution(value: ToolExecutionContract, label: string): ToolExecutionContract {
@@ -490,7 +470,7 @@ function normalizeToolCeilings(
   })
 
   return [...ceilingByTarget.entries()]
-    .sort(([left], [right]) => compareCodePoints(left, right))
+    .sort(([left], [right]) => compareUtf16(left, right))
     .map(([, value]) => value.ceiling)
 }
 
@@ -532,7 +512,7 @@ function normalizePromptSections(
     if (degradationCodes.some((code) => !PROMPT_DEGRADATION_CODES.has(code))) {
       throw new ExecutionContractError(`${label}.degradationCodes is invalid.`, 'invalid_input')
     }
-    degradationCodes.sort(compareCodePoints)
+    degradationCodes.sort(compareUtf16)
     if (section.freshness !== undefined && !PROMPT_SOURCE_FRESHNESS_VALUES.has(section.freshness)) {
       throw new ExecutionContractError(`${label}.freshness is invalid.`, 'invalid_input')
     }
@@ -726,7 +706,7 @@ function isStoredPromptSection(value: unknown): value is DeepChatPromptSectionPr
         (code, index) =>
           typeof code !== 'string' ||
           !PROMPT_DEGRADATION_CODES.has(code) ||
-          (index > 0 && compareCodePoints(degradationCodes[index - 1], code) >= 0)
+          (index > 0 && compareUtf16(degradationCodes[index - 1], code) >= 0)
       )
     ) {
       return false
@@ -779,7 +759,7 @@ function isStoredExecutionCeilings(value: unknown): value is DeepChatExecutionCo
       return false
     }
     const targetKey = buildExecutionToolTargetKey(tool.target)
-    if (previousTargetKey !== null && compareCodePoints(previousTargetKey, targetKey) >= 0) {
+    if (previousTargetKey !== null && compareUtf16(previousTargetKey, targetKey) >= 0) {
       return false
     }
     const previousVisibleTarget = targetKeyByVisibleName.get(tool.target.providerVisibleName)
@@ -802,8 +782,7 @@ function isStoredDynamicControlSnapshot(
 }
 
 function isStoredExecutionProvenance(
-  value: unknown,
-  ceilings: DeepChatExecutionContract['ceilings']
+  value: unknown
 ): value is DeepChatExecutionContract['provenance'] {
   return (
     hasExactKeys(value, EXECUTION_PROVENANCE_KEYS) &&
@@ -816,7 +795,6 @@ function isStoredExecutionProvenance(
     isSha256(value.effectiveGenerationConfigHash) &&
     isSha256(value.providerVisibleToolDefinitionsHash) &&
     isSha256(value.internalExecutionPolicyHash) &&
-    value.internalExecutionPolicyHash === hashData(ceilings, 'internal execution policy') &&
     matchesNormalizedString(
       value.assemblerVersion,
       'provenance.assemblerVersion',
@@ -1041,14 +1019,6 @@ export function assertExecutionContractAllowsDispatch(
   }
 }
 
-function deepFreeze<T>(value: T): T {
-  if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value
-  for (const nested of Object.values(value as Record<string, unknown>)) {
-    deepFreeze(nested)
-  }
-  return Object.freeze(value)
-}
-
 function buildContractHash(contract: Omit<DeepChatExecutionContract, 'contractHash'>): string {
   return hashData(contract, 'execution contract')
 }
@@ -1107,23 +1077,6 @@ export function buildExecutionContract(
   return deepFreeze(contract)
 }
 
-export function verifyExecutionContractHash(contract: DeepChatExecutionContract): boolean {
-  if (
-    contract?.schemaVersion !== DEEPCHAT_EXECUTION_CONTRACT_SCHEMA_VERSION ||
-    contract?.hashVersion !== DEEPCHAT_EXECUTION_CONTRACT_HASH_VERSION ||
-    typeof contract.contractHash !== 'string' ||
-    !SHA_256_PATTERN.test(contract.contractHash)
-  ) {
-    return false
-  }
-  try {
-    const { contractHash, ...draft } = contract
-    return buildContractHash(draft) === contractHash
-  } catch {
-    return false
-  }
-}
-
 export function isDeepChatExecutionContract(value: unknown): value is DeepChatExecutionContract {
   try {
     const serialized = canonicalJsonStringifyData(value)
@@ -1135,7 +1088,7 @@ export function isDeepChatExecutionContract(value: unknown): value is DeepChatEx
       !isStoredExecutionContractRequest(value.request) ||
       !isStoredExecutionCeilings(value.ceilings) ||
       !isStoredDynamicControlSnapshot(value.dynamicControlSnapshot) ||
-      !isStoredExecutionProvenance(value.provenance, value.ceilings) ||
+      !isStoredExecutionProvenance(value.provenance) ||
       !isSha256(value.contractHash)
     ) {
       return false

@@ -17,7 +17,6 @@ import {
   sessionsDeactivateRoute,
   sessionsEditUserMessageRoute,
   sessionsEnsureAcpDraftRoute,
-  sessionsExportMessageTapeReplaySliceRoute,
   sessionsExportTapeInspectorSupportTraceRoute,
   sessionsExportRoute,
   sessionsForkRoute,
@@ -101,6 +100,7 @@ export type SessionRouteProjectionPort = SessionServiceProjectionPort &
     | 'listLightweight'
     | 'getLightweightByIds'
     | 'getSearchResults'
+    | 'requireSession'
     | 'getTapeContext'
     | 'listTapeInspectorPage'
     | 'listTapeInspectorEvidence'
@@ -110,7 +110,6 @@ export type SessionRouteProjectionPort = SessionServiceProjectionPort &
     | 'listMessageTraces'
     | 'listMessageViewManifests'
     | 'listNestedExecutionAudit'
-    | 'exportMessageTapeReplaySlice'
     | 'renameSession'
     | 'toggleSessionPinned'
   >
@@ -490,6 +489,7 @@ export function createSessionRoutes(deps: {
       async (rawInput, context) => {
         const input = sessionsSubscribeTapeInspectorHeadRoute.input.parse(rawInput)
         const caller = requireRendererCaller(context)
+        deps.projection.requireSession(input.sessionId)
         return sessionsSubscribeTapeInspectorHeadRoute.output.parse({
           subscribed: true,
           ...deps.tapeInspectorHeadWatcher.subscribe({
@@ -522,15 +522,6 @@ export function createSessionRoutes(deps: {
           traces,
           manifests,
           nestedExecutions
-        })
-      }
-    ],
-    [
-      sessionsExportMessageTapeReplaySliceRoute.name,
-      async (rawInput) => {
-        const input = sessionsExportMessageTapeReplaySliceRoute.input.parse(rawInput)
-        return sessionsExportMessageTapeReplaySliceRoute.output.parse({
-          slice: await deps.projection.exportMessageTapeReplaySlice(input.messageId, input.options)
         })
       }
     ],

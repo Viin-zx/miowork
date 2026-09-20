@@ -5,6 +5,7 @@ import type { DatabaseRepairReport, DatabaseSchemaDiagnosis } from '@shared/type
 import { DatabaseRepairService, SchemaInspector } from '@/data/schemaRepair'
 import type { SchemaTableSpec } from '@/data/schemaTypes'
 import { openSQLiteDatabase } from '@/data/databaseConnection'
+import { withBackupReadLock, type BackupReadLockOutcome } from '@/data/backupReadLock'
 import { createMainSchemaCatalog, type MainSchemaCatalog } from '@/data/schemaCatalog'
 export { openSQLiteDatabase } from '@/data/databaseConnection'
 export { isDestructiveDatabaseError } from '@/data/databaseStartupRecovery'
@@ -168,6 +169,10 @@ export class MainDatabase {
     return openSQLiteDatabase(dbPath, this.password)
   }
 
+  public async withBackupReadLock<T>(work: () => Promise<T>): Promise<BackupReadLockOutcome<T>> {
+    return withBackupReadLock(this.db, () => this.openDatabaseConnection(), work)
+  }
+
   public getDatabasePath(): string {
     return this.dbPath
   }
@@ -206,8 +211,14 @@ export class MainDatabase {
 
     const initTablesStart = performance.now()
     this.schemaCatalog = createMainSchemaCatalog(this.db)
-    this.schemaCatalog.createTables()
     this.initVersionTable()
+    const latestVersion = this.getLatestSchemaVersion()
+    if (this.currentVersion > latestVersion) {
+      throw new Error(
+        `Recorded database schema version ${this.currentVersion} exceeds supported version ${latestVersion}. Refusing to initialize a downgraded schema.`
+      )
+    }
+    this.schemaCatalog.createTables()
     logger.info(
       `MainDatabase: phase=initTables duration=${(performance.now() - initTablesStart).toFixed(2)}ms`
     )

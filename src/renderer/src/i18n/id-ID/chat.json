@@ -1,5 +1,6 @@
 {
   "input": {
+    "suggestions": "Saran",
     "placeholder": "Kirim pesan ke MioWork, {'@'} bisa referensi filenya, / bisa pakai perintah",
     "fileArea": "wilayah berkas",
     "inputArea": "daerah masukan",
@@ -113,6 +114,7 @@
   },
   "features": {
     "webSearch": "Pencarian internet",
+    "thoughtForLessThanOneSecond": "Berpikir kurang dari 1 detik",
     "thoughtForSeconds": "Berpikir selama {seconds} detik",
     "thoughtForSecondsLoading": "Berpikir (kedua {seconds})",
     "artifactThinking": "pemikiran artefak",
@@ -128,6 +130,9 @@
     "error": "Pencarian gagal"
   },
   "messages": {
+    "loadEarlier": "Muat pesan sebelumnya",
+    "scrollToLatest": "Ke yang terbaru",
+    "minimap": "Peta pesan",
     "thinking": "Berpikir...",
     "rateLimitWaiting": "Minta batas frekuensi, menunggu dalam antrian...",
     "rateLimitCompactLoading": "Batas kecepatan ({seconds} detik)",
@@ -197,7 +202,8 @@
   "mode": {
     "current": "Modus saat ini: {mode}",
     "agent": "Agent",
-    "acpAgent": "ACP Agent"
+    "acpAgent": "ACP Agent",
+    "saveFailed": "Gagal menyimpan pilihan mode"
   },
   "topbar": {
     "backToParent": "Kembali ke sesi orang tua",
@@ -295,8 +301,14 @@
       },
       "contextMenu": {
         "openFile": "membuka berkas",
+        "openWith": "Buka dengan",
+        "openInApp": "Buka di {app}",
+        "openInTerminalApp": "Buka folder di {app}",
+        "openFailed": "Tidak dapat membuka file dengan aplikasi tersebut",
+        "preferredAppUnavailable": "Aplikasi pilihan sedang tidak tersedia. Membuka dengan aplikasi bawaan sistem.",
         "revealInFolder": "Buka di pengelola file",
-        "insertPath": "Masukkan ke dalam kotak masukan"
+        "insertPath": "Masukkan ke dalam kotak masukan",
+        "openWithSystemDefault": "Buka dengan aplikasi bawaan sistem"
       },
       "watchStatus": {
         "degraded": "Pemantauan berjalan dalam mode cadangan. Perubahan mungkin dimuat ulang lebih lambat.",

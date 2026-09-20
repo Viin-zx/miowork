@@ -15,6 +15,15 @@ import {
 
 const fsExistsSyncMock = vi.hoisted(() => vi.fn())
 const terminateProcessTreeMock = vi.hoisted(() => vi.fn().mockResolvedValue(true))
+const childProcessRegistryMock = vi.hoisted(() => ({
+  record: vi.fn(),
+  clear: vi.fn(),
+  reapStaleOnce: vi.fn().mockResolvedValue(null)
+}))
+
+vi.mock('@/agent/shared/process/childProcessRegistry', () => ({
+  childProcessRegistry: childProcessRegistryMock
+}))
 
 // Mock electron modules
 vi.mock('electron', () => ({
@@ -61,7 +70,8 @@ function createMcpClient(
   npmRegistry: string | null = null,
   uvRegistry: string | null = null,
   mcpOAuthManager?: ConstructorParameters<typeof McpClient>[4],
-  inMemoryServerFactory?: ConstructorParameters<typeof McpClient>[5]
+  inMemoryServerFactory?: ConstructorParameters<typeof McpClient>[5],
+  resolveMcpBindings?: NonNullable<ConstructorParameters<typeof McpClient>[6]>['resolveMcpBindings']
 ): McpClient {
   return new McpClient(
     serverName,
@@ -71,6 +81,7 @@ function createMcpClient(
     mcpOAuthManager,
     inMemoryServerFactory,
     {
+      resolveMcpBindings,
       sampling: {
         handleSamplingRequest: mockHandleSamplingRequest,
         cancelSamplingRequest: mockCancelSamplingRequest
@@ -111,7 +122,9 @@ const createLargeToolCatalog = () =>
   }))
 
 const createSdkToolClient = (tools: unknown[], era: 'modern' | 'legacy') => ({
-  connect: vi.fn().mockResolvedValue(undefined),
+  connect: vi.fn().mockImplementation(async (transport: any) => {
+    await transport?.start?.()
+  }),
   callTool: vi.fn().mockResolvedValue({ content: [] }),
   listTools: vi.fn().mockResolvedValue({ tools }),
   listPrompts: vi.fn(),
@@ -133,18 +146,22 @@ vi.mock('@modelcontextprotocol/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@modelcontextprotocol/client')>()
   return {
     ...actual,
-    Client: vi.fn().mockImplementation(() => ({
-      connect: vi.fn().mockResolvedValue(undefined),
-      callTool: vi.fn(),
-      listTools: vi.fn(),
-      listPrompts: vi.fn(),
-      getPrompt: vi.fn(),
-      listResources: vi.fn(),
-      readResource: vi.fn(),
-      setNotificationHandler: vi.fn(),
-      setRequestHandler: vi.fn(),
-      getProtocolEra: vi.fn(() => 'modern')
-    })),
+    Client: vi.fn().mockImplementation(function Client() {
+      return {
+        connect: vi.fn().mockImplementation(async (transport: any) => {
+          await transport?.start?.()
+        }),
+        callTool: vi.fn(),
+        listTools: vi.fn(),
+        listPrompts: vi.fn(),
+        getPrompt: vi.fn(),
+        listResources: vi.fn(),
+        readResource: vi.fn(),
+        setNotificationHandler: vi.fn(),
+        setRequestHandler: vi.fn(),
+        getProtocolEra: vi.fn(() => 'modern')
+      }
+    }),
     SSEClientTransport: vi.fn(),
     InMemoryTransport: {
       createLinkedPair: vi.fn(() => [vi.fn(), vi.fn()])
@@ -153,14 +170,20 @@ vi.mock('@modelcontextprotocol/client', async (importOriginal) => {
   }
 })
 
-vi.mock('@modelcontextprotocol/client/stdio', () => ({
-  StdioClientTransport: vi.fn().mockImplementation(() => ({
-    stderr: {
-      on: vi.fn()
-    },
-    close: vi.fn()
-  }))
-}))
+vi.mock('@modelcontextprotocol/client/stdio', () => {
+  const StdioClientTransport = vi.fn().mockImplementation(function StdioClientTransport() {
+    return {
+      stderr: {
+        on: vi.fn()
+      },
+      close: vi.fn()
+    }
+  })
+  // The production subclass calls super.start(); the real SDK's Client.connect()
+  // invokes transport.start(), which the Client mock mirrors below.
+  StdioClientTransport.prototype.start = vi.fn().mockResolvedValue(undefined)
+  return { StdioClientTransport }
+})
 
 describe('McpClient Runtime Command Processing Tests', () => {
   let mockFsExistsSync: any
@@ -196,34 +219,35 @@ describe('McpClient Runtime Command Processing Tests', () => {
     mockGenerateCompletionStandalone.mockReset()
     mockGetProviderModels.mockReset()
     mockGetCustomModels.mockReset()
-    vi.mocked(Client).mockImplementation(
-      () =>
-        ({
-          connect: vi.fn().mockResolvedValue(undefined),
-          callTool: vi.fn(),
-          listTools: vi.fn(),
-          listPrompts: vi.fn(),
-          getPrompt: vi.fn(),
-          listResources: vi.fn(),
-          readResource: vi.fn(),
-          setNotificationHandler: vi.fn(),
-          setRequestHandler: vi.fn(),
-          getProtocolEra: vi.fn(() => 'modern')
-        }) as any
-    )
-    vi.mocked(StdioClientTransport).mockImplementation(
-      () =>
-        ({
-          stderr: {
-            on: vi.fn()
-          },
-          close: vi.fn()
-        }) as any
-    )
+    vi.mocked(Client).mockImplementation(function Client() {
+      return {
+        connect: vi.fn().mockImplementation(async (transport: any) => {
+          await transport?.start?.()
+        }),
+        callTool: vi.fn(),
+        listTools: vi.fn(),
+        listPrompts: vi.fn(),
+        getPrompt: vi.fn(),
+        listResources: vi.fn(),
+        readResource: vi.fn(),
+        setNotificationHandler: vi.fn(),
+        setRequestHandler: vi.fn(),
+        getProtocolEra: vi.fn(() => 'modern')
+      } as any
+    })
+    vi.mocked(StdioClientTransport).mockImplementation(function StdioClientTransport() {
+      return {
+        stderr: {
+          on: vi.fn()
+        },
+        close: vi.fn()
+      } as any
+    })
   })
 
   afterEach(() => {
     ToolchainService.resetForTests()
+    vi.unstubAllEnvs()
     vi.clearAllMocks()
   })
 
@@ -419,6 +443,69 @@ describe('McpClient Runtime Command Processing Tests', () => {
   })
 
   describe('Environment Variable Processing', () => {
+    it('does not disclose host environment values to user-owned MCP servers', async () => {
+      vi.stubEnv('DEEPCHAT_TEST_HOST_SECRET', 'host-only-secret')
+      const config = {
+        ownerPluginId: 'user.untrusted',
+        type: 'http',
+        baseUrl: 'https://example.com/mcp',
+        environmentVariables: ['DEEPCHAT_TEST_HOST_SECRET'],
+        customHeaders: { Authorization: 'Bearer ${DEEPCHAT_TEST_HOST_SECRET}' }
+      }
+      const client = createMcpClient('untrusted', config)
+      await expect(client.connect()).rejects.toThrow(
+        'requires environment variable DEEPCHAT_TEST_HOST_SECRET'
+      )
+      expect(
+        vi
+          .mocked(Client)
+          .mock.results.flatMap((result) => (result.value ? [result.value.connect] : []))
+          .every((connect) => connect.mock.calls.length === 0)
+      ).toBe(true)
+    })
+
+    it.each(['line\r\nbreak', 'x'.repeat(32769)])(
+      'validates custom header bindings after resolution (%#)',
+      async (value) => {
+        const client = createMcpClient(
+          'reviewed',
+          {
+            ownerPluginId: 'user.reviewed',
+            type: 'http',
+            baseUrl: 'https://example.com/mcp',
+            environmentVariables: ['TOKEN'],
+            customHeaders: { Authorization: 'Bearer ${TOKEN}' }
+          },
+          null,
+          null,
+          undefined,
+          undefined,
+          () => ({ TOKEN: value })
+        )
+        await expect(client.connect()).rejects.toThrow(/header/i)
+      }
+    )
+
+    it('uses explicitly supplied bindings while preserving configuration templates', async () => {
+      vi.stubEnv('DEEPCHAT_TEST_HOST_SECRET', 'host-only-secret')
+      const config = {
+        ownerPluginId: 'user.reviewed',
+        type: 'stdio',
+        command: 'node',
+        args: ['server.js'],
+        environmentVariables: ['DEEPCHAT_TEST_HOST_SECRET'],
+        env: { TOKEN: '${DEEPCHAT_TEST_HOST_SECRET}' }
+      }
+      const client = createMcpClient('reviewed', config, null, null, undefined, undefined, () => ({
+        DEEPCHAT_TEST_HOST_SECRET: 'explicit-secret'
+      }))
+      await client.connect()
+      expect(vi.mocked(StdioClientTransport).mock.calls.at(-1)?.[0]?.env?.TOKEN).toBe(
+        'explicit-secret'
+      )
+      expect(config.env.TOKEN).toBe('${DEEPCHAT_TEST_HOST_SECRET}')
+    })
+
     it('should set npm registry environment variables', () => {
       const client = createMcpClient('test', { type: 'stdio' }, 'https://registry.npmmirror.com')
 
@@ -641,6 +728,195 @@ describe('McpClient Runtime Command Processing Tests', () => {
     })
   })
 
+  describe('Child process registry', () => {
+    it('records the stdio launch after a successful connect', async () => {
+      const pid = 321
+      vi.mocked(StdioClientTransport).mockImplementationOnce(function (this: any) {
+        this.stderr = {
+          on: vi.fn()
+        }
+        this.close = vi.fn().mockResolvedValue(undefined)
+        this.pid = pid
+      } as any)
+      const client = createMcpClient('registry-test', {
+        type: 'stdio',
+        command: 'node',
+        args: ['server.js']
+      })
+
+      await client.connect()
+
+      expect(childProcessRegistryMock.record).toHaveBeenCalledWith({
+        subsystem: 'mcp-stdio',
+        recordId: expect.stringMatching(/^registry-test:.+/),
+        pid,
+        commandLine: ['node', 'server.js']
+      })
+    })
+
+    it('records the spawned process even when connect fails after start', async () => {
+      const pid = 432
+      vi.mocked(StdioClientTransport).mockImplementationOnce(function (this: any) {
+        this.stderr = {
+          on: vi.fn()
+        }
+        this.close = vi.fn().mockResolvedValue(undefined)
+        this.pid = pid
+      } as any)
+      vi.mocked(Client).mockImplementationOnce(function Client() {
+        return {
+          connect: vi.fn().mockImplementation(async (transport: any) => {
+            await transport?.start?.()
+            throw new Error('handshake failed')
+          }),
+          callTool: vi.fn(),
+          listTools: vi.fn(),
+          listPrompts: vi.fn(),
+          getPrompt: vi.fn(),
+          listResources: vi.fn(),
+          readResource: vi.fn(),
+          setNotificationHandler: vi.fn(),
+          setRequestHandler: vi.fn(),
+          getProtocolEra: vi.fn(() => 'modern')
+        } as any
+      })
+      const client = createMcpClient('failing-server', {
+        type: 'stdio',
+        command: 'node',
+        args: ['server.js']
+      })
+
+      // test/setup.ts restores all mocks after each test, so the hoisted default
+      // implementation is gone; set the termination result explicitly per test.
+      terminateProcessTreeMock.mockResolvedValue(true)
+      await expect(client.connect()).rejects.toThrow('handshake failed')
+
+      expect(childProcessRegistryMock.record).toHaveBeenCalledWith({
+        subsystem: 'mcp-stdio',
+        recordId: expect.stringMatching(/^failing-server:.+/),
+        pid,
+        commandLine: ['node', 'server.js']
+      })
+      const recordId = childProcessRegistryMock.record.mock.calls[0][0].recordId
+      expect(childProcessRegistryMock.clear).toHaveBeenCalledWith('mcp-stdio', recordId)
+    })
+    it('clears the record when the stdio server disconnects', async () => {
+      const pid = 654
+      vi.mocked(StdioClientTransport).mockImplementationOnce(function (this: any) {
+        this.stderr = {
+          on: vi.fn()
+        }
+        this.close = vi.fn().mockResolvedValue(undefined)
+        this.pid = pid
+      } as any)
+      const client = createMcpClient('registry-test', {
+        type: 'stdio',
+        command: 'node',
+        args: ['server.js']
+      })
+
+      terminateProcessTreeMock.mockResolvedValue(true)
+      await client.connect()
+      await client.disconnect()
+
+      const recordId = childProcessRegistryMock.record.mock.calls[0][0].recordId
+      expect(childProcessRegistryMock.clear).toHaveBeenCalledWith('mcp-stdio', recordId)
+    })
+
+    it('keeps the record when process-tree termination is unconfirmed on disconnect', async () => {
+      const pid = 765
+      vi.mocked(StdioClientTransport).mockImplementationOnce(function (this: any) {
+        this.stderr = {
+          on: vi.fn()
+        }
+        this.close = vi.fn().mockResolvedValue(undefined)
+        this.pid = pid
+      } as any)
+      const client = createMcpClient('unconfirmed-server', {
+        type: 'stdio',
+        command: 'node',
+        args: ['server.js']
+      })
+
+      await client.connect()
+      const recordId = childProcessRegistryMock.record.mock.calls[0][0].recordId
+
+      terminateProcessTreeMock.mockResolvedValueOnce(false)
+      await client.disconnect()
+
+      expect(childProcessRegistryMock.clear).not.toHaveBeenCalled()
+
+      // A later confirmed force termination clears the preserved record.
+      terminateProcessTreeMock.mockResolvedValueOnce(true)
+      await expect(client.forceTerminateStdioProcessTree('test cleanup')).resolves.toBe(true)
+      expect(childProcessRegistryMock.clear).toHaveBeenCalledWith('mcp-stdio', recordId)
+    })
+
+    it('returns false and keeps the record when force termination is unconfirmed', async () => {
+      const pid = 876
+      vi.mocked(StdioClientTransport).mockImplementationOnce(function (this: any) {
+        this.stderr = {
+          on: vi.fn()
+        }
+        this.close = vi.fn().mockResolvedValue(undefined)
+        this.pid = pid
+      } as any)
+      const client = createMcpClient('force-server', {
+        type: 'stdio',
+        command: 'node',
+        args: ['server.js']
+      })
+
+      await client.connect()
+      const recordId = childProcessRegistryMock.record.mock.calls[0][0].recordId
+
+      terminateProcessTreeMock.mockResolvedValueOnce(false)
+      await expect(client.forceTerminateStdioProcessTree('test')).resolves.toBe(false)
+      expect(childProcessRegistryMock.clear).not.toHaveBeenCalledWith('mcp-stdio', recordId)
+    })
+
+    it('keeps per-instance records for overlapping same-name clients', async () => {
+      const firstPid = 111
+      const secondPid = 222
+      vi.mocked(StdioClientTransport).mockImplementationOnce(function (this: any) {
+        this.stderr = {
+          on: vi.fn()
+        }
+        this.close = vi.fn().mockResolvedValue(undefined)
+        this.pid = firstPid
+      } as any)
+      vi.mocked(StdioClientTransport).mockImplementationOnce(function (this: any) {
+        this.stderr = {
+          on: vi.fn()
+        }
+        this.close = vi.fn().mockResolvedValue(undefined)
+        this.pid = secondPid
+      } as any)
+      const serverConfig = {
+        type: 'stdio',
+        command: 'node',
+        args: ['server.js']
+      }
+      const firstClient = createMcpClient('overlap-server', serverConfig)
+      const secondClient = createMcpClient('overlap-server', serverConfig)
+
+      await firstClient.connect()
+      await secondClient.connect()
+
+      const firstRecordId = childProcessRegistryMock.record.mock.calls[0][0].recordId
+      const secondRecordId = childProcessRegistryMock.record.mock.calls[1][0].recordId
+      expect(firstRecordId).toMatch(/^overlap-server:.+/)
+      expect(secondRecordId).toMatch(/^overlap-server:.+/)
+      expect(firstRecordId).not.toBe(secondRecordId)
+
+      // Closing the older client must not delete the newer instance's record.
+      terminateProcessTreeMock.mockResolvedValue(true)
+      await firstClient.disconnect()
+      expect(childProcessRegistryMock.clear).toHaveBeenCalledWith('mcp-stdio', firstRecordId)
+      expect(childProcessRegistryMock.clear).not.toHaveBeenCalledWith('mcp-stdio', secondRecordId)
+    })
+  })
+
   describe('Version negotiation', () => {
     it('retries one timed-out HTTP version negotiation probe', async () => {
       const client = createMcpClient('remote-server', {
@@ -677,7 +953,9 @@ describe('McpClient Runtime Command Processing Tests', () => {
         getProtocolEra: vi.fn(() => 'modern'),
         getServerCapabilities: vi.fn(() => ({}))
       }
-      vi.mocked(Client).mockImplementationOnce(() => sdkClient as any)
+      vi.mocked(Client).mockImplementationOnce(function () {
+        return sdkClient as any
+      })
       const client = createMcpClient('minimal-server', {
         type: 'stdio',
         command: 'minimal-server',
@@ -720,7 +998,9 @@ describe('McpClient Runtime Command Processing Tests', () => {
         setRequestHandler: vi.fn(),
         getProtocolEra: vi.fn(() => 'modern')
       }
-      vi.mocked(Client).mockImplementationOnce(() => sdkClient as any)
+      vi.mocked(Client).mockImplementationOnce(function () {
+        return sdkClient as any
+      })
       const client = createMcpClient('slow-server', {
         type: 'stdio',
         command: 'slow-server',
@@ -758,7 +1038,9 @@ describe('McpClient Runtime Command Processing Tests', () => {
         setRequestHandler: vi.fn(),
         getProtocolEra: vi.fn(() => 'modern')
       }
-      vi.mocked(Client).mockImplementationOnce(() => sdkClient as any)
+      vi.mocked(Client).mockImplementationOnce(function () {
+        return sdkClient as any
+      })
       const client = createMcpClient('diagnostic-server', {
         type: 'stdio',
         command: 'diagnostic-server',
@@ -794,7 +1076,9 @@ describe('McpClient Runtime Command Processing Tests', () => {
         setRequestHandler: vi.fn(),
         getProtocolEra: vi.fn(() => 'modern')
       }
-      vi.mocked(Client).mockImplementationOnce(() => sdkClient as any)
+      vi.mocked(Client).mockImplementationOnce(function () {
+        return sdkClient as any
+      })
       const client = createMcpClient('diagnostic-server', {
         type: 'stdio',
         command: 'diagnostic-server',
@@ -831,7 +1115,9 @@ describe('McpClient Runtime Command Processing Tests', () => {
           resources: {}
         }))
       }
-      vi.mocked(Client).mockImplementationOnce(() => sdkClient as any)
+      vi.mocked(Client).mockImplementationOnce(function () {
+        return sdkClient as any
+      })
       const client = createMcpClient('partial-server', {
         type: 'stdio',
         command: 'partial-server',
@@ -863,7 +1149,9 @@ describe('McpClient Runtime Command Processing Tests', () => {
         setRequestHandler: vi.fn(),
         getProtocolEra: vi.fn(() => 'modern')
       }
-      vi.mocked(Client).mockImplementationOnce(() => sdkClient as any)
+      vi.mocked(Client).mockImplementationOnce(function () {
+        return sdkClient as any
+      })
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
       const client = createMcpClient('cua-driver', {
         type: 'stdio',
@@ -897,7 +1185,9 @@ describe('McpClient Runtime Command Processing Tests', () => {
         setRequestHandler: vi.fn(),
         getProtocolEra: vi.fn(() => 'modern')
       }
-      vi.mocked(Client).mockImplementationOnce(() => sdkClient as any)
+      vi.mocked(Client).mockImplementationOnce(function () {
+        return sdkClient as any
+      })
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
       const client = createMcpClient('cua-driver', {
         type: 'stdio',
@@ -927,7 +1217,9 @@ describe('McpClient Runtime Command Processing Tests', () => {
         expect(responseBytes).toBeLessThan(275_000)
 
         const sdkClient = createSdkToolClient(tools, era)
-        vi.mocked(Client).mockImplementationOnce(() => sdkClient as any)
+        vi.mocked(Client).mockImplementationOnce(function () {
+          return sdkClient as any
+        })
         const client = createMcpClient('large-catalog', {
           type: 'stdio',
           command: 'large-catalog',
@@ -963,7 +1255,9 @@ describe('McpClient Runtime Command Processing Tests', () => {
         ],
         'legacy'
       )
-      vi.mocked(Client).mockImplementationOnce(() => sdkClient as any)
+      vi.mocked(Client).mockImplementationOnce(function () {
+        return sdkClient as any
+      })
       const client = createMcpClient('legacy-server', {
         type: 'stdio',
         command: 'legacy-server',
@@ -1014,7 +1308,9 @@ describe('McpClient Runtime Command Processing Tests', () => {
         ],
         era
       )
-      vi.mocked(Client).mockImplementationOnce(() => sdkClient as any)
+      vi.mocked(Client).mockImplementationOnce(function () {
+        return sdkClient as any
+      })
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
       const client = createMcpClient('strict-server', {
         type: 'stdio',

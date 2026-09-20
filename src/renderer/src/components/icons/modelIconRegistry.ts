@@ -86,6 +86,9 @@ import voiceAiColorIcon from '@/assets/llm-icons/voiceai.svg?url'
 import novitaAiIcon from '@/assets/llm-icons/novitaai.svg?url'
 import astraflowIcon from '@/assets/llm-icons/astraflow.png?url'
 import apimartIcon from '@/assets/llm-icons/apimart.ico?url'
+import apiRouteIcon from '@/assets/llm-icons/api-route.svg?url'
+import cheaperInferenceIcon from '@/assets/llm-icons/cheaper-inference.svg?url'
+import anonrouterIcon from '@/assets/llm-icons/anonrouter.svg?url'
 
 export const modelIcons = {
   'kimi-for-coding': kimiColorIcon,
@@ -106,7 +109,10 @@ export const modelIcons = {
   'alibaba-token-plan-cn': dashscopeColorIcon,
   alibaba: dashscopeColorIcon,
   aihubmix: aihubmixColorIcon,
+  anonrouter: anonrouterIcon,
+  'api-route': apiRouteIcon,
   apimart: apimartIcon,
+  'cheaper-inference': cheaperInferenceIcon,
   dashscope: dashscopeColorIcon,
   hunyuan: hunyuanColorIcon,
   grok: grokColorIcon,
@@ -252,7 +258,8 @@ const monoIconUrls = new Set<string>([
   voiceAiColorIcon,
   novitaAiIcon,
   amdIcon,
-  apimartIcon
+  apimartIcon,
+  anonrouterIcon
 ])
 
 export const isMonoModelIconUrl = (iconUrl: string): boolean => monoIconUrls.has(iconUrl)

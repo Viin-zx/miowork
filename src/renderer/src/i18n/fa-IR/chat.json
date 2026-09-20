@@ -1,5 +1,6 @@
 {
   "input": {
+    "suggestions": "پیشنهادها",
     "placeholder": "هر چیزی از MioWork بپرسید، با {'@'} به فایل‌ها اشاره کنید و با / از دستورها استفاده کنید",
     "fileArea": "ناحیه پرونده",
     "inputArea": "ناحیه ورودی",
@@ -114,6 +115,7 @@
   "features": {
     "webSearch": "جستجوی وب",
     "artifactThinking": "تفکر مصنوعی",
+    "thoughtForLessThanOneSecond": "تفکر به مدت کمتر از ۱ ثانیه",
     "thoughtForSeconds": "تفکر به مدت {seconds} ثانیه",
     "thoughtForSecondsLoading": "در حال تفکر ({seconds} ثانیه)",
     "modeChanged": "تغییر حالت به: {mode}"
@@ -128,6 +130,9 @@
     "error": "جستجو ناموفق بود"
   },
   "messages": {
+    "loadEarlier": "بارگیری پیام‌های قدیمی‌تر",
+    "scrollToLatest": "رفتن به جدیدترین",
+    "minimap": "نقشه پیام‌ها",
     "thinking": "در حال تفکر...",
     "rateLimitWaiting": "محدودیت نرخ درخواست، در صف انتظار...",
     "rateLimitCompactLoading": "در محدودیت نرخ ({seconds}ث)",
@@ -180,7 +185,8 @@
   "mode": {
     "acpAgent": "نماینده ACP",
     "agent": "عامل",
-    "current": "حالت فعلی: {mode}"
+    "current": "حالت فعلی: {mode}",
+    "saveFailed": "ذخیره انتخاب حالت ناموفق بود"
   },
   "topbar": {
     "share": "اشتراک‌گذاری",
@@ -229,6 +235,12 @@
       "contextMenu": {
         "insertPath": "در جعبه ورودی وارد کنید",
         "openFile": "باز کردن فایل",
+        "openInApp": "باز کردن در {app}",
+        "openInTerminalApp": "باز کردن پوشه در {app}",
+        "openFailed": "باز کردن فایل با آن برنامه ممکن نشد",
+        "preferredAppUnavailable": "برنامه ترجیحی فعلاً در دسترس نیست. با برنامه پیش‌فرض سیستم باز می‌شود.",
+        "openWith": "باز کردن با",
+        "openWithSystemDefault": "باز کردن با برنامه پیش‌فرض سیستم",
         "revealInFolder": "در فایل منیجر باز کنید"
       },
       "empty": "هنوز فایلی وجود ندارد",

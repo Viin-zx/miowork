@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import type { MaintenanceBudget } from '@/memory/core/maintenanceBudget'
-import type { AgentMemoryRow } from '@/memory/domain/types'
+import { WORKING_REFRESH_DEBOUNCE_MS } from '@/memory/runtimeConstants'
+import type { AgentMemoryRow, MemoryVectorMatch } from '@/memory/domain/types'
 import type { DeepChatAgentConfig } from '@shared/types/agent-interface'
+import { createControlledPromise } from './serviceHarness'
 import {
   FakeAuditRepository,
   FakeVectorStore,
@@ -761,6 +763,45 @@ describe('MemoryService offline consolidation (T-B4..T-B6)', () => {
     expect(repo.countDirtySeeds('a')).toBe(2)
   })
 
+  it('keeps reflection accounting when its audit write fails', async () => {
+    const generateText = vi.fn(async (_providerId: string, _modelId: string, prompt: string) => {
+      if (prompt.includes('Choose exactly ONE decision')) throw new Error('decision unavailable')
+      if (prompt.includes('durable, high-level insights')) {
+        return '["user consistently prefers redis"]'
+      }
+      return ''
+    })
+    const { presenter, repo, auditRepo } = makeLLMPresenter(generateText)
+    const now = 1_000 * DAY
+    // Two embedded near-duplicates make the merge step call (and fail) the decision model; the
+    // recent importance below lets reflection run and succeed in the same pass.
+    const firstId = await seedEmbedded(presenter, 'user likes redis a')
+    const secondId = await seedEmbedded(presenter, 'user likes redis b')
+    repo.rows.get(firstId)!.created_at = now
+    repo.rows.get(secondId)!.created_at = now + 1
+    presenter.writeMemoriesSync(
+      Array.from({ length: 6 }, (_, index) => ({
+        kind: 'semantic' as const,
+        content: `durable fact ${index}`,
+        importance: 0.9
+      })),
+      { agentId: 'a' }
+    )
+    const originalInsert = auditRepo.insert.bind(auditRepo)
+    vi.spyOn(auditRepo, 'insert').mockImplementation((row) => {
+      if (row.eventType === 'memory/reflect') throw new Error('audit insert failed')
+      return originalInsert(row)
+    })
+
+    await presenter.runConsolidationPass('a', now)
+
+    expect(decisionCalls(generateText)).toBeGreaterThan(0)
+    expect(auditRepo.getLatestCompletedEventAt('a', 'memory/maintenance_llm')).toBe(now)
+    expect(auditRepo.listByAgent('a')).not.toContainEqual(
+      expect.objectContaining({ reason: 'all-llm-steps-failed' })
+    )
+  })
+
   it('does not keep completed cooldown when heavy maintenance aborts after memory is disabled', async () => {
     const config: DeepChatAgentConfig = { ...embeddingConfig }
     const generateText = vi.fn(async (_p: string, _m: string, prompt: string) => {
@@ -1037,7 +1078,9 @@ describe('MemoryService offline consolidation (T-B4..T-B6)', () => {
         return ''
       })
       const { presenter } = makeLLMPresenter(generateText)
-      const passSpy = vi.spyOn(presenter, 'runConsolidationPass').mockResolvedValue()
+      const passSpy = vi
+        .spyOn(memoryRuntimeForTests(presenter).maintenanceService, 'runConsolidationPass')
+        .mockResolvedValue()
 
       const span = (text: string) => ({
         agentId: 'a',
@@ -1078,7 +1121,9 @@ describe('MemoryService offline consolidation (T-B4..T-B6)', () => {
         return ''
       })
       const { presenter } = makeLLMPresenter(generateText)
-      const passSpy = vi.spyOn(presenter, 'runConsolidationPass').mockResolvedValue()
+      const passSpy = vi
+        .spyOn(memoryRuntimeForTests(presenter).maintenanceService, 'runConsolidationPass')
+        .mockResolvedValue()
 
       await presenter.extractAndStore({
         agentId: 'a',
@@ -1119,7 +1164,9 @@ describe('MemoryService offline consolidation (T-B4..T-B6)', () => {
         createVectorStore: async () => new FakeVectorStore(),
         resetVectorStore: async () => undefined
       })
-      const passSpy = vi.spyOn(presenter, 'runConsolidationPass').mockResolvedValue()
+      const passSpy = vi
+        .spyOn(memoryRuntimeForTests(presenter).maintenanceService, 'runConsolidationPass')
+        .mockResolvedValue()
 
       presenter.startBackgroundMaintenance()
       presenter.startBackgroundMaintenance()
@@ -1136,6 +1183,271 @@ describe('MemoryService offline consolidation (T-B4..T-B6)', () => {
       await vi.advanceTimersByTimeAsync(30 * 60 * 1000)
       expect(passSpy).toHaveBeenCalledTimes(2)
     } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('re-arms the startup pass after a stop/start cycle inside the start delay', async () => {
+    vi.useFakeTimers()
+    try {
+      const repo = createFakeRepository()
+      repo.rows.set('a1', makeRow('a1', { agent_id: 'agent-a' }))
+      const presenter = new MemoryService({
+        repository: repo,
+        resolveAgentConfig: () => enabledConfig,
+        getEmbeddings: async (_p, _m, texts) => texts.map((text) => textToVector(text)),
+        generateText: async () => '',
+        createVectorStore: async () => new FakeVectorStore(),
+        resetVectorStore: async () => undefined
+      })
+      const passSpy = vi
+        .spyOn(memoryRuntimeForTests(presenter).maintenanceService, 'runConsolidationPass')
+        .mockResolvedValue()
+
+      presenter.startBackgroundMaintenance()
+      await vi.advanceTimersByTimeAsync(30 * 1000)
+      presenter.stopBackgroundMaintenance()
+      await vi.advanceTimersByTimeAsync(60 * 1000 + 5 * 60 * 1000)
+      expect(passSpy).not.toHaveBeenCalled()
+
+      presenter.startBackgroundMaintenance()
+      await vi.advanceTimersByTimeAsync(60 * 1000 + 5 * 60 * 1000)
+      expect(passSpy.mock.calls.map(([agentId]) => agentId)).toEqual(['agent-a'])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('clears armed consolidation on stop and refuses new arming until start', async () => {
+    vi.useFakeTimers()
+    try {
+      const repo = createFakeRepository()
+      repo.rows.set('a1', makeRow('a1', { agent_id: 'agent-a' }))
+      const presenter = new MemoryService({
+        repository: repo,
+        resolveAgentConfig: () => enabledConfig,
+        getEmbeddings: async (_p, _m, texts) => texts.map((text) => textToVector(text)),
+        generateText: async () => '',
+        createVectorStore: async () => new FakeVectorStore(),
+        resetVectorStore: async () => undefined
+      })
+      const passSpy = vi
+        .spyOn(memoryRuntimeForTests(presenter).maintenanceService, 'runConsolidationPass')
+        .mockResolvedValue()
+
+      presenter.startBackgroundMaintenance()
+      presenter.onAgentMemoryMaintenanceConfigChanged('agent-a')
+      presenter.stopBackgroundMaintenance()
+      presenter.onAgentMemoryMaintenanceConfigChanged('agent-a')
+      await vi.advanceTimersByTimeAsync(60 * 1000 + 5 * 60 * 1000)
+      expect(passSpy).not.toHaveBeenCalled()
+
+      presenter.startBackgroundMaintenance()
+      presenter.onAgentMemoryMaintenanceConfigChanged('agent-a')
+      await vi.advanceTimersByTimeAsync(5 * 60 * 1000)
+      expect(passSpy.mock.calls.map(([agentId]) => agentId)).toEqual(['agent-a'])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('aborts an in-flight pass on stop so the maintenance window drains promptly', async () => {
+    // The decision request never settles on its own; only the provider abort can free the pass.
+    const decision = createControlledPromise<string>()
+    const generateText = vi.fn(async (_p: string, _m: string, prompt: string) =>
+      prompt.includes('Choose exactly ONE decision') ? decision.promise : ''
+    )
+    const { presenter, repo, auditRepo } = makeLLMPresenter(generateText)
+    const now = 1_000 * DAY
+    const firstId = await seedEmbedded(presenter, 'user likes redis a')
+    const secondId = await seedEmbedded(presenter, 'user likes redis b')
+    repo.rows.get(firstId)!.created_at = now
+    repo.rows.get(secondId)!.created_at = now + 1
+
+    const pass = presenter.runConsolidationPass('a', now)
+    await vi.waitFor(() => expect(decisionCalls(generateText)).toBe(1))
+
+    presenter.stopBackgroundMaintenance()
+    await expect(presenter.drainBackgroundMaintenance(500)).resolves.toEqual([])
+    await pass
+    // The fenced pass neither merged nor issued another decision after the abort,
+    // and a late provider settlement changes nothing.
+    decision.resolve(
+      '{"decision":"SUPERSEDE","targetIndex":0,"mergedContent":"user prefers redis"}'
+    )
+    await flushMicrotasks()
+    expect(decisionCalls(generateText)).toBe(1)
+    expect(repo.getById(firstId)?.superseded_by).toBeNull()
+    expect(repo.getById(secondId)?.superseded_by).toBeNull()
+    expect(auditRepo.getLatestCompletedEventAt('a', 'memory/maintenance_llm')).toBeNull()
+
+    // Stopped maintenance admits no new pass, even when requested directly.
+    await presenter.runConsolidationPass('a', now + 60 * 1000)
+    expect(decisionCalls(generateText)).toBe(1)
+
+    presenter.startBackgroundMaintenance()
+    await presenter.runConsolidationPass('a', now + 60 * 1000)
+    expect(decisionCalls(generateText)).toBe(2)
+  })
+
+  it('reports a pass that cannot be aborted as a timed-out drain', async () => {
+    const generateText = routedLLM({
+      decision: '{"decision":"NOOP","targetIndex":0,"mergedContent":null}'
+    })
+    const { presenter, repo, store } = makeLLMPresenter(generateText)
+    const now = 1_000 * DAY
+    const firstId = await seedEmbedded(presenter, 'user likes redis a')
+    const secondId = await seedEmbedded(presenter, 'user likes redis b')
+    repo.rows.get(firstId)!.created_at = now
+    repo.rows.get(secondId)!.created_at = now + 1
+    // Wedge the pass inside the native neighbor query, which no provider abort reaches.
+    const neighborQuery = createControlledPromise<MemoryVectorMatch[]>()
+    const querySpy = vi.spyOn(store, 'queryByMemoryId').mockReturnValueOnce(neighborQuery.promise)
+
+    const pass = presenter.runConsolidationPass('a', now)
+    await vi.waitFor(() => expect(querySpy).toHaveBeenCalledTimes(1))
+
+    presenter.stopBackgroundMaintenance()
+    await expect(presenter.drainBackgroundMaintenance(20)).resolves.toEqual(['a'])
+
+    neighborQuery.resolve([])
+    await expect(presenter.drainBackgroundMaintenance()).resolves.toEqual([])
+    await pass
+    expect(decisionCalls(generateText)).toBe(0)
+  })
+
+  it('fences started prewarm and reports its unsettled store open during drain', async () => {
+    const repo = createFakeRepository()
+    repo.rows.set('m1', makeRow('m1'))
+    const open = createControlledPromise<FakeVectorStore>()
+    const createVectorStore = vi.fn(() => open.promise)
+    const presenter = new MemoryService({
+      repository: repo,
+      resolveAgentConfig: () => enabledConfig,
+      getEmbeddings: async (_p, _m, texts) => texts.map(textToVector),
+      getDimensions: embeddingDimensions,
+      generateText: async () => '',
+      createVectorStore,
+      resetVectorStore: async () => undefined
+    })
+    const token = presenter.captureExecutionToken('a')
+    presenter.warmActiveAgents()
+    await vi.waitFor(() => expect(createVectorStore).toHaveBeenCalledTimes(1))
+    presenter.stopBackgroundMaintenance()
+    await expect(presenter.drainBackgroundMaintenance(20)).resolves.toEqual(['a'])
+    const staleRead = vi.spyOn(repo, 'hasStaleEmbeddings')
+    const store = new FakeVectorStore()
+    store.vectors.set('m1', textToVector('m1'))
+    open.resolve(store)
+    await expect(presenter.drainBackgroundMaintenance()).resolves.toEqual([])
+    expect(staleRead).not.toHaveBeenCalled()
+    presenter.warmActiveAgents()
+    expect(presenter.isEnabled('a')).toBe(false)
+    presenter.startBackgroundMaintenance()
+    expect(presenter.isEnabled('a')).toBe(true)
+    expect(presenter.canContinueExecution(token)).toBe(false)
+    await presenter.dispose()
+  })
+
+  it.each([false, true])(
+    'pauses clear between batches (replace database: %s)',
+    async (replaceDatabase) => {
+      const { presenter, repo } = makeLLMPresenter(routedLLM({}))
+      for (let index = 0; index < 257; index++) {
+        repo.rows.set(`m${index}`, makeRow(`m${index}`))
+      }
+      const clear = presenter.clearMemories('a')
+      const interrupted = expect(clear).rejects.toThrow('paused for database maintenance')
+      presenter.stopBackgroundMaintenance()
+      await expect(presenter.drainBackgroundMaintenance()).resolves.toEqual([])
+      await interrupted
+      expect(repo.countByAgent('a')).toBe(1)
+      expect(repo.listPendingMemoryClearJobs()).toMatchObject([{ agentId: 'a', removed: 256 }])
+      await expect(presenter.clearMemories('a')).rejects.toThrow('paused for database maintenance')
+
+      if (replaceDatabase) {
+        repo.retireAgentMemoryNamespace('a')
+        repo.rows.set('restored', makeRow('restored'))
+      }
+      presenter.startBackgroundMaintenance()
+      await vi.waitFor(() => expect(repo.listPendingMemoryClearJobs()).toEqual([]))
+      expect(repo.countByAgent('a')).toBe(replaceDatabase ? 1 : 0)
+      expect(presenter.isEnabled('a')).toBe(true)
+      await presenter.dispose()
+    }
+  )
+
+  it.each([false, true])(
+    'waits for vector clear across pause (resume early: %s)',
+    async (resumeEarly) => {
+      const repo = createFakeRepository()
+      repo.rows.set('m1', makeRow('m1'))
+      const reset = createControlledPromise<void>()
+      const resetVectorStore = vi.fn(() => reset.promise)
+      const presenter = new MemoryService({
+        repository: repo,
+        resolveAgentConfig: () => enabledConfig,
+        getEmbeddings: async (_p, _m, texts) => texts.map(textToVector),
+        getDimensions: embeddingDimensions,
+        generateText: async () => '',
+        createVectorStore: async () => new FakeVectorStore(),
+        resetVectorStore
+      })
+      const clear = presenter.clearMemories('a')
+      const outcome = clear.then(
+        (removed) => ({ removed }),
+        (error: Error) => ({ error: error.message })
+      )
+      await vi.waitFor(() => expect(resetVectorStore).toHaveBeenCalledTimes(1))
+      presenter.stopBackgroundMaintenance()
+      await expect(presenter.drainBackgroundMaintenance(20)).resolves.toEqual(['a'])
+      const complete = vi.spyOn(repo, 'completeMemoryClear')
+      // A failed drain prevents database replacement. Resuming that unchanged database can
+      // finish the accepted clear; it must not be tied to a model/config execution fence.
+      if (resumeEarly) presenter.startBackgroundMaintenance()
+      reset.resolve()
+      await expect(presenter.drainBackgroundMaintenance()).resolves.toEqual([])
+      if (resumeEarly) {
+        await expect(outcome).resolves.toEqual({ removed: 1 })
+      } else {
+        await expect(outcome).resolves.toEqual({
+          error: '[Memory] clear paused for database maintenance'
+        })
+        expect(complete).not.toHaveBeenCalled()
+        expect(repo.listPendingMemoryClearJobs()).toMatchObject([
+          { agentId: 'a', phase: 'vectors' }
+        ])
+        presenter.startBackgroundMaintenance()
+      }
+      await vi.waitFor(() => expect(repo.listPendingMemoryClearJobs()).toEqual([]))
+      expect(complete).toHaveBeenCalledWith('a')
+      await presenter.dispose()
+    }
+  )
+
+  it('retains a dirty working projection without database access while paused', async () => {
+    vi.useFakeTimers()
+    const { presenter, repo } = makeLLMPresenter(routedLLM({}), { memoryEnabled: true })
+    try {
+      await presenter.rememberMemory({ kind: 'semantic', content: 'first fact' }, { agentId: 'a' })
+      await vi.advanceTimersByTimeAsync(WORKING_REFRESH_DEBOUNCE_MS)
+      const working = [...repo.rows.values()].find((row) => row.kind === 'working')!
+      expect(working.content).toContain('first fact')
+      await presenter.rememberMemory({ kind: 'semantic', content: 'second fact' }, { agentId: 'a' })
+      presenter.stopBackgroundMaintenance()
+      await expect(presenter.drainBackgroundMaintenance()).resolves.toEqual([])
+      const read = vi.spyOn(repo, 'getByProvenanceKey')
+      const remove = vi.spyOn(repo, 'deleteInternalMemory')
+      await vi.advanceTimersByTimeAsync(WORKING_REFRESH_DEBOUNCE_MS)
+      expect(read).not.toHaveBeenCalled()
+      expect(remove).not.toHaveBeenCalled()
+      expect(repo.rows.get(working.id)?.content).not.toContain('second fact')
+
+      presenter.startBackgroundMaintenance()
+      await vi.advanceTimersByTimeAsync(WORKING_REFRESH_DEBOUNCE_MS)
+      expect(repo.rows.get(working.id)?.content).toContain('second fact')
+    } finally {
+      await presenter.dispose()
       vi.useRealTimers()
     }
   })
@@ -1279,7 +1591,9 @@ describe('MemoryService offline consolidation (T-B4..T-B6)', () => {
         createVectorStore: async () => new FakeVectorStore(),
         resetVectorStore: async () => undefined
       })
-      const passSpy = vi.spyOn(presenter, 'runConsolidationPass').mockResolvedValue()
+      const passSpy = vi
+        .spyOn(memoryRuntimeForTests(presenter).maintenanceService, 'runConsolidationPass')
+        .mockResolvedValue()
 
       presenter.startBackgroundMaintenance()
       await presenter.dispose()
@@ -1307,7 +1621,9 @@ describe('MemoryService offline consolidation (T-B4..T-B6)', () => {
         createVectorStore: async () => new FakeVectorStore(),
         resetVectorStore: async () => undefined
       })
-      const passSpy = vi.spyOn(presenter, 'runConsolidationPass').mockResolvedValue()
+      const passSpy = vi
+        .spyOn(memoryRuntimeForTests(presenter).maintenanceService, 'runConsolidationPass')
+        .mockResolvedValue()
 
       presenter.startBackgroundMaintenance()
       await vi.advanceTimersByTimeAsync(60 * 1000 + 5 * 60 * 1000)
@@ -1332,7 +1648,9 @@ describe('MemoryService offline consolidation (T-B4..T-B6)', () => {
         createVectorStore: async () => new FakeVectorStore(),
         resetVectorStore: async () => undefined
       })
-      const passSpy = vi.spyOn(presenter, 'runConsolidationPass').mockResolvedValue()
+      const passSpy = vi
+        .spyOn(memoryRuntimeForTests(presenter).maintenanceService, 'runConsolidationPass')
+        .mockResolvedValue()
 
       presenter.onAgentMemoryMaintenanceConfigChanged('agent-a')
       presenter.onAgentMemoryMaintenanceConfigChanged('agent-b')
@@ -1394,7 +1712,9 @@ describe('MemoryService offline consolidation (T-B4..T-B6)', () => {
         createVectorStore: async () => new FakeVectorStore(),
         resetVectorStore: async () => undefined
       })
-      const passSpy = vi.spyOn(presenter, 'runConsolidationPass').mockResolvedValue()
+      const passSpy = vi
+        .spyOn(memoryRuntimeForTests(presenter).maintenanceService, 'runConsolidationPass')
+        .mockResolvedValue()
 
       presenter.onAgentMemoryMaintenanceConfigChanged('empty')
       presenter.onAgentMemoryMaintenanceConfigChanged('archived')
@@ -1423,7 +1743,9 @@ describe('MemoryService offline consolidation (T-B4..T-B6)', () => {
         createVectorStore: async () => new FakeVectorStore(),
         resetVectorStore: async () => undefined
       })
-      const passSpy = vi.spyOn(presenter, 'runConsolidationPass').mockResolvedValue()
+      const passSpy = vi
+        .spyOn(memoryRuntimeForTests(presenter).maintenanceService, 'runConsolidationPass')
+        .mockResolvedValue()
 
       await presenter.dispose()
       presenter.onAgentMemoryMaintenanceConfigChanged('agent-a')

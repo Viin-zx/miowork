@@ -755,6 +755,7 @@ export const PreparedMessageFileSchema = z.object({
 })
 
 export const DeviceInfoSchema = z.object({
+  accessibilitySupportEnabled: z.boolean().optional(),
   platform: z.string(),
   arch: z.string(),
   cpuModel: z.string(),
@@ -847,6 +848,13 @@ export const WorkspaceFileNodeSchema: z.ZodType<{
     expanded: z.boolean().optional()
   })
 )
+
+export const WorkspaceFileOpenAppSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  kind: z.enum(['editor', 'terminal']),
+  iconDataUrl: z.string().optional()
+})
 
 export const WorkspaceFileMetadataSchema = z.object({
   fileName: z.string(),

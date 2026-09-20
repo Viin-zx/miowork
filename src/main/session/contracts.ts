@@ -142,7 +142,6 @@ export type SessionProjectionTapePort = Pick<
   | 'handoffTape'
   | 'listMessageViewManifests'
   | 'listNestedExecutionAuditForMessage'
-  | 'exportMessageTapeReplaySlice'
   | 'listTapeInspectorPage'
   | 'resolveTapeInspectorEvidenceEntries'
   | 'getTapeInspectorRecordDetail'
@@ -227,6 +226,8 @@ export interface SessionLightweightOptions {
   limit?: number
   cursor?: SessionPageCursor | null
   includeSubagents?: boolean
+  includeDrafts?: boolean
+  projectDir?: string
   agentId?: string
   prioritizeSessionId?: string
 }
@@ -422,6 +423,7 @@ export interface SubagentAssignmentInput {
   generationSettings?: Partial<SessionGenerationSettings>
   disabledAgentTools?: string[]
   activeSkills?: string[]
+  toolModeOverride?: ToolModeOverride
 }
 
 export interface ResolvedSubagentAssignment {
@@ -433,6 +435,7 @@ export interface ResolvedSubagentAssignment {
   generationSettings?: Partial<SessionGenerationSettings>
   disabledAgentTools: string[]
   activeSkills: string[]
+  toolModeOverride: ToolModeOverride
 }
 
 export interface ResolvedTransferTarget {
@@ -584,6 +587,7 @@ export interface SessionLifecycleSubagentInput {
   generationSettings?: Partial<SessionGenerationSettings>
   disabledAgentTools?: string[]
   activeSkills?: string[]
+  toolModeOverride?: ToolModeOverride
   liveDelegationContext?: LiveDelegationSubagentContext
 }
 

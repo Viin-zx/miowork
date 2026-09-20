@@ -1,5 +1,11 @@
 <template>
-  <div class="flex h-full min-h-0 min-w-0 flex-1 flex-col bg-background">
+  <div
+    ref="viewerRegion"
+    role="region"
+    tabindex="-1"
+    :aria-label="viewerTitle"
+    class="flex h-full min-h-0 min-w-0 flex-1 flex-col bg-background"
+  >
     <div class="flex h-11 shrink-0 items-center justify-between border-b px-3">
       <div class="flex min-w-0 items-center gap-2">
         <DcButton
@@ -32,6 +38,7 @@
               effectiveViewMode === 'preview' ? 'bg-background text-foreground shadow-sm' : ''
             "
             type="button"
+            :aria-pressed="effectiveViewMode === 'preview'"
             @click="sidepanelStore.setViewMode(props.sessionId, 'preview')"
           >
             {{ t('artifacts.preview') }}
@@ -40,6 +47,7 @@
             class="rounded-md px-2 py-1 transition-colors"
             :class="effectiveViewMode === 'code' ? 'bg-background text-foreground shadow-sm' : ''"
             type="button"
+            :aria-pressed="effectiveViewMode === 'code'"
             @click="sidepanelStore.setViewMode(props.sessionId, 'code')"
           >
             {{ t('artifacts.code') }}
@@ -61,15 +69,71 @@
           />
         </DcButton>
 
-        <DcButton
-          v-if="openFilePath"
-          variant="outline"
-          size="sm"
-          class="h-7 text-xs"
-          @click="handleOpenFile"
-        >
-          {{ t('chat.workspace.files.contextMenu.openFile') }}
-        </DcButton>
+        <div v-if="openFilePath" class="flex items-center">
+          <DcButton
+            variant="outline"
+            size="icon"
+            class="h-7 w-7 rounded-r-none border-r-0"
+            :tooltip="preferredAppLabel"
+            @click="handleOpenFile"
+          >
+            <img
+              v-if="preferredApp?.iconDataUrl"
+              :src="preferredApp.iconDataUrl"
+              alt=""
+              class="h-4 w-4"
+            />
+            <Icon v-else icon="lucide:external-link" class="h-4 w-4" />
+          </DcButton>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <DcButton
+                variant="outline"
+                size="icon"
+                class="h-7 w-6 rounded-l-none"
+                :tooltip="t('chat.workspace.files.contextMenu.openWith')"
+              >
+                <Icon icon="lucide:chevron-down" class="h-3.5 w-3.5" />
+              </DcButton>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent align="end" class="min-w-52">
+              <DropdownMenuItem
+                v-for="openApp in editorApps"
+                :key="openApp.id"
+                @select="handleOpenWithApp(openApp)"
+              >
+                <img v-if="openApp.iconDataUrl" :src="openApp.iconDataUrl" alt="" class="h-4 w-4" />
+                <Icon v-else icon="lucide:app-window" class="h-4 w-4" />
+                {{ openAppLabel(openApp) }}
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator v-if="editorApps.length > 0 && terminalApps.length > 0" />
+
+              <DropdownMenuItem
+                v-for="openApp in terminalApps"
+                :key="openApp.id"
+                @select="handleOpenWithApp(openApp)"
+              >
+                <img v-if="openApp.iconDataUrl" :src="openApp.iconDataUrl" alt="" class="h-4 w-4" />
+                <Icon v-else icon="lucide:app-window" class="h-4 w-4" />
+                {{ openAppLabel(openApp) }}
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator v-if="openApps.length > 0" />
+
+              <DropdownMenuItem @select="handleRevealInFolder">
+                <Icon icon="lucide:folder-open-dot" class="h-4 w-4" />
+                {{ t('chat.workspace.files.contextMenu.revealInFolder') }}
+              </DropdownMenuItem>
+              <DropdownMenuItem @select="handleOpenWithSystemDefault">
+                <Icon icon="lucide:external-link" class="h-4 w-4" />
+                {{ t('chat.workspace.files.contextMenu.openWithSystemDefault') }}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </div>
 
@@ -158,19 +222,34 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useI18n } from 'vue-i18n'
 import { DcButton } from '@dc-ui/components/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@shadcn/components/ui/dropdown-menu'
 import { createWorkspaceClient } from '@api/WorkspaceClient'
+import { notifyRenderer } from '@renderer-notifications/rendererNotificationPort'
 import { useSidepanelStore } from '@/stores/ui/sidepanel'
 import type { ArtifactState } from '@/stores/artifact'
-import type { WorkspaceFilePreview, WorkspaceGitDiff } from '@shared/types/workspace'
+import type {
+  WorkspaceFileOpenApp,
+  WorkspaceFilePreview,
+  WorkspaceGitDiff
+} from '@shared/types/workspace'
 import { useWorkspaceViewerModel } from './composables/useWorkspaceViewerModel'
 import WorkspaceCodePane from './viewer/WorkspaceCodePane.vue'
 import WorkspacePreviewPane from './viewer/WorkspacePreviewPane.vue'
 import WorkspaceInfoPane from './viewer/WorkspaceInfoPane.vue'
 import WorkspaceDiffView from './viewer/WorkspaceDiffView.vue'
+
+const viewerRegion = ref<HTMLElement | null>(null)
+defineExpose({ focus: () => viewerRegion.value?.focus() })
 
 const props = defineProps<{
   sessionId: string
@@ -292,11 +371,118 @@ const fullscreenToggleLabel = computed(() => {
   return props.isFullscreen ? t('common.restore') : t('common.maximize')
 })
 
-const handleOpenFile = async () => {
+const PREFERRED_OPEN_APP_STORAGE_KEY = 'workspace.openWith.preferredAppId'
+const SYSTEM_DEFAULT_APP_ID = '#system-default'
+
+const readStoredPreferredAppId = (): string | null => {
+  const stored = globalThis.localStorage?.getItem(PREFERRED_OPEN_APP_STORAGE_KEY)
+  if (!stored || stored === SYSTEM_DEFAULT_APP_ID) {
+    if (stored === SYSTEM_DEFAULT_APP_ID) {
+      globalThis.localStorage?.removeItem(PREFERRED_OPEN_APP_STORAGE_KEY)
+    }
+    return null
+  }
+  return stored
+}
+
+const openApps = ref<WorkspaceFileOpenApp[]>([])
+const preferredAppId = ref<string | null>(readStoredPreferredAppId())
+
+const rememberPreferredApp = (appId: string) => {
+  preferredAppId.value = appId
+  globalThis.localStorage?.setItem(PREFERRED_OPEN_APP_STORAGE_KEY, appId)
+}
+
+const clearPreferredApp = () => {
+  preferredAppId.value = null
+  globalThis.localStorage?.removeItem(PREFERRED_OPEN_APP_STORAGE_KEY)
+}
+
+const editorApps = computed(() => openApps.value.filter((item) => item.kind === 'editor'))
+const terminalApps = computed(() => openApps.value.filter((item) => item.kind === 'terminal'))
+
+const preferredApp = computed(
+  () => openApps.value.find((item) => item.id === preferredAppId.value) ?? null
+)
+
+const openAppLabel = (openApp: WorkspaceFileOpenApp) =>
+  openApp.kind === 'terminal'
+    ? t('chat.workspace.files.contextMenu.openInTerminalApp', { app: openApp.name })
+    : t('chat.workspace.files.contextMenu.openInApp', { app: openApp.name })
+
+const preferredAppLabel = computed(() =>
+  preferredApp.value
+    ? openAppLabel(preferredApp.value)
+    : t('chat.workspace.files.contextMenu.openFile')
+)
+
+watch(
+  openFilePath,
+  async (filePath) => {
+    openApps.value = []
+    if (!filePath) {
+      return
+    }
+
+    try {
+      const apps = await workspaceClient.listFileOpenApps(filePath)
+      if (openFilePath.value === filePath) {
+        openApps.value = apps
+      }
+    } catch (error) {
+      console.warn('[WorkspaceViewer] Failed to list open-with applications:', error)
+    }
+  },
+  { immediate: true }
+)
+
+const runOnOpenFile = async (action: (filePath: string) => Promise<unknown>) => {
   if (!openFilePath.value) {
     return
   }
 
-  await workspaceClient.openFile(openFilePath.value)
+  try {
+    await action(openFilePath.value)
+  } catch (error) {
+    console.warn('[WorkspaceViewer] Failed to open file:', error)
+    notifyRenderer({
+      kind: 'error',
+      code: 'chat.workspace.openFileFailed',
+      title: t('common.error.operationFailed'),
+      description: t('chat.workspace.files.contextMenu.openFailed')
+    })
+  }
 }
+
+const handleRevealInFolder = () => runOnOpenFile(workspaceClient.revealFileInFolder)
+
+const handleOpenWithSystemDefault = () =>
+  runOnOpenFile(async (filePath) => {
+    await workspaceClient.openFile(filePath)
+    clearPreferredApp()
+  })
+
+const handleOpenFile = () =>
+  runOnOpenFile(async (filePath) => {
+    if (preferredApp.value) {
+      await workspaceClient.openFileWithApp(filePath, preferredApp.value.id)
+      return
+    }
+
+    // Keep the stored id: a missing probe is not proof the app was uninstalled.
+    await workspaceClient.openFile(filePath)
+    if (preferredAppId.value) {
+      notifyRenderer({
+        kind: 'info',
+        code: 'chat.workspace.preferredAppUnavailable',
+        title: t('chat.workspace.files.contextMenu.preferredAppUnavailable')
+      })
+    }
+  })
+
+const handleOpenWithApp = (openApp: WorkspaceFileOpenApp) =>
+  runOnOpenFile(async (filePath) => {
+    await workspaceClient.openFileWithApp(filePath, openApp.id)
+    rememberPreferredApp(openApp.id)
+  })
 </script>

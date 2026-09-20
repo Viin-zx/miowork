@@ -132,6 +132,29 @@ const PROVIDER_ID_REGISTRY = new Map<string, AiSdkProviderDefinition>([
     })
   ],
   [
+    'anonrouter',
+    createDefinition({
+      ...OPENAI_BASE,
+      credentialStrategy: 'api-key'
+    })
+  ],
+  [
+    'cheaper-inference',
+    createDefinition({
+      ...OPENAI_BASE,
+      credentialStrategy: 'api-key',
+      embeddingStrategy: 'none'
+    })
+  ],
+  [
+    'api-route',
+    createDefinition({
+      ...OPENAI_BASE,
+      credentialStrategy: 'api-key',
+      embeddingStrategy: 'none'
+    })
+  ],
+  [
     'amd-developer',
     createDefinition({
       ...OPENAI_BASE,

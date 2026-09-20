@@ -2,28 +2,42 @@ import { performance } from 'node:perf_hooks'
 import { describe, expect, it, vi } from 'vitest'
 import { buildContext } from '@/agent/deepchat/runtime/contextBuilder'
 import { toAppSessionId } from '@/agent/shared/agentSessionIds'
-import { SessionTape } from '@/session/data/tape'
-import { buildEffectiveTapeView, searchEffectiveTapeRows } from '@/session/data/tapeEffectiveView'
+import { SessionTape } from '@/tape/application/sessionTape'
+import { buildEffectiveTapeView, searchEffectiveTapeRows } from '@/tape/domain/effectiveView'
 import {
+  buildRequestRefs,
   createTapeViewManifest,
   type TapeViewManifestBuildInput
-} from '@/session/data/tapeViewManifest'
+} from '@/tape/domain/viewManifest'
 import {
   appendMessageRecordToTape,
   appendMessageReplacementToTape,
   appendMessageRetractionToTape,
   appendToolFactsToTape
-} from '@/session/data/tapeFacts'
-import { buildRequestRefs } from '@/session/data/tapeViewManifest'
-import { DeepChatTapeEntriesTable } from '@/session/data/tables/deepchatTapeEntries'
-import { DeepChatExecutionJournalStore } from '@/tape/infrastructure/sqlite/tapeEntryStore'
+} from '@/tape/application/factPersistence'
+import {
+  DeepChatExecutionJournalStore,
+  DeepChatTapeEntriesTable,
+  MAX_TAPE_SEARCH_TOKEN_CLAUSES
+} from '@/tape/infrastructure/sqlite/tapeEntryStore'
+import {
+  isEffectiveMessageInputRow,
+  isEffectiveViewInputRow
+} from '@/tape/domain/effectiveSemantics'
+import { SUMMARY_ANCHOR_NAMES } from '@/tape/domain/entry'
 import { EXECUTION_JOURNAL_EVENT_NAMES } from '@/tape/domain/executionJournal'
+import {
+  assertTapeAppendAuthorized,
+  type TapeReservedNamespace
+} from '@/tape/domain/reservedNamespaces'
 import { SqliteTapeLifecycleAdapter } from '@/tape/infrastructure/sqlite/tapeLifecycleAdapter'
 import type { TapeTransactionRunner } from '@/tape/ports/storage'
+import type { TapeProjectionCursor } from '@/tape/ports/capabilities'
+import type { DeepChatTapeEntryRow } from '@/tape/domain/entry'
 import {
   DEEPCHAT_TAPE_SEARCH_PROJECTION_VERSION,
   DeepChatTapeSearchProjectionTable
-} from '@/session/data/tables/deepchatTapeSearchProjection'
+} from '@/tape/infrastructure/sqlite/tapeSearchProjectionStore'
 import { DeepChatMemoryIngestionProjectionTable } from '@/memory/data/tables/deepchatMemoryIngestionProjection'
 import { DeepChatMessagesTable } from '@/session/data/tables/deepchatMessages'
 import { DeepChatMessageTracesTable } from '@/session/data/tables/deepchatMessageTraces'
@@ -112,11 +126,60 @@ function createTapeTableMock() {
   const runInTransactionMock = vi.fn((operation: () => unknown) =>
     runInTransaction(operation)
   ) as ReturnType<typeof vi.fn> & TapeTransactionRunner['runInTransaction']
+  const appendInternal = (input: any, authorizedNamespace: TapeReservedNamespace | null) => {
+    assertTapeAppendAuthorized(input, authorizedNamespace)
+    const provenanceKey =
+      input.provenanceKey !== undefined
+        ? input.provenanceKey
+        : input.source
+          ? [
+              input.source.type,
+              input.source.id,
+              input.source.seq ?? 0,
+              input.kind,
+              input.name ?? ''
+            ].join(':')
+          : null
+    const existing =
+      input.idempotent && provenanceKey
+        ? entries.find(
+            (entry) =>
+              entry.session_id === input.sessionId && entry.provenance_key === provenanceKey
+          )
+        : null
+    if (existing) {
+      return existing
+    }
+    const row = {
+      session_id: input.sessionId,
+      entry_id:
+        Math.max(
+          0,
+          ...entries
+            .filter((entry) => entry.session_id === input.sessionId)
+            .map((entry) => entry.entry_id)
+        ) + 1,
+      kind: input.kind,
+      name: input.name ?? null,
+      source_type: input.source?.type ?? null,
+      source_id: input.source?.id ?? null,
+      source_seq: input.source?.seq ?? null,
+      provenance_key: provenanceKey,
+      payload_json: JSON.stringify(input.payload ?? {}),
+      meta_json: JSON.stringify(input.meta ?? {}),
+      created_at: input.createdAt ?? Date.now()
+    }
+    entries.push(row)
+    return row
+  }
+  const appendEventAs = (authorizedNamespace: TapeReservedNamespace) => (input: any) =>
+    appendInternal(
+      { ...input, kind: 'event', payload: { name: input.name, data: input.data } },
+      authorizedNamespace
+    )
   const table = {
     ensureBootstrapAnchor: vi.fn((sessionId: string) => {
-      if (
-        entries.some((entry) => entry.session_id === sessionId && entry.name === 'session/start')
-      ) {
+      if (entries.some((entry) => entry.session_id === sessionId && entry.kind === 'anchor')) {
         return
       }
       table.appendAnchor({
@@ -133,51 +196,7 @@ function createTapeTableMock() {
         idempotent: true
       })
     }),
-    append: vi.fn((input: any) => {
-      const provenanceKey =
-        input.provenanceKey !== undefined
-          ? input.provenanceKey
-          : input.source
-            ? [
-                input.source.type,
-                input.source.id,
-                input.source.seq ?? 0,
-                input.kind,
-                input.name ?? ''
-              ].join(':')
-            : null
-      const existing =
-        input.idempotent && provenanceKey
-          ? entries.find(
-              (entry) =>
-                entry.session_id === input.sessionId && entry.provenance_key === provenanceKey
-            )
-          : null
-      if (existing) {
-        return existing
-      }
-      const row = {
-        session_id: input.sessionId,
-        entry_id:
-          Math.max(
-            0,
-            ...entries
-              .filter((entry) => entry.session_id === input.sessionId)
-              .map((entry) => entry.entry_id)
-          ) + 1,
-        kind: input.kind,
-        name: input.name ?? null,
-        source_type: input.source?.type ?? null,
-        source_id: input.source?.id ?? null,
-        source_seq: input.source?.seq ?? null,
-        provenance_key: provenanceKey,
-        payload_json: JSON.stringify(input.payload ?? {}),
-        meta_json: JSON.stringify(input.meta ?? {}),
-        created_at: input.createdAt ?? Date.now()
-      }
-      entries.push(row)
-      return row
-    }),
+    append: vi.fn((input: any) => appendInternal(input, null)),
     appendAnchor: vi.fn((input: any) =>
       table.append({
         ...input,
@@ -192,46 +211,26 @@ function createTapeTableMock() {
         payload: { name: input.name, data: input.data }
       })
     ),
-    appendProviderAttemptEvent: vi.fn((input: any) =>
-      table.append({
-        ...input,
-        kind: 'event',
-        payload: { name: input.name, data: input.data }
-      })
-    ),
-    appendCompactionModelCallEvent: vi.fn((input: any) =>
-      table.append({
-        ...input,
-        kind: 'event',
-        payload: { name: input.name, data: input.data }
-      })
-    ),
+    appendProviderAttemptEvent: vi.fn(appendEventAs('provider-attempt')),
+    appendCompactionModelCallEvent: vi.fn(appendEventAs('compaction-usage')),
     appendSkillMaterialization: vi.fn((input: any) =>
-      table.append({
-        sessionId: input.sessionId,
-        kind: 'context',
-        name: 'skill/materialized',
-        source: { type: 'runtime_event', id: input.sourceId, seq: 0 },
-        provenanceKey: input.provenanceKey,
-        payload: input.payload,
-        meta: { payloadHash: input.payloadHash },
-        idempotent: true
-      })
+      appendInternal(
+        {
+          sessionId: input.sessionId,
+          kind: 'context',
+          name: 'skill/materialized',
+          source: { type: 'runtime_event', id: input.sourceId, seq: 0 },
+          provenanceKey: input.provenanceKey,
+          payload: input.payload,
+          meta: { payloadHash: input.payloadHash },
+          idempotent: true
+        },
+        'skill-materialized'
+      )
     ),
-    appendExecutionJournalEvent: vi.fn((input: any) =>
-      table.append({
-        ...input,
-        kind: 'event',
-        payload: { name: input.name, data: input.data }
-      })
-    ),
-    appendToolSurfaceEvent: vi.fn((input: any) =>
-      table.append({
-        ...input,
-        kind: 'event',
-        payload: { name: input.name, data: input.data }
-      })
-    ),
+    appendExecutionJournalEvent: vi.fn(appendEventAs('execution')),
+    appendContractEvent: vi.fn(appendEventAs('contract')),
+    appendToolSurfaceEvent: vi.fn(appendEventAs('tool-surface')),
     listUnterminatedRunEvents: vi.fn(() => {
       const unterminatedRuns = entries
         .filter(
@@ -252,30 +251,35 @@ function createTapeTableMock() {
             )
         )
         .map((entry) => ({ sessionId: entry.session_id, runId: entry.source_id! }))
-      return unterminatedRuns.flatMap((run) =>
-        entries.flatMap((entry) => {
-          if (entry.session_id !== run.sessionId) return []
-          const data = parseJsonRecord(entry.payload_json).data ?? {}
-          const matchesSource =
-            entry.kind === 'event' &&
-            entry.source_type === 'runtime_event' &&
-            entry.source_id === run.runId &&
-            EXECUTION_JOURNAL_EVENT_NAMES.some((name) => entry.name === name)
-          const matchesPayload =
-            entry.kind === 'event' &&
-            (entry.name === 'execution/dispatch_committed' ||
-              entry.name === 'execution/tool_outcome') &&
-            data.protocolVersion === 2 &&
-            data.operation?.runId === run.runId
-          const matchesParent = providerOperationKeys(run.sessionId, run.runId).some(
-            (operationKey) =>
-              entry.provenance_key?.startsWith(`execution:v2:parent:${operationKey}:`)
-          )
-          return matchesSource || matchesPayload || matchesParent
-            ? [{ ...entry, recovery_run_id: run.runId }]
-            : []
-        })
-      )
+      return unterminatedRuns
+        .flatMap((run) =>
+          entries.flatMap((entry) => {
+            if (entry.session_id !== run.sessionId) return []
+            const data = parseJsonRecord(entry.payload_json).data ?? {}
+            const matchesSource =
+              entry.kind === 'event' &&
+              entry.source_type === 'runtime_event' &&
+              entry.source_id === run.runId &&
+              EXECUTION_JOURNAL_EVENT_NAMES.some((name) => entry.name === name)
+            const matchesPayload =
+              entry.kind === 'event' &&
+              (entry.name === 'execution/dispatch_committed' ||
+                entry.name === 'execution/tool_outcome') &&
+              data.protocolVersion === 2 &&
+              data.operation?.runId === run.runId
+            const matchesParent = providerOperationKeys(run.sessionId, run.runId).some(
+              (operationKey) =>
+                entry.provenance_key?.startsWith(`execution:v2:parent:${operationKey}:`)
+            )
+            return matchesSource || matchesPayload || matchesParent
+              ? [{ ...entry, recovery_run_id: run.runId }]
+              : []
+          })
+        )
+        .sort(
+          (left, right) =>
+            left.session_id.localeCompare(right.session_id) || left.entry_id - right.entry_id
+        )
     }),
     listNestedOperationEventsForMessage: vi.fn(
       (sessionId: string, messageId: string, maximumOperations: number) => {
@@ -438,6 +442,20 @@ function createTapeTableMock() {
     getBySessionExcludingContext: vi.fn((sessionId: string) =>
       entries.filter((entry) => entry.session_id === sessionId && entry.kind !== 'context')
     ),
+    getEffectiveViewInputRows: vi.fn((sessionId: string) =>
+      entries.filter((entry) => entry.session_id === sessionId && isEffectiveViewInputRow(entry))
+    ),
+    getEffectiveMessageInputRows: vi.fn((sessionId: string) =>
+      entries.filter((entry) => entry.session_id === sessionId && isEffectiveMessageInputRow(entry))
+    ),
+    getEffectiveMessageInputRowsAfter: vi.fn((sessionId: string, afterEntryId: number) =>
+      entries.filter(
+        (entry) =>
+          entry.session_id === sessionId &&
+          entry.entry_id > afterEntryId &&
+          isEffectiveMessageInputRow(entry)
+      )
+    ),
     getByEntryIds: vi.fn((sessionId: string, entryIds: readonly number[]) => {
       const selected = new Set(entryIds)
       return entries.filter(
@@ -518,12 +536,6 @@ function createTapeTableMock() {
         })
         .sort((left, right) => left.session_id.localeCompare(right.session_id))
     ),
-    getBySessionUpToEntryIdExcludingContext: vi.fn((sessionId: string, maxEntryId: number) =>
-      entries.filter(
-        (entry) =>
-          entry.session_id === sessionId && entry.entry_id <= maxEntryId && entry.kind !== 'context'
-      )
-    ),
     getMaxEntryId: vi.fn((sessionId: string) =>
       Math.max(
         0,
@@ -572,9 +584,7 @@ function createTapeTableMock() {
             (entry) =>
               entry.session_id === sessionId &&
               entry.kind === 'anchor' &&
-              ['compaction/migrated_summary', 'compaction/manual', 'summary/reset'].includes(
-                entry.name
-              )
+              SUMMARY_ANCHOR_NAMES.includes(entry.name)
           )
           .sort((left, right) => right.entry_id - left.entry_id)[0]
     ),
@@ -595,18 +605,24 @@ function createTapeTableMock() {
         entries.filter((entry) => entry.session_id === sessionId && entry.entry_id > entryId).length
     ),
     search: vi.fn((sessionId: string, query: string, options: any = {}) => {
-      const normalizedQuery = query.trim()
+      // Mirrors the store's LIKE predicate: the whole phrase, or every whitespace token when the
+      // token count fits the clause cap, matched against payload, meta and name. SQLite's LIKE
+      // folds ASCII case only, so the mock must not fold the rest of Unicode.
+      const foldAscii = (value: string) => value.replace(/[A-Z]/g, (char) => char.toLowerCase())
+      const normalizedQuery = foldAscii(query.trim())
       if (!normalizedQuery) {
         return []
       }
+      const tokens = normalizedQuery.split(/\s+/).filter(Boolean)
+      const matchTokens = tokens.length > 1 && tokens.length <= MAX_TAPE_SEARCH_TOKEN_CLAUSES
+      const matchesQuery = (haystack: string) =>
+        haystack.includes(normalizedQuery) ||
+        (matchTokens && tokens.every((token) => haystack.includes(token)))
       const limit = Number.isFinite(options.limit) ? Math.floor(options.limit) : 20
       return entries
         .filter((entry) => entry.session_id === sessionId && entry.kind !== 'context')
-        .filter(
-          (entry) =>
-            entry.payload_json.includes(normalizedQuery) ||
-            entry.meta_json.includes(normalizedQuery) ||
-            entry.name?.includes(normalizedQuery)
+        .filter((entry) =>
+          matchesQuery(foldAscii(`${entry.payload_json}\n${entry.meta_json}\n${entry.name ?? ''}`))
         )
         .filter((entry) => !options.kinds?.length || options.kinds.includes(entry.kind))
         .filter(
@@ -702,38 +718,26 @@ function createRecord(overrides: Partial<ChatMessageRecord>): ChatMessageRecord 
   }
 }
 
-function createTraceRow(overrides: Record<string, unknown> = {}) {
+/**
+ * A transcript standing in for `TapeTranscriptProjection`: `getMessages` feeds the one-time
+ * backfill, the cursor lives in memory, and replayed rows are collected in `applied`.
+ */
+function createTranscriptProjectionMock(records: ChatMessageRecord[] = []) {
+  let cursor: TapeProjectionCursor | null = null
+  const applied: DeepChatTapeEntryRow[] = []
   return {
-    id: 'trace-1',
-    message_id: 'a1',
-    session_id: 's1',
-    provider_id: 'openai',
-    model_id: 'gpt-4o',
-    request_seq: 1,
-    logical_round: null,
-    physical_attempt: null,
-    endpoint: 'https://api.openai.test/v1/chat/completions',
-    headers_json: '{"authorization":"[redacted]"}',
-    body_json: '{"messages":[{"role":"user","content":"hello"}]}',
-    truncated: 0,
-    created_at: 300,
-    ...overrides
-  }
-}
-
-function createMessageRow(overrides: Record<string, unknown> = {}) {
-  return {
-    id: 'a1',
-    session_id: 's1',
-    order_seq: 2,
-    role: 'assistant',
-    content: '[{"type":"content","content":"done","status":"success"}]',
-    status: 'sent',
-    is_context_edge: 0,
-    metadata: '{"totalTokens":10}',
-    created_at: 200,
-    updated_at: 300,
-    ...overrides
+    getMessages: vi.fn(() => records),
+    readProjectionCursor: vi.fn(() => cursor),
+    writeProjectionCursor: vi.fn((_sessionId: string, next: TapeProjectionCursor) => {
+      cursor = { ...next }
+    }),
+    applyTapeEntries: vi.fn((rows: readonly DeepChatTapeEntryRow[]) => {
+      applied.push(...rows)
+    }),
+    applied,
+    get cursor() {
+      return cursor
+    }
   }
 }
 
@@ -771,11 +775,7 @@ function createObservationManifest(
   })
 }
 
-function createTapeService(
-  table: unknown,
-  traceRows: Array<Record<string, unknown>> = [],
-  messageRows: Array<Record<string, unknown>> = []
-) {
+function createTapeService(table: unknown) {
   return new SessionTape({
     deepchatTapeEntriesTable: table,
     deepchatExecutionJournalStore: table,
@@ -787,14 +787,7 @@ function createTapeService(
       }),
       getByEntryIdsIfCurrent: vi.fn().mockReturnValue([])
     },
-    deepchatMessageTracesTable: {
-      listByMessageId: vi.fn((messageId: string) =>
-        traceRows.filter((row) => row.message_id === messageId)
-      )
-    },
-    deepchatMessagesTable: {
-      get: vi.fn((messageId: string) => messageRows.find((row) => row.id === messageId))
-    },
+    deepchatMessageTracesTable: { listByMessageId: vi.fn().mockReturnValue([]) },
     deepchatSessionsTable: { getSummaryState: vi.fn().mockReturnValue(null) }
   } as any)
 }
@@ -842,133 +835,6 @@ function createSubagentLinkInput(parentSessionId: string, childSessionId: string
   }
 }
 
-function appendObservationIsolationFacts(table: unknown) {
-  const original = createRecord({ id: 'u1', orderSeq: 1, createdAt: 100, updatedAt: 100 })
-  const edited = createRecord({
-    id: 'u1',
-    orderSeq: 1,
-    content: JSON.stringify({
-      text: 'edited',
-      files: [],
-      links: [],
-      search: false,
-      think: false
-    }),
-    createdAt: 100,
-    updatedAt: 150
-  })
-  const retracted = createRecord({ id: 'u2', orderSeq: 2, createdAt: 160, updatedAt: 160 })
-  const pending = createRecord({
-    id: 'a1',
-    orderSeq: 3,
-    role: 'assistant',
-    status: 'pending',
-    content: JSON.stringify([
-      {
-        type: 'tool_call',
-        status: 'pending',
-        timestamp: 200,
-        tool_call: { id: 'tc1', name: 'search', params: '{"q":"x"}' }
-      }
-    ]),
-    createdAt: 200,
-    updatedAt: 200
-  })
-  const final = createRecord({
-    id: 'a1',
-    orderSeq: 3,
-    role: 'assistant',
-    status: 'sent',
-    content: JSON.stringify([
-      {
-        type: 'tool_call',
-        status: 'success',
-        timestamp: 300,
-        tool_call: {
-          id: 'tc1',
-          name: 'search',
-          params: '{"q":"x"}',
-          response: 'tape-result-secret'
-        }
-      }
-    ]),
-    metadata: '{"totalTokens":12}',
-    createdAt: 200,
-    updatedAt: 300
-  })
-
-  appendMessageRecordToTape(table as any, original, 'live')
-  appendMessageReplacementToTape(table as any, edited, {
-    reason: 'test_edit',
-    revisionKind: 'record'
-  })
-  appendMessageRecordToTape(table as any, retracted, 'live')
-  appendMessageRetractionToTape(table as any, retracted, 'test_delete')
-  appendMessageRecordToTape(table as any, pending, 'live')
-  appendMessageRecordToTape(table as any, final, 'live')
-
-  return { edited, final }
-}
-
-function stripObservationPayloadOptIns<T>(value: T): T {
-  const copy = structuredClone(value) as any
-  const stripEntryPayloads = (entries: any[] | undefined) => {
-    for (const entry of entries ?? []) {
-      delete entry.payload
-      delete entry.meta
-    }
-  }
-
-  if (copy.request?.state === 'manifest_bound') {
-    stripEntryPayloads(copy.request.replay.entries)
-    delete copy.request.replay.hashes.sliceHash
-    if (copy.request.replay.trace) {
-      delete copy.request.replay.trace.headersJson
-      delete copy.request.replay.trace.bodyJson
-    }
-  } else if (copy.request?.trace) {
-    delete copy.request.trace.headersJson
-    delete copy.request.trace.bodyJson
-  }
-  stripEntryPayloads(copy.output?.entries)
-  return copy
-}
-
-function createSpies(names: string[]) {
-  return Object.fromEntries(names.map((name) => [name, vi.fn()])) as Record<
-    string,
-    ReturnType<typeof vi.fn>
-  >
-}
-
-function trackMemoryPropertyAccess<T extends object>(target: T) {
-  const memoryPropertyAccess = vi.fn()
-  return {
-    memoryPropertyAccess,
-    presenter: new Proxy(target, {
-      get(value, property, receiver) {
-        if (typeof property === 'string' && /memory/i.test(property)) {
-          memoryPropertyAccess(property)
-        }
-        return Reflect.get(value, property, receiver)
-      }
-    })
-  }
-}
-
-function readObservationMatrix(service: SessionTape) {
-  return {
-    defaultObservation: service.readCausalObservationSlice('s1', 'a1'),
-    repeatedObservation: service.readCausalObservationSlice('s1', 'a1'),
-    explicitObservation: service.readCausalObservationSlice('s1', 'a1', { requestSeq: 1 }),
-    optInObservation: service.readCausalObservationSlice('s1', 'a1', {
-      includeTapePayloads: true,
-      includeTracePayload: true
-    }),
-    traceOnlyObservation: service.readCausalObservationSlice('s1', 'a-trace')
-  }
-}
-
 export {
   performance,
   describe,
@@ -1002,15 +868,9 @@ export {
   itIfSqlite,
   createTapeTableMock,
   createRecord,
-  createTraceRow,
-  createMessageRow,
+  createTranscriptProjectionMock,
   createObservationManifest,
   createTapeService,
   createLinkedTapeService,
-  createSubagentLinkInput,
-  appendObservationIsolationFacts,
-  stripObservationPayloadOptIns,
-  createSpies,
-  trackMemoryPropertyAccess,
-  readObservationMatrix
+  createSubagentLinkInput
 }
