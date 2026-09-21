@@ -1,6 +1,14 @@
 import type { AuthService, MioModelVo, MioModelParameters } from './authService'
-import { ModelType } from '@shared/model'
-import type { MODEL_META } from '@shared/types/provider'
+import { ApiEndpointType, ModelType } from '@shared/model'
+import { isReasoningEffort } from '@shared/types/model-db'
+import type { MODEL_META, ModelConfig } from '@shared/types/provider'
+import {
+  DEFAULT_MODEL_CONTEXT_LENGTH,
+  DEFAULT_MODEL_FUNCTION_CALL,
+  DEFAULT_MODEL_MAX_TOKENS,
+  DEFAULT_MODEL_TIMEOUT,
+  DEFAULT_MODEL_VISION
+} from '@shared/modelConfigDefaults'
 import { ZR_PROVIDER_ID } from './zrProviderSync'
 
 export { ZR_PROVIDER_ID }
@@ -74,6 +82,37 @@ export function mioModelListToMetas(models: MioModelVo[], providerId: string): M
 }
 
 /**
+ * 将单个 MioModelVo 映射为 ModelConfig（接口参数 → 客户端模型设置）
+ *
+ * 接口字段与 ModelConfig 字段的对应关系：
+ * - contextWindowTokens → contextLength
+ * - maxOutputTokens → maxTokens
+ * - visionEnabled → vision
+ * - functionCallingEnabled → functionCall
+ * - reasoningEnabled → reasoning
+ * - requestTimeoutMs → timeout
+ * - temperature / topP / reasoningEffort 直映
+ * - modelType → type
+ */
+export function mioModelVoToConfig(vo: MioModelVo): ModelConfig {
+  const params = vo.parameters
+  const reasoningEffort = params?.reasoningEffort
+  return {
+    maxTokens: params?.maxOutputTokens ?? DEFAULT_MODEL_MAX_TOKENS,
+    contextLength: params?.contextWindowTokens ?? DEFAULT_MODEL_CONTEXT_LENGTH,
+    timeout: vo.requestTimeoutMs || DEFAULT_MODEL_TIMEOUT,
+    temperature: params?.temperature,
+    topP: params?.topP,
+    vision: params?.visionEnabled ?? DEFAULT_MODEL_VISION,
+    functionCall: params?.functionCallingEnabled ?? DEFAULT_MODEL_FUNCTION_CALL,
+    reasoning: params?.reasoningEnabled ?? false,
+    type: mapModelType(vo.modelType) ?? ModelType.Chat,
+    reasoningEffort: reasoningEffort && isReasoningEffort(reasoningEffort) ? reasoningEffort : undefined,
+    apiEndpoint: ApiEndpointType.Chat
+  }
+}
+
+/**
  * 通过 AuthService 拉取 /models 并更新 zr provider 的模型列表
  *
  * @param auth AuthService 实例
@@ -85,7 +124,8 @@ export async function refreshZrModels(
   auth: AuthService,
   setProviderModels: (providerId: string, models: MODEL_META[]) => void,
   notifyModelsChanged: (providerId?: string) => void,
-  setModelsEnabled?: (providerId: string, modelIds: string[], enabled: boolean) => void
+  setModelsEnabled?: (providerId: string, modelIds: string[], enabled: boolean) => void,
+  setModelConfig?: (modelId: string, providerId: string, config: ModelConfig) => void
 ): Promise<MODEL_META[] | null> {
   if (!auth.isAuthenticated()) {
     console.warn('[ZrModels] 跳过刷新：未登录')
@@ -115,6 +155,14 @@ export async function refreshZrModels(
   setProviderModels(ZR_PROVIDER_ID, metas)
   notifyModelsChanged(ZR_PROVIDER_ID)
 
+  // 同步接口返回的模型参数到本地模型配置，使「模型设置」能展示服务端配置
+  if (setModelConfig) {
+    for (const vo of models) {
+      setModelConfig(vo.modelId, ZR_PROVIDER_ID, mioModelVoToConfig(vo))
+    }
+    console.info(`[ZrModels] 同步 ${models.length} 个模型配置到本地模型设置`)
+  }
+
   return metas
 }
 
@@ -123,6 +171,8 @@ export interface ZrModelSettingsPort {
   setProviderModels(providerId: string, models: MODEL_META[]): void
   notifyModelsChanged(providerId?: string): void
   batchSetModelStatus(providerId: string, modelStatusMap: Record<string, boolean>): void
+  /** 写入单个模型的完整配置（接口参数 → 客户端模型设置） */
+  setModelConfig(modelId: string, providerId: string, config: ModelConfig): void
 }
 
 /**
@@ -141,6 +191,7 @@ export async function refreshZrModelsWithSettings(
       providerSettings.batchSetModelStatus(
         providerId,
         Object.fromEntries(modelIds.map((modelId) => [modelId, enabled]))
-      )
+      ),
+    (modelId, providerId, config) => providerSettings.setModelConfig(modelId, providerId, config)
   )
 }
