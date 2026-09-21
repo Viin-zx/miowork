@@ -89,7 +89,7 @@
               :label="t('dialog.confirm')"
               :tooltip="t('dialog.confirm')"
               data-testid="chat-topbar-title-save"
-              class="title-inline-action text-primary hover:text-primary disabled:text-muted-foreground"
+              class="title-inline-action disabled:text-muted-foreground"
               :disabled="!canSubmitRename"
               @click="handleRenameConfirm"
             />

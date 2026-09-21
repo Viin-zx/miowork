@@ -242,15 +242,11 @@
                   />
                 </div>
 
-                <!-- 每月额度 / 重置周期 / 限购（固定卡片底部，与权益分隔） -->
+                <!-- 每月额度 / 限购（固定卡片底部，与权益分隔） -->
                 <div
                   class="mt-auto flex flex-wrap gap-x-3 gap-y-1 border-t border-border/60 pt-2 text-xs text-muted-foreground"
                 >
                   <span>{{ t('account.planQuota') }}: {{ formatQuota(plan.quota, true) }}</span>
-                  <span
-                    >{{ t('account.planResetPeriod') }}:
-                    {{ formatResetPeriod(plan.quotaResetPeriod) }}</span
-                  >
                   <span>{{ t('account.planPurchaseLimit') }}: {{ formatPurchaseLimit(plan) }}</span>
                 </div>
               </div>
@@ -258,7 +254,7 @@
 
             <!-- 支付渠道选择 -->
             <div class="mt-2 flex items-center gap-2">
-              <span class="text-sm font-semibold text-muted-foreground">
+              <span class="text-sm font-bold text-foreground">
                 {{ t('account.paymentChannel') }}
               </span>
               <button
@@ -570,11 +566,11 @@ const PLAN_TYPE_DURATION_LABELS: Record<string, string> = {
   YEARLY: '年'
 }
 
-/** 套餐有效期展示：优先按套餐类型，如 MONTHLY 显示为「1个月」；兜底用 durationUnit */
+/** 套餐有效期展示：优先按套餐类型归一化（1个月/1季度/1年）；兜底用 durationUnit */
 function formatPlanDuration(plan: Plan): string {
   const typeUnit = PLAN_TYPE_DURATION_LABELS[plan.planType.trim().toUpperCase()]
   if (typeUnit) {
-    return `${plan.durationValue || 1}${typeUnit}`
+    return `1${typeUnit}`
   }
   const unit = PLAN_DURATION_UNIT_LABELS[plan.durationUnit] ?? plan.durationUnit
   return `${plan.durationValue || 1}${unit}`
@@ -586,19 +582,6 @@ watch(plans, (list) => {
     selectedPlanId.value = list[0]!.planId
   }
 })
-
-/** 额度重置周期映射 */
-const RESET_PERIOD_LABEL_KEYS: Record<string, string> = {
-  daily: 'account.resetPeriodDaily',
-  weekly: 'account.resetPeriodWeekly',
-  monthly: 'account.resetPeriodMonthly',
-  yearly: 'account.resetPeriodYearly'
-}
-
-function formatResetPeriod(period: string): string {
-  const key = RESET_PERIOD_LABEL_KEYS[period]
-  return key ? t(key) : period
-}
 
 /** 限购展示：0 表示不限 */
 function formatPurchaseLimit(plan: Plan): string {
