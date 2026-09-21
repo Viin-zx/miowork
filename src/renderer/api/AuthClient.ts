@@ -12,10 +12,12 @@ import {
   authGetOrderRoute,
   authGetSubscriptionsRoute,
   authGetQuotaRoute,
+  authGetAgreementsRoute,
   type authUserSchema,
   type planSchema,
   type quotaSchema,
-  type subscriptionSchema
+  type subscriptionSchema,
+  type agreementSchema
 } from '@shared/contracts/routes'
 import type { z } from 'zod'
 import { getDeepchatBridge } from './core'
@@ -34,6 +36,9 @@ export type Subscription = z.output<typeof subscriptionSchema>
 
 /** 账户额度 */
 export type Quota = z.output<typeof quotaSchema>
+
+/** 单条协议 */
+export type Agreement = z.output<typeof agreementSchema>
 
 export function createAuthClient(bridge: DeepchatBridge = getDeepchatBridge()) {
   async function getStatus(): Promise<boolean> {
@@ -150,6 +155,15 @@ export function createAuthClient(bridge: DeepchatBridge = getDeepchatBridge()) {
     return await bridge.invoke(authGetQuotaRoute.name, {})
   }
 
+  /** 查询协议列表（匿名接口） */
+  async function getAgreements(): Promise<{
+    ok: boolean
+    agreements?: Agreement[]
+    msg?: string
+  }> {
+    return await bridge.invoke(authGetAgreementsRoute.name, {})
+  }
+
   return {
     getStatus,
     getAccount,
@@ -163,7 +177,8 @@ export function createAuthClient(bridge: DeepchatBridge = getDeepchatBridge()) {
     purchasePlan,
     getOrder,
     getSubscriptions,
-    getQuota
+    getQuota,
+    getAgreements
   }
 }
 

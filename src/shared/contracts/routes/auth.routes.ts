@@ -223,3 +223,27 @@ export const authGetQuotaRoute = defineRouteContract({
     msg: z.string().optional()
   })
 })
+
+// ---- 协议管理 ----
+
+/** 协议类型：用户协议 / 隐私协议 / 订阅协议 */
+export const agreementTypeSchema = z.enum(['USER', 'PRIVACY', 'SUBSCRIPTION'])
+
+/** 单条协议（GET /agreements 返回） */
+export const agreementSchema = z.object({
+  agreementType: agreementTypeSchema,
+  title: z.string(),
+  content: z.string(),
+  updateTime: z.string().nullable().optional()
+})
+
+/** 查询协议列表（匿名接口） */
+export const authGetAgreementsRoute = defineRouteContract({
+  name: 'auth.getAgreements',
+  input: z.object({}).default({}),
+  output: z.object({
+    ok: z.boolean(),
+    agreements: z.array(agreementSchema).optional(),
+    msg: z.string().optional()
+  })
+})

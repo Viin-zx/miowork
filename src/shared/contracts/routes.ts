@@ -604,7 +604,8 @@ import {
   authPurchasePlanRoute,
   authGetOrderRoute,
   authGetSubscriptionsRoute,
-  authGetQuotaRoute
+  authGetQuotaRoute,
+  authGetAgreementsRoute
 } from './routes/auth.routes'
 import {
   toolchainsCancelInstallRoute,
@@ -1317,6 +1318,7 @@ const DEEPCHAT_ROUTE_CATALOG_PART_5 = {
   [authGetOrderRoute.name]: authGetOrderRoute,
   [authGetSubscriptionsRoute.name]: authGetSubscriptionsRoute,
   [authGetQuotaRoute.name]: authGetQuotaRoute,
+  [authGetAgreementsRoute.name]: authGetAgreementsRoute,
   [syncHostGetStatusRoute.name]: syncHostGetStatusRoute,
   [syncHostSetEnabledRoute.name]: syncHostSetEnabledRoute,
   [syncHostCreatePairingCodeRoute.name]: syncHostCreatePairingCodeRoute,

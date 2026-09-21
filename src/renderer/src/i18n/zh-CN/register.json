@@ -13,6 +13,7 @@
   "userAgreement": "《用户协议》",
   "and": "和",
   "privacyAgreement": "《隐私协议》",
+  "subscriptionAgreement": "《订阅协议》",
   "error": "注册失败，请重试",
   "errorPasswordMismatch": "两次输入的密码不一致",
   "errorNotAgreed": "请先同意用户协议和隐私协议"

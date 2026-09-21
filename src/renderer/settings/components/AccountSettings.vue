@@ -262,7 +262,7 @@
                 :key="ch.value"
                 type="button"
                 :class="[
-                  'flex-1 rounded-lg border px-3 py-2 text-sm transition-colors',
+                  'rounded-lg border px-3 py-2 text-sm transition-colors',
                   selectedPaymentChannel === ch.value
                     ? 'border-primary bg-primary/5 text-primary'
                     : 'border-border text-muted-foreground hover:border-primary/40'
@@ -304,6 +304,16 @@
                   :alt="qrPayTitle"
                   class="size-48 rounded-lg border border-border/40"
                 />
+                <!-- 未勾选订阅协议：玻璃蒙住二维码 -->
+                <div
+                  v-if="paymentPhase === 'qr_ready' && !agreeSubscription"
+                  class="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-lg border border-border/40 bg-foreground/10 backdrop-blur-md"
+                >
+                  <Icon icon="lucide:lock" class="size-8 text-muted-foreground" />
+                  <span class="px-4 text-center text-xs text-muted-foreground">
+                    {{ t('account.qrPayAgreeHint') }}
+                  </span>
+                </div>
                 <!-- 过期遮罩 -->
                 <div
                   v-if="paymentPhase === 'expired'"
@@ -321,6 +331,24 @@
                   <span class="text-xs text-muted-foreground">{{ t('account.qrPayPaid') }}</span>
                 </div>
               </div>
+
+              <!-- 订阅协议勾选（勾选后才展示二维码） -->
+              <label
+                v-if="paymentPhase === 'qr_ready'"
+                class="flex cursor-pointer items-start gap-2 text-xs text-muted-foreground"
+              >
+                <Checkbox v-model:checked="agreeSubscription" class="mt-0.5" />
+                <span class="leading-relaxed">
+                  {{ t('account.qrPayAgreePrefix') }}
+                  <button
+                    type="button"
+                    class="text-primary hover:underline"
+                    @click.prevent.stop="showSubscriptionAgreement = true"
+                  >
+                    {{ subscriptionAgreementTitle }}
+                  </button>
+                </span>
+              </label>
 
               <!-- 状态文案 -->
               <div class="text-center">
@@ -401,12 +429,28 @@
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <!-- 订阅协议弹窗（title 固定，只滚动内容） -->
+    <Dialog v-model:open="showSubscriptionAgreement">
+      <DialogContent class="max-w-2xl gap-0 p-0">
+        <DialogHeader class="shrink-0 border-b border-border px-6 py-4">
+          <DialogTitle>{{ subscriptionAgreementTitle }}</DialogTitle>
+        </DialogHeader>
+        <div class="max-h-[70vh] overflow-y-auto px-6 py-4">
+          <div
+            class="prose prose-sm max-w-none text-sm leading-relaxed text-muted-foreground [&_a]:text-primary [&_a]:underline"
+            v-html="subscriptionAgreementContent"
+          />
+        </div>
+      </DialogContent>
+    </Dialog>
   </SettingsPageShell>
 </template>
 
 <script setup lang="ts">
 import {
   createAuthClient,
+  type Agreement,
   type AuthUser,
   type Plan,
   type Quota,
@@ -420,6 +464,7 @@ import { DcButton } from '@dc-ui/components/button'
 import { Icon } from '@iconify/vue'
 import { Avatar, AvatarFallback } from '@shadcn/components/ui/avatar'
 import { Badge } from '@shadcn/components/ui/badge'
+import { Checkbox } from '@shadcn/components/ui/checkbox'
 import {
   AlertDialog,
   AlertDialogAsyncAction,
@@ -502,6 +547,39 @@ const qrCodeDataUrl = ref('')
 const countdownSeconds = ref(0)
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
+
+// ---- 订阅协议勾选 ----
+/** 订阅协议（SUBSCRIPTION 类型） */
+const subscriptionAgreement = ref<Agreement | null>(null)
+/** 是否已勾选订阅协议（勾选后才展示二维码） */
+const agreeSubscription = ref(false)
+/** 订阅协议弹窗开关 */
+const showSubscriptionAgreement = ref(false)
+
+/** 订阅协议标题：优先用接口返回，兜底 i18n */
+const subscriptionAgreementTitle = computed(
+  () => subscriptionAgreement.value?.title || t('account.qrPaySubscriptionAgreement')
+)
+/** 订阅协议正文（接口返回 HTML） */
+const subscriptionAgreementContent = computed(() => subscriptionAgreement.value?.content ?? '')
+
+/** 加载订阅协议（GET /agreements 中的 SUBSCRIPTION 类型） */
+async function loadSubscriptionAgreement(): Promise<void> {
+  try {
+    const result = await authClient.getAgreements()
+    if (result.ok && result.agreements) {
+      subscriptionAgreement.value =
+        result.agreements.find((a) => a.agreementType === 'SUBSCRIPTION') ?? null
+    }
+  } catch {
+    subscriptionAgreement.value = null
+  }
+}
+
+/** 发起购买前重置协议勾选 */
+function resetAgreementState(): void {
+  agreeSubscription.value = false
+}
 
 /** 全部订阅：生效中的优先，其次按到期时间倒序 */
 const sortedSubscriptions = computed(() =>
@@ -824,6 +902,7 @@ async function openSubscription() {
     cancelPayment()
   }
   await loadPlans()
+  await loadSubscriptionAgreement()
 }
 
 async function loadPlans() {
@@ -878,6 +957,7 @@ async function handlePurchase() {
   qrCodeDataUrl.value = ''
   countdownSeconds.value = 0
   paymentPhase.value = 'idle'
+  resetAgreementState()
   const planId = selectedPlanId.value
   const channel = selectedPaymentChannel.value
   const requestId = getOrCreateRequestId(planId, channel)

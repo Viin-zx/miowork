@@ -105,7 +105,7 @@
               <button
                 type="button"
                 class="text-primary hover:underline"
-                @click="showUserAgreement = true"
+                @click="openAgreement('USER')"
               >
                 {{ t('register.userAgreement') }}
               </button>
@@ -113,7 +113,7 @@
               <button
                 type="button"
                 class="text-primary hover:underline"
-                @click="showPrivacyAgreement = true"
+                @click="openAgreement('PRIVACY')"
               >
                 {{ t('register.privacyAgreement') }}
               </button>
@@ -139,26 +139,19 @@
       </form>
     </div>
 
-    <!-- 用户协议弹窗 -->
-    <Dialog v-model:open="showUserAgreement">
-      <DialogContent class="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{{ t('register.userAgreement') }}</DialogTitle>
+    <!-- 协议弹窗（title 和 x 固定，只滚动内容） -->
+    <Dialog v-model:open="showAgreement">
+      <DialogContent class="max-w-2xl gap-0 p-0">
+        <!-- 固定头部 -->
+        <DialogHeader class="shrink-0 border-b border-border px-6 py-4">
+          <DialogTitle>{{ currentAgreementTitle }}</DialogTitle>
         </DialogHeader>
-        <div class="space-y-3 text-sm text-muted-foreground leading-relaxed">
-          <p v-for="(paragraph, i) in userAgreementContent" :key="i">{{ paragraph }}</p>
-        </div>
-      </DialogContent>
-    </Dialog>
-
-    <!-- 隐私协议弹窗 -->
-    <Dialog v-model:open="showPrivacyAgreement">
-      <DialogContent class="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{{ t('register.privacyAgreement') }}</DialogTitle>
-        </DialogHeader>
-        <div class="space-y-3 text-sm text-muted-foreground leading-relaxed">
-          <p v-for="(paragraph, i) in privacyAgreementContent" :key="i">{{ paragraph }}</p>
+        <!-- 可滚动内容区 -->
+        <div class="max-h-[70vh] overflow-y-auto px-6 py-4">
+          <div
+            class="prose prose-sm max-w-none text-sm leading-relaxed text-muted-foreground [&_a]:text-primary [&_a]:underline"
+            v-html="currentAgreementContent"
+          />
         </div>
       </DialogContent>
     </Dialog>
@@ -166,7 +159,7 @@
 </template>
 
 <script setup lang="ts">
-import { onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@shadcn/components/ui/button'
@@ -176,8 +169,8 @@ import { Spinner } from '@shadcn/components/ui/spinner'
 import { Checkbox } from '@shadcn/components/ui/checkbox'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@shadcn/components/ui/dialog'
 import { createAuthClient } from '@api/AuthClient'
+import type { Agreement } from '@api/AuthClient'
 import { setAuthState } from '@/router'
-import { userAgreementContent, privacyAgreementContent } from './agreements'
 
 const emit = defineEmits<{
   authenticated: []
@@ -197,9 +190,45 @@ const submitting = ref(false)
 const sendingCode = ref(false)
 const errorMessage = ref('')
 const countdown = ref(0)
-const showUserAgreement = ref(false)
-const showPrivacyAgreement = ref(false)
 let timer: ReturnType<typeof setInterval> | null = null
+
+// ---- 协议数据 ----
+const agreements = ref<Agreement[]>([])
+const showAgreement = ref(false)
+const activeAgreementType = ref<'USER' | 'PRIVACY' | 'SUBSCRIPTION'>('USER')
+
+const agreementTitleMap: Record<string, string> = {
+  USER: 'register.userAgreement',
+  PRIVACY: 'register.privacyAgreement',
+  SUBSCRIPTION: 'register.subscriptionAgreement'
+}
+
+const currentAgreement = computed(() =>
+  agreements.value.find((a) => a.agreementType === activeAgreementType.value)
+)
+
+const currentAgreementTitle = computed(() => {
+  const key = agreementTitleMap[activeAgreementType.value]
+  return key ? t(key) : ''
+})
+
+const currentAgreementContent = computed(() => currentAgreement.value?.content ?? '')
+
+function openAgreement(type: 'USER' | 'PRIVACY' | 'SUBSCRIPTION') {
+  activeAgreementType.value = type
+  showAgreement.value = true
+}
+
+onMounted(async () => {
+  try {
+    const result = await authClient.getAgreements()
+    if (result.ok && result.agreements) {
+      agreements.value = result.agreements
+    }
+  } catch (error) {
+    console.error('Failed to load agreements:', error)
+  }
+})
 
 onUnmounted(() => {
   if (timer) clearInterval(timer)

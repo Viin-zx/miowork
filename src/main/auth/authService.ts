@@ -109,6 +109,17 @@ export interface MioQuota {
   fetchedAt?: string | null
 }
 
+/** 协议类型 */
+export type MioAgreementType = 'USER' | 'PRIVACY' | 'SUBSCRIPTION'
+
+/** 单条协议（GET /agreements 返回的 data[]） */
+export interface MioAgreement {
+  agreementType: MioAgreementType
+  title: string
+  content: string
+  updateTime?: string | null
+}
+
 /** 单个模型参数 */
 export interface MioModelParameters {
   contextWindowTokens?: number
@@ -551,6 +562,12 @@ export class AuthService {
     const token = this.session?.accessToken
     console.info('[Quota] GET /quota')
     return getJson<MioQuota>('/quota', token)
+  }
+
+  /** 查询协议列表（GET /agreements，匿名接口） */
+  async getAgreements(): Promise<MioAgreement[]> {
+    console.info('[Agreements] GET /agreements')
+    return getJson<MioAgreement[]>('/agreements')
   }
 
   // ---- 会话持久化（safeStorage 加密） ----

@@ -83,6 +83,9 @@ declare module 'vue-i18n' {
     qrPayCancel: string
     qrPayRetry: string
     qrPayOrderNo: string
+    qrPayAgreePrefix: string
+    qrPaySubscriptionAgreement: string
+    qrPayAgreeHint: string
     planResetPeriod: string
     planPurchaseLimit: string
     planPurchaseLimitUnlimited: string
@@ -2145,6 +2148,7 @@ declare module 'vue-i18n' {
     userAgreement: string
     and: string
     privacyAgreement: string
+    subscriptionAgreement: string
     errorPasswordMismatch: string
     errorNotAgreed: string
     chat: string

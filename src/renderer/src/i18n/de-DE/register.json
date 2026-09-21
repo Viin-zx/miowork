@@ -13,6 +13,7 @@
   "userAgreement": "User Agreement",
   "and": "and",
   "privacyAgreement": "Privacy Policy",
+  "subscriptionAgreement": "Abonnementvereinbarung",
   "error": "Registration failed, please try again",
   "errorPasswordMismatch": "Passwords do not match",
   "errorNotAgreed": "Please agree to the User Agreement and Privacy Policy first"

@@ -11,7 +11,8 @@ import {
   authPurchasePlanRoute,
   authGetOrderRoute,
   authGetSubscriptionsRoute,
-  authGetQuotaRoute
+  authGetQuotaRoute,
+  authGetAgreementsRoute
 } from '@shared/contracts/routes'
 import {
   createRouteMap,
@@ -285,6 +286,21 @@ export function createAuthRoutes(
           return authGetQuotaRoute.output.parse({
             ok: false,
             msg: toErrorMessage(error, '查询额度失败')
+          })
+        }
+      }
+    ],
+    [
+      authGetAgreementsRoute.name,
+      async (rawInput) => {
+        authGetAgreementsRoute.input.parse(rawInput)
+        try {
+          const agreements = await auth.getAgreements()
+          return authGetAgreementsRoute.output.parse({ ok: true, agreements })
+        } catch (error) {
+          return authGetAgreementsRoute.output.parse({
+            ok: false,
+            msg: toErrorMessage(error, '获取协议失败')
           })
         }
       }
