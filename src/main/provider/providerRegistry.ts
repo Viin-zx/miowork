@@ -485,8 +485,7 @@ const PROVIDER_ID_REGISTRY = new Map<string, AiSdkProviderDefinition>([
   [
     'openai',
     createDefinition({
-      ...OPENAI_BASE,
-      runtimeKind: 'openai-responses'
+      ...OPENAI_BASE
     })
   ],
   [

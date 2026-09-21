@@ -357,7 +357,7 @@ export const DEFAULT_PROVIDERS: LLM_PROVIDER_BASE[] = [
   {
     id: 'openai',
     name: 'OpenAI',
-    apiType: 'openai',
+    apiType: 'openai-completions',
     apiKey: '',
     baseUrl: 'https://api.openai.com/v1',
     enable: false,
