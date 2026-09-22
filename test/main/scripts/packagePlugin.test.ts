@@ -488,17 +488,40 @@ describe('package-plugin', () => {
     const fixture = await createCuaPluginFixture()
     const outDir = path.join(fixture.root, 'out')
 
-    for (const teamId of ['', 'invalid-team']) {
-      const result = runPackagePlugin(fixture.pluginDir, outDir, 'darwin', 'arm64', {
-        purpose: 'distribution',
-        env: { DEEPCHAT_APPLE_NOTARY_TEAM_ID: teamId }
-      })
+    const result = runPackagePlugin(fixture.pluginDir, outDir, 'darwin', 'arm64', {
+      purpose: 'distribution',
+      env: { DEEPCHAT_APPLE_NOTARY_TEAM_ID: 'invalid-team' }
+    })
 
-      expect(result.status).not.toBe(0)
-      expect(result.stderr).toContain(
-        'CUA macOS distribution integrity descriptor requires a valid Apple Team ID'
-      )
-    }
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toContain(
+      'CUA macOS distribution integrity descriptor requires a valid Apple Team ID'
+    )
+  })
+
+  it('describes an ad-hoc signature for unsigned macOS distribution builds', async () => {
+    const fixture = await createCuaPluginFixture()
+    const outDir = path.join(fixture.root, 'out')
+
+    const result = runPackagePlugin(fixture.pluginDir, outDir, 'darwin', 'arm64', {
+      purpose: 'distribution',
+      env: {}
+    })
+
+    expect(result.status).toBe(0)
+    const artifactPath = path.join(outDir, 'deepchat-plugin-cua-0.0.0-darwin-arm64.dcplugin')
+    const files = unzipSync(new Uint8Array(await readFile(artifactPath)))
+    const integrity = JSON.parse(
+      Buffer.from(files['runtime/darwin/arm64/integrity.json']).toString('utf8')
+    )
+    expect(integrity.macos).toMatchObject({
+      signatureType: 'ad-hoc',
+      teamId: null,
+      hardenedRuntime: true
+    })
+    expect(() =>
+      parseCuaRuntimeIntegrityDescriptor(integrity, 'packaged unsigned distribution fixture')
+    ).not.toThrow()
   })
 
   it('packages the DeepChat-owned macOS CUA helper identity for each macOS arch', async () => {

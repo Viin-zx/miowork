@@ -5,6 +5,10 @@ import { pathToFileURL } from 'node:url'
 import { zipSync } from 'fflate'
 import { readCuaToolCatalog } from './cua-tool-catalog-contract.mjs'
 import { CUA_DARWIN_ALLOWED_ENTITLEMENTS } from './cua-macos-contract.mjs'
+import {
+  hasAppleSigningCredentials,
+  isReleaseNotarizationEnabled
+} from './macos-release-contract.mjs'
 
 const OFFICIAL_PLUGIN_SOURCE = 'deepchat-official'
 const CUA_DARWIN_HELPER_APP = 'DeepChat Computer Use.app'
@@ -572,14 +576,19 @@ function createZipInput(files) {
 function createDarwinSigningContract(purpose) {
   const distribution = purpose === 'distribution'
   const teamId = distribution ? String(process.env.DEEPCHAT_APPLE_NOTARY_TEAM_ID ?? '') : null
-  if (distribution && !/^[A-Z0-9]{10}$/.test(teamId)) {
+  // Unsigned distribution builds (no Apple credentials at all) describe an
+  // ad-hoc helper signature and carry no team ID.
+  const developerId =
+    distribution &&
+    (isReleaseNotarizationEnabled(process.env) || hasAppleSigningCredentials(process.env))
+  if (developerId && !/^[A-Z0-9]{10}$/.test(teamId)) {
     throw new Error('CUA macOS distribution integrity descriptor requires a valid Apple Team ID')
   }
   return {
     bundlePath: CUA_DARWIN_HELPER_APP,
     bundleIdentifier: CUA_DARWIN_HELPER_BUNDLE_ID,
-    signatureType: distribution ? 'developer-id' : 'ad-hoc',
-    teamId,
+    signatureType: developerId ? 'developer-id' : 'ad-hoc',
+    teamId: developerId ? teamId : null,
     hardenedRuntime: true,
     entitlements: { ...CUA_DARWIN_ALLOWED_ENTITLEMENTS }
   }

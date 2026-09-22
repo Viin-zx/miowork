@@ -5,26 +5,12 @@ import os from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { validateArtifactPurpose } from './ci/package-contract.mjs'
-import { isReleaseNotarizationEnabled } from './macos-release-contract.mjs'
+import { hasAppleSigningCredentials, isReleaseNotarizationEnabled } from './macos-release-contract.mjs'
 
 const execFileAsync = promisify(execFile)
 const DEVELOPMENT_SIGNING_PURPOSE = 'development'
 const SECURITY_DIAGNOSTIC_LIMIT = 1000
 const SENSITIVE_SECURITY_ARGUMENTS = new Set(['-k', '-p', '-P'])
-const APPLE_SIGNING_ENVIRONMENT_VARIABLES = [
-  'CSC_LINK',
-  'CSC_KEY_PASSWORD',
-  'DEEPCHAT_APPLE_NOTARY_USERNAME',
-  'DEEPCHAT_APPLE_NOTARY_TEAM_ID',
-  'DEEPCHAT_APPLE_NOTARY_PASSWORD'
-]
-
-function hasAppleSigningCredentials(env) {
-  return APPLE_SIGNING_ENVIRONMENT_VARIABLES.some((name) => {
-    const value = env[name]
-    return typeof value === 'string' && value.length > 0
-  })
-}
 
 function isAbsoluteOrRelativeFilePath(value) {
   return (
