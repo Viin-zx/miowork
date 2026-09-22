@@ -90,6 +90,7 @@ export function mioModelListToMetas(models: MioModelVo[], providerId: string): M
  * - visionEnabled → vision
  * - functionCallingEnabled → functionCall
  * - reasoningEnabled → reasoning
+ * - speechRecognitionEnabled → speechRecognition（接口未下发时不写入，避免覆盖用户手动配置）
  * - requestTimeoutMs → timeout
  * - temperature / topP / reasoningEffort 直映
  * - modelType → type
@@ -106,8 +107,10 @@ export function mioModelVoToConfig(vo: MioModelVo): ModelConfig {
     vision: params?.visionEnabled ?? DEFAULT_MODEL_VISION,
     functionCall: params?.functionCallingEnabled ?? DEFAULT_MODEL_FUNCTION_CALL,
     reasoning: params?.reasoningEnabled ?? false,
+    speechRecognition: params?.speechRecognitionEnabled,
     type: mapModelType(vo.modelType) ?? ModelType.Chat,
-    reasoningEffort: reasoningEffort && isReasoningEffort(reasoningEffort) ? reasoningEffort : undefined,
+    reasoningEffort:
+      reasoningEffort && isReasoningEffort(reasoningEffort) ? reasoningEffort : undefined,
     apiEndpoint: ApiEndpointType.Chat
   }
 }

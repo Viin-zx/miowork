@@ -11,6 +11,18 @@ export const useModelConfigStore = defineStore('modelConfig', () => {
   const getCacheKey = (modelId: string, providerId?: string) =>
     `${providerId ?? 'default'}:${modelId}`
 
+  // 主进程侧配置变更（含 zr-mioagent 接口同步 setModelConfig）后失效对应缓存，
+  // 否则设置对话框会一直读到旧值，直到重新登录/重启清空内存缓存。
+  modelClient.onModelConfigChanged(({ changeType, providerId, modelId }) => {
+    if (changeType === 'imported') {
+      cache.value = {}
+      return
+    }
+    if (providerId && modelId) {
+      delete cache.value[getCacheKey(modelId, providerId)]
+    }
+  })
+
   const getModelConfig = async (modelId: string, providerId?: string): Promise<ModelConfig> => {
     const key = getCacheKey(modelId, providerId)
     if (cache.value[key]) {

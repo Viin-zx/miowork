@@ -127,6 +127,7 @@ export interface MioModelParameters {
   visionEnabled?: boolean
   functionCallingEnabled?: boolean
   reasoningEnabled?: boolean
+  speechRecognitionEnabled?: boolean
   temperature?: number
   topP?: number
   reasoningEffort?: string

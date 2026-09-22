@@ -119,6 +119,7 @@ import {
   type ProviderCustomHeaders
 } from '@shared/providerCustomHeaders'
 import ProviderCustomHeadersEditor from './ProviderCustomHeadersEditor.vue'
+import { createProviderClient } from '@api/ProviderClient'
 
 interface ProviderWebsites {
   official: string
@@ -152,6 +153,7 @@ const providerStore = useProviderStore()
 const modelStore = useModelStore()
 const uiSettingsStore = useUiSettingsStore()
 const modelCheckStore = useModelCheckStore()
+const providerClient = createProviderClient()
 const azureApiVersion = ref('')
 const geminiSafetyLevels = reactive<Record<string, number>>({})
 
@@ -587,7 +589,16 @@ const handleRefreshModels = async () => {
   isModelListLoading.value = true
 
   try {
+    // 走主进程真正刷新（zr-mioagent 拉取 /mio/client/v1/models，其余 provider
+    // 拉取 OpenAI 兼容接口并写回 DB），再由渲染层 store 读取最新数据回显。
+    // 仅刷新渲染层 store 不会触发网络拉取，列表会停留在旧数据。
+    await providerClient.refreshModels(props.provider.id)
     await modelStore.refreshProviderModels(props.provider.id)
+  } catch (error) {
+    console.error(
+      `[ModelProviderSettingsDetail] Failed to refresh models for ${props.provider.id}`,
+      error
+    )
   } finally {
     isRefreshingModels.value = false
     isModelListLoading.value = false
