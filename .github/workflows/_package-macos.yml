@@ -97,11 +97,14 @@ jobs:
             DEEPCHAT_APPLE_NOTARY_PASSWORD
           )
           if [[ "${PACKAGE_PURPOSE}" == 'distribution' ]]; then
+            # Apple credentials must be provided together or omitted entirely.
+            # An entirely empty set selects unsigned distribution mode so forks
+            # can publish macOS installers without signing identity.
             missing=()
             for name in "${apple_credentials[@]}"; do
               [[ -n "${!name}" ]] || missing+=("${name}")
             done
-            if (( ${#missing[@]} > 0 )); then
+            if (( ${#missing[@]} > 0 && ${#missing[@]} < ${#apple_credentials[@]} )); then
               printf 'Missing required macOS distribution secrets: %s\n' "${missing[*]}" >&2
               exit 1
             fi
@@ -152,10 +155,15 @@ jobs:
 
       - name: Build and package macOS
         run: |
-          if [[ "${PACKAGE_PURPOSE}" == 'verification' ]]; then
+          # Unsigned distribution mode (all Apple credentials empty) mirrors
+          # verification: strip signing identity, disable auto-discovery, and
+          # clear build_for_release so notarization stays disabled.
+          if [[ "${PACKAGE_PURPOSE}" == 'verification' || -z "${CSC_LINK}" ]]; then
             unset CSC_LINK CSC_KEY_PASSWORD
             unset DEEPCHAT_APPLE_NOTARY_USERNAME DEEPCHAT_APPLE_NOTARY_TEAM_ID
             unset DEEPCHAT_APPLE_NOTARY_PASSWORD
+            unset build_for_release
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
           fi
           pnpm run build
           pnpm run plugin:bundle -- --name cua --platform darwin --arch "${TARGET_ARCH}" --purpose "${PACKAGE_PURPOSE}"

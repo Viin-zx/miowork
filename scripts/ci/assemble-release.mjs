@@ -59,12 +59,15 @@ async function ensureEmptyDirectory(directory) {
 function validateChecks(manifest, definition) {
   const checks = assertObject(manifest.checks, `${definition.id} checks`)
   const requiredChecks = ['packageSmoke', 'componentSize', 'installerSize']
-  if (definition.platform === 'darwin') {
-    requiredChecks.push(...DARWIN_DISTRIBUTION_CHECK_NAMES)
-  }
+  const signatureChecks =
+    definition.platform === 'darwin' ? DARWIN_DISTRIBUTION_CHECK_NAMES : []
+  requiredChecks.push(...signatureChecks)
   assertExactKeys(checks, requiredChecks, `${definition.id} checks`)
   for (const name of requiredChecks) {
-    if (checks[name] !== 'passed') {
+    if (
+      checks[name] !== 'passed' &&
+      !(signatureChecks.includes(name) && checks[name] === 'skipped')
+    ) {
       throw new Error(`${definition.id} check ${name} did not pass`)
     }
   }

@@ -275,7 +275,7 @@ describe('native package reusable workflows', () => {
     expect(source).not.toContain('signed:')
   })
 
-  it('rejects Apple credentials for verification and requires them for distribution', () => {
+  it('allows unsigned distribution and requires a complete Apple credential set', () => {
     const workflow = readWorkflow<ReusableWorkflow>(reusableWorkflows.macos.name)
     const script = getStep(workflow, 'Validate package request and signing inputs').run!
     const credentialNames = [
@@ -303,6 +303,10 @@ describe('native package reusable workflows', () => {
 
     expect(runValidation('verification', {}).status).toBe(0)
 
+    // Unsigned distribution mode: every Apple credential is empty, which is
+    // allowed so forks can publish macOS installers without signing identity.
+    expect(runValidation('distribution', {}).status).toBe(0)
+
     const unexpectedCredentials = Object.fromEntries(
       credentialNames.map((name) => [name, `unexpected-${name}`])
     )
@@ -325,7 +329,7 @@ describe('native package reusable workflows', () => {
     )
   })
 
-  it('removes Apple credentials from the verification package process', () => {
+  it('removes Apple credentials from unsigned package processes', () => {
     const workflow = readWorkflow<ReusableWorkflow>(reusableWorkflows.macos.name)
     const script = getStep(workflow, 'Build and package macOS').run!
     const temporaryDirectory = fs.mkdtempSync(
@@ -394,6 +398,28 @@ fi
       for (const name of credentialNames) {
         expect(distributionEnvironment).toContain(`${name}=set:secret-${name}`)
       }
+
+      const unsignedDistributionCapture = path.join(
+        temporaryDirectory,
+        'unsigned-distribution.txt'
+      )
+      const unsignedDistribution = runBashStep(script, {
+        ...baseEnvironment,
+        PACKAGE_PURPOSE: 'distribution',
+        ...Object.fromEntries(credentialNames.map((name) => [name, ''])),
+        CAPTURE_PATH: unsignedDistributionCapture
+      })
+      expect(unsignedDistribution.status, unsignedDistribution.stderr).toBe(0)
+      const unsignedDistributionEnvironment = fs.readFileSync(
+        unsignedDistributionCapture,
+        'utf8'
+      )
+      for (const name of credentialNames) {
+        expect(unsignedDistributionEnvironment).toContain(`${name}=unset`)
+      }
+      expect(unsignedDistributionEnvironment).toContain(
+        'CSC_IDENTITY_AUTO_DISCOVERY=set:false'
+      )
     } finally {
       fs.rmSync(temporaryDirectory, { recursive: true, force: true })
     }
