@@ -1000,4 +1000,41 @@ describe('package manifest staging', () => {
       macDmgDistribution: 'passed'
     })
   })
+
+  it('skips macOS distribution verification without Apple credentials', async () => {
+    const { smokePath } = await prepareMacPackage()
+    const outputDirectory = path.join(tempDirectory, 'mac-unsigned-output')
+    const verifyCuaMacHelper = vi.fn(async () => {})
+    const verifyMacApp = vi.fn(async () => {})
+    const verifyMacZip = vi.fn(async () => {})
+    const verifyMacDmg = vi.fn(async () => {})
+
+    const manifest = await createPackageManifest({
+      projectDirectory,
+      distDirectory,
+      outputDirectory,
+      platform: 'darwin',
+      arch: 'arm64',
+      sourceSha,
+      purpose: 'distribution',
+      reportPaths: [smokePath],
+      actualSourceSha: sourceSha,
+      macAppPath: '/tmp/MioWork.app',
+      verifyCuaMacHelper,
+      verifyMacApp,
+      verifyMacZip,
+      verifyMacDmg
+    })
+
+    expect(verifyCuaMacHelper).not.toHaveBeenCalled()
+    expect(verifyMacApp).not.toHaveBeenCalled()
+    expect(verifyMacZip).not.toHaveBeenCalled()
+    expect(verifyMacDmg).not.toHaveBeenCalled()
+    expect(manifest.checks).toMatchObject({
+      cuaMacHelperDistribution: 'skipped',
+      macAppDistribution: 'skipped',
+      macZipDistribution: 'skipped',
+      macDmgDistribution: 'skipped'
+    })
+  })
 })

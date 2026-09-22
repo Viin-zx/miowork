@@ -485,6 +485,28 @@ describe('fail-closed release assembly', () => {
     await expect(assemble()).rejects.toThrow(/macDmgDistribution did not pass/)
   })
 
+  it('accepts unsigned distribution manifests that skip macOS signature checks', async () => {
+    for (const targetId of ['darwin-x64', 'darwin-arm64']) {
+      await updateManifest(targetId, (manifest) => {
+        manifest.checks.cuaMacHelperDistribution = 'skipped'
+        manifest.checks.macAppDistribution = 'skipped'
+        manifest.checks.macZipDistribution = 'skipped'
+        manifest.checks.macDmgDistribution = 'skipped'
+      })
+    }
+
+    const releaseIndex = await assemble()
+    for (const targetId of ['darwin-x64', 'darwin-arm64']) {
+      const target = releaseIndex.targets.find(({ id }) => id === targetId)
+      expect(target?.checks).toMatchObject({
+        cuaMacHelperDistribution: 'skipped',
+        macAppDistribution: 'skipped',
+        macZipDistribution: 'skipped',
+        macDmgDistribution: 'skipped'
+      })
+    }
+  })
+
   it('rejects a size report that does not describe the staged installer', async () => {
     const root = artifactRoot('win32-x64')
     const reportPath = path.join(root, 'reports', 'package-size-win32-x64.json')

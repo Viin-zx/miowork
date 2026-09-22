@@ -721,12 +721,20 @@ export async function createPackageManifest({
       resolvedOutputDirectory,
       updaterPayload.storagePath
     )
-    await verifyCuaMacHelper(resolvedAppPath, { teamId: appleTeamId })
-    await verifyMacApp(resolvedAppPath, { teamId: appleTeamId })
-    await verifyMacZip(resolvedZipPath, { teamId: appleTeamId })
-    await verifyMacDmg(resolvedDmgPath, { teamId: appleTeamId })
-    for (const checkName of DARWIN_DISTRIBUTION_CHECK_NAMES) {
-      checks[checkName] = 'passed'
+    if (appleTeamId) {
+      await verifyCuaMacHelper(resolvedAppPath, { teamId: appleTeamId })
+      await verifyMacApp(resolvedAppPath, { teamId: appleTeamId })
+      await verifyMacZip(resolvedZipPath, { teamId: appleTeamId })
+      await verifyMacDmg(resolvedDmgPath, { teamId: appleTeamId })
+      for (const checkName of DARWIN_DISTRIBUTION_CHECK_NAMES) {
+        checks[checkName] = 'passed'
+      }
+    } else {
+      // Unsigned distribution mode: no Apple credentials were supplied, so
+      // signature and notarization evidence is skipped and recorded as such.
+      for (const checkName of DARWIN_DISTRIBUTION_CHECK_NAMES) {
+        checks[checkName] = 'skipped'
+      }
     }
   }
 

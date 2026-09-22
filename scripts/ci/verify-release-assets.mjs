@@ -116,13 +116,18 @@ function validateReleaseTargets(index) {
       throw new Error(`Release index target order or identity mismatch for ${definition.id}`)
     }
     const requiredChecks = ['packageSmoke', 'componentSize', 'installerSize']
+    const signatureChecks =
+      definition.platform === 'darwin' ? DARWIN_DISTRIBUTION_CHECK_NAMES : []
     if (definition.platform === 'darwin') {
-      requiredChecks.push(...DARWIN_DISTRIBUTION_CHECK_NAMES)
+      requiredChecks.push(...signatureChecks)
     }
     const checks = assertObject(target.checks, `${definition.id} checks`)
     assertExactKeys(checks, requiredChecks, `${definition.id} checks`)
     for (const check of requiredChecks) {
-      if (checks[check] !== 'passed') {
+      if (
+        checks[check] !== 'passed' &&
+        !(signatureChecks.includes(check) && checks[check] === 'skipped')
+      ) {
         throw new Error(`${definition.id} check ${check} did not pass`)
       }
     }
