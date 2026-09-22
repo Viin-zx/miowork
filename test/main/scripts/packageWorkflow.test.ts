@@ -723,10 +723,10 @@ describe('Release caller and publication boundary', () => {
       step.uses?.startsWith('actions/download-artifact@')
     )
     expect(downloads.map((step) => step.with?.name)).toEqual([
-      'miowork-package-win32-x64',
-      'miowork-package-win32-arm64',
-      'miowork-package-darwin-x64',
-      'miowork-package-darwin-arm64'
+      'miowork-package-win32-x64-distribution',
+      'miowork-package-win32-arm64-distribution',
+      'miowork-package-darwin-x64-distribution',
+      'miowork-package-darwin-arm64-distribution'
     ])
     for (const download of downloads) {
       expect(download.with).toMatchObject({ 'digest-mismatch': 'error' })
