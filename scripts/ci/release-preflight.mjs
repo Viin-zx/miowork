@@ -7,7 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { validateSourceSha } from './package-contract.mjs'
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const RELEASE_TAG_PATTERN = /^v(\d+\.\d+\.\d+(?:-(?:alpha|beta)\.\d+)?)$/
+const RELEASE_TAG_PATTERN = /^(?:v|zr-)(\d+\.\d+\.\d+(?:-(?:alpha|beta)\.\d+)?)$/
 
 export function prepareReleaseContext({ tag, sourceSha, packageJson, changelog }) {
   const tagMatch = RELEASE_TAG_PATTERN.exec(tag ?? '')
