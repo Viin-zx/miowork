@@ -11,6 +11,20 @@ const execFileAsync = promisify(execFile)
 const DEVELOPMENT_SIGNING_PURPOSE = 'development'
 const SECURITY_DIAGNOSTIC_LIMIT = 1000
 const SENSITIVE_SECURITY_ARGUMENTS = new Set(['-k', '-p', '-P'])
+const APPLE_SIGNING_ENVIRONMENT_VARIABLES = [
+  'CSC_LINK',
+  'CSC_KEY_PASSWORD',
+  'DEEPCHAT_APPLE_NOTARY_USERNAME',
+  'DEEPCHAT_APPLE_NOTARY_TEAM_ID',
+  'DEEPCHAT_APPLE_NOTARY_PASSWORD'
+]
+
+function hasAppleSigningCredentials(env) {
+  return APPLE_SIGNING_ENVIRONMENT_VARIABLES.some((name) => {
+    const value = env[name]
+    return typeof value === 'string' && value.length > 0
+  })
+}
 
 function isAbsoluteOrRelativeFilePath(value) {
   return (
@@ -328,7 +342,10 @@ export function validateCuaSigningContext({ purpose, env = process.env }) {
   }
   const releaseNotarizationEnabled = isReleaseNotarizationEnabled(env)
   if (resolvedPurpose === 'distribution') {
-    if (!releaseNotarizationEnabled) {
+    // Unsigned distribution mode (no Apple credentials at all) skips release
+    // notarization and falls back to an ad-hoc helper signature. Credentials
+    // with notarization disabled are a misconfiguration.
+    if (!releaseNotarizationEnabled && hasAppleSigningCredentials(env)) {
       throw new Error(
         'CUA distribution signing requires build_for_release to enable release notarization'
       )
@@ -367,7 +384,10 @@ export async function signMacHelper({
   env = process.env
 }) {
   const resolvedPurpose = validateCuaSigningContext({ purpose, env })
-  if (resolvedPurpose !== 'distribution') {
+  const shouldUseDeveloperId =
+    resolvedPurpose === 'distribution' &&
+    (isReleaseNotarizationEnabled(env) || hasAppleSigningCredentials(env))
+  if (!shouldUseDeveloperId) {
     await signHelperAdHoc({ appPath, entitlementsPath })
     await verifyHelperSignature(appPath)
     console.info(`Signed CUA helper for ${resolvedPurpose}: ${appPath}`)
