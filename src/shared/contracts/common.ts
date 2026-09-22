@@ -402,6 +402,7 @@ export const ProviderModelSummarySchema = z.object({
   providerId: z.string(),
   enabled: z.boolean().optional(),
   isCustom: z.boolean().optional(),
+  isDefault: z.boolean().optional(),
   vision: z.boolean().optional(),
   functionCall: z.boolean().optional(),
   reasoning: z.boolean().optional(),

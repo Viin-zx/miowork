@@ -267,6 +267,7 @@ export const useModelStore = defineStore('model', () => {
     providerId,
     enabled: (model as RENDERER_MODEL_META).enabled ?? false,
     isCustom: model.isCustom ?? false,
+    isDefault: model.isDefault ?? false,
     vision: resolveModelVision(model.vision),
     functionCall: resolveModelFunctionCall(model.functionCall),
     explicitFunctionCall: resolveExplicitFunctionCall(
@@ -294,6 +295,7 @@ export const useModelStore = defineStore('model', () => {
     providerId,
     enabled: (model as RENDERER_MODEL_META).enabled ?? false,
     isCustom: model.isCustom ?? false,
+    isDefault: model.isDefault ?? false,
     vision: resolveModelVision(model.vision),
     functionCall: resolveModelFunctionCall(model.functionCall),
     explicitFunctionCall: resolveExplicitFunctionCall(
@@ -686,6 +688,7 @@ export const useModelStore = defineStore('model', () => {
         group: meta.group || 'default',
         enabled: false,
         isCustom: meta.isCustom || false,
+        isDefault: meta.isDefault || false,
         providerId,
         vision: meta.vision || false,
         functionCall: meta.functionCall || false,
@@ -731,6 +734,7 @@ export const useModelStore = defineStore('model', () => {
             providerId,
             enabled: false,
             isCustom: model.isCustom ?? fallback?.isCustom ?? false,
+            isDefault: model.isDefault ?? fallback?.isDefault ?? false,
             contextLength: resolveModelContextLength(
               model.contextLength ?? fallback?.contextLength
             ),

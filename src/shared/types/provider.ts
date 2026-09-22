@@ -35,6 +35,7 @@ export type RENDERER_MODEL_META = {
   providerId: string
   enabled?: boolean
   isCustom?: boolean
+  isDefault?: boolean
   vision?: boolean
   functionCall?: boolean
   explicitFunctionCall?: boolean
@@ -57,6 +58,7 @@ export type MODEL_META = {
   providerId: string
   enabled?: boolean
   isCustom?: boolean
+  isDefault?: boolean
   vision?: boolean
   functionCall?: boolean
   reasoning?: boolean

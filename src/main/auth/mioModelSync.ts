@@ -66,6 +66,7 @@ export function mioModelVoToMeta(vo: MioModelVo, providerId: string): MODEL_META
     group: vo.providerName || 'default',
     providerId,
     type,
+    isDefault: vo.isDefault,
     contextLength: caps.contextLength,
     maxTokens: caps.maxTokens,
     vision: caps.vision,

@@ -1468,10 +1468,38 @@ const isDirty = computed(
     originalFormSignature.value !== null &&
     currentFormSignature.value !== originalFormSignature.value
 )
+const applyBuiltinDefaultModels = (state: FormState): FormState => {
+  // 仅内置 MioWork（deepchat）Agent 的模型默认值使用服务端 isDefault 模型兜底
+  if (state.id !== 'deepchat') return state
+  let chatDefault: EditableModel = null
+  let visionDefault: EditableModel = null
+  let imageDefault: EditableModel = null
+  for (const entry of modelStore.allProviderModels) {
+    for (const model of entry.models) {
+      if (!model.isDefault) continue
+      if (model.type === ModelType.Chat) {
+        if (!chatDefault) chatDefault = { providerId: entry.providerId, modelId: model.id }
+        if (model.vision && !visionDefault) {
+          visionDefault = { providerId: entry.providerId, modelId: model.id }
+        }
+      } else if (model.type === ModelType.ImageGeneration && !imageDefault) {
+        imageDefault = { providerId: entry.providerId, modelId: model.id }
+      }
+    }
+  }
+  const next = { ...state }
+  if (chatDefault) {
+    if (!next.chatModel) next.chatModel = chatDefault
+    if (!next.assistantModel) next.assistantModel = chatDefault
+  }
+  if (visionDefault && !next.visionModel) next.visionModel = visionDefault
+  if (imageDefault && !next.imageGenerationModel) next.imageGenerationModel = imageDefault
+  return next
+}
 const fromAgent = (agent?: Agent | null): FormState => {
   if (!agent) return emptyForm()
   const config = agent.config ?? {}
-  return {
+  const state: FormState = {
     id: agent.id,
     protected: Boolean(agent.protected),
     name: agent.name,
@@ -1529,6 +1557,7 @@ const fromAgent = (agent?: Agent | null): FormState => {
     ),
     memoryEnabled: config.memoryEnabled ?? false
   }
+  return applyBuiltinDefaultModels(state)
 }
 const modelText = (selection: EditableModel | undefined) => {
   if (!selection?.providerId || !selection?.modelId) {
