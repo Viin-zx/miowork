@@ -101,7 +101,9 @@ function validateReleaseTargets(index) {
     !Array.isArray(index.targets) ||
     index.targets.length !== TARGET_DEFINITIONS.length
   ) {
-    throw new Error('Release index must contain exactly the six package targets')
+    throw new Error(
+      `Release index must contain exactly the ${TARGET_DEFINITIONS.length} package targets`
+    )
   }
   for (const [targetIndex, definition] of TARGET_DEFINITIONS.entries()) {
     const target = assertObject(index.targets[targetIndex], `${definition.id} target`)

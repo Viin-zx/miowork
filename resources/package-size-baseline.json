@@ -23,34 +23,6 @@
         "artifactId": "8552629959"
       }
     },
-    "linux-x64": {
-      "installer": {
-        "name": "DeepChat-1.1.0-beta.4-linux-x86_64.AppImage",
-        "bytes": 375623949,
-        "sha256": "fd8b514cba51f28d25d57d000706a5ef5fc476af8cca804a92c24a965686fe6b",
-        "artifactId": "8552650323"
-      },
-      "archive": {
-        "name": "DeepChat-1.1.0-beta.4-linux-x64.tar.gz",
-        "bytes": 356685318,
-        "sha256": "8f4433fd9597ea2d8a80fdd8f56e0e9b78a96070df2529b389516a049123495f",
-        "artifactId": "8552650323"
-      }
-    },
-    "linux-arm64": {
-      "installer": {
-        "name": "DeepChat-1.1.0-beta.4-linux-arm64.AppImage",
-        "bytes": 355238804,
-        "sha256": "2b26096a3caab2043818f1553649a286fd412b01d0b0f679ff68900653fb3519",
-        "artifactId": "8552557870"
-      },
-      "archive": {
-        "name": "DeepChat-1.1.0-beta.4-linux-arm64.tar.gz",
-        "bytes": 336610473,
-        "sha256": "f8dde63e947c409f702d2981fbc57ad10f901186d9da0f89355d2d40dca27b47",
-        "artifactId": "8552557870"
-      }
-    },
     "darwin-x64": {
       "installer": {
         "name": "DeepChat-1.1.0-beta.4-mac-x64.dmg",

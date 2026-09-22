@@ -82,44 +82,6 @@ const targetDefinitions = [
     ]
   },
   {
-    id: 'linux-x64',
-    platform: 'linux',
-    arch: 'x64',
-    artifactName: 'miowork-package-linux-x64',
-    legacyArtifactName: 'deepchat-linux-x64',
-    unpackedDirectory: 'linux-unpacked',
-    metadataName: 'latest-linux.yml',
-    roles: [
-      role('installer', 'files', ['-linux-x64.AppImage', '-linux-x86_64.AppImage'], {
-        measured: true,
-        updaterPayload: true
-      }),
-      role('archive', 'files', ['-linux-x64.tar.gz', '-linux-x86_64.tar.gz'], {
-        measured: true
-      }),
-      rawMetadata('latest-linux.yml')
-    ]
-  },
-  {
-    id: 'linux-arm64',
-    platform: 'linux',
-    arch: 'arm64',
-    artifactName: 'miowork-package-linux-arm64',
-    legacyArtifactName: 'deepchat-linux-arm64',
-    unpackedDirectory: 'linux-arm64-unpacked',
-    metadataName: 'latest-linux-arm64.yml',
-    roles: [
-      role('installer', 'files', ['-linux-arm64.AppImage', '-linux-aarch64.AppImage'], {
-        measured: true,
-        updaterPayload: true
-      }),
-      role('archive', 'files', ['-linux-arm64.tar.gz', '-linux-aarch64.tar.gz'], {
-        measured: true
-      }),
-      rawMetadata('latest-linux-arm64.yml')
-    ]
-  },
-  {
     id: 'darwin-x64',
     platform: 'darwin',
     arch: 'x64',
@@ -252,7 +214,10 @@ export function expectedReleaseAssetCount() {
     (count, definition) => count + getPublicRoles(definition).length,
     0
   )
-  return packageAssetCount + 4 + 1
+  const metadataAssetCount = new Set(
+    targetDefinitions.map(({ metadataName }) => metadataName)
+  ).size
+  return packageAssetCount + metadataAssetCount + 1
 }
 
 export function resolvePackageSizeExpectedDelta(policy, baselineCommit) {

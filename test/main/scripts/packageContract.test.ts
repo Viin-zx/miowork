@@ -62,16 +62,14 @@ const sha512 = (value: string | Buffer) =>
   createHash('sha512').update(value).digest('base64')
 
 describe('CI package contract', () => {
-  it('defines the six targets and the 19-file release surface', () => {
+  it('defines the four targets and the 13-file release surface', () => {
     expect(TARGET_DEFINITIONS.map(({ id }) => id)).toEqual([
       'win32-x64',
       'win32-arm64',
-      'linux-x64',
-      'linux-arm64',
       'darwin-x64',
       'darwin-arm64'
     ])
-    expect(expectedReleaseAssetCount()).toBe(19)
+    expect(expectedReleaseAssetCount()).toBe(13)
     expect(PACKAGE_MANIFEST_SCHEMA_VERSION).toBe(2)
     expect(RELEASE_INDEX_SCHEMA_VERSION).toBe(2)
     expect(SHA512_BASE64_PATTERN.test(Buffer.alloc(64).toString('base64'))).toBe(true)
@@ -98,10 +96,10 @@ describe('CI package contract', () => {
       linux: false,
       macos: false
     })
-    expect(classifyPackageImpact(['build/icon.png'])).toMatchObject({
+    expect(classifyPackageImpact(['build/nsis-installer.nsh'])).toMatchObject({
       required: true,
-      windows: false,
-      linux: true,
+      windows: true,
+      linux: false,
       macos: false
     })
     expect(classifyPackageImpact(['scripts/notarize.js'])).toMatchObject({

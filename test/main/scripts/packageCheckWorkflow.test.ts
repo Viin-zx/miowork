@@ -90,7 +90,6 @@ describe('PR package check workflow contracts', () => {
     expect(Object.keys(workflow.jobs)).toEqual([
       'package-impact',
       'package-windows',
-      'package-linux',
       'package-macos',
       'package-required'
     ])
@@ -108,7 +107,6 @@ describe('PR package check workflow contracts', () => {
       outputs: {
         required: '${{ steps.classify.outputs.required }}',
         windows: '${{ steps.classify.outputs.windows }}',
-        linux: '${{ steps.classify.outputs.linux }}',
         macos: '${{ steps.classify.outputs.macos }}'
       }
     })
@@ -134,7 +132,6 @@ describe('PR package check workflow contracts', () => {
     for (const output of [
       'required=true',
       'windows=true',
-      'linux=true',
       'macos=true'
     ]) {
       expect(classifyStep.run).toContain(`echo '${output}'`)
@@ -191,10 +188,6 @@ describe('PR package check workflow contracts', () => {
         output: 'windows',
         workflow: './.github/workflows/_package-windows.yml'
       },
-      'package-linux': {
-        output: 'linux',
-        workflow: './.github/workflows/_package-linux.yml'
-      },
       'package-macos': {
         output: 'macos',
         workflow: './.github/workflows/_package-macos.yml'
@@ -229,7 +222,7 @@ describe('PR package check workflow contracts', () => {
 
     expect(aggregate).toMatchObject({
       if: 'always()',
-      needs: ['package-impact', 'package-windows', 'package-linux', 'package-macos'],
+      needs: ['package-impact', 'package-windows', 'package-macos'],
       'runs-on': 'ubuntu-24.04',
       'timeout-minutes': 2
     })
@@ -238,13 +231,11 @@ describe('PR package check workflow contracts', () => {
       PACKAGE_IMPACT_RESULT: '${{ needs.package-impact.result }}',
       WINDOWS_REQUIRED: '${{ needs.package-impact.outputs.windows }}',
       WINDOWS_RESULT: '${{ needs.package-windows.result }}',
-      LINUX_REQUIRED: '${{ needs.package-impact.outputs.linux }}',
-      LINUX_RESULT: '${{ needs.package-linux.result }}',
       MACOS_REQUIRED: '${{ needs.package-impact.outputs.macos }}',
       MACOS_RESULT: '${{ needs.package-macos.result }}'
     })
     expect(aggregateStep.run).toContain('require_success "package-impact"')
-    for (const platform of ['windows', 'linux', 'macos']) {
+    for (const platform of ['windows', 'macos']) {
       expect(aggregateStep.run).toContain(`require_platform_result "${platform}"`)
     }
     expect(aggregateStep.run).toContain('if [[ "${result}" != "skipped" ]]')
@@ -259,8 +250,6 @@ describe('PR package check workflow contracts', () => {
       PACKAGE_IMPACT_RESULT: 'success',
       WINDOWS_REQUIRED: 'false',
       WINDOWS_RESULT: 'skipped',
-      LINUX_REQUIRED: 'false',
-      LINUX_RESULT: 'skipped',
       MACOS_REQUIRED: 'false',
       MACOS_RESULT: 'skipped'
     }

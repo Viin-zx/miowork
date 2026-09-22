@@ -11,7 +11,6 @@ on:
         options:
           - all
           - windows
-          - linux
           - mac
       purpose:
         description: 打包用途（verification=免签名测试包，fork 仓库选此项；distribution=签名正式包，需配置 Apple 证书密钥）
@@ -39,27 +38,6 @@ jobs:
       matrix:
         arch: [x64, arm64]
     uses: ./.github/workflows/_package-windows.yml
-    with:
-      source-sha: ${{ github.sha }}
-      arch: ${{ matrix.arch }}
-      artifact-purpose: ${{ inputs.purpose }}
-      enforce-installer-size: false
-    secrets:
-      RTK_GITHUB_TOKEN: ${{ secrets.RTK_GITHUB_TOKEN }}
-      DC_GITHUB_CLIENT_ID: ${{ secrets.DC_GITHUB_CLIENT_ID }}
-      DC_GITHUB_CLIENT_SECRET: ${{ secrets.DC_GITHUB_CLIENT_SECRET }}
-      DC_GITHUB_REDIRECT_URI: ${{ secrets.DC_GITHUB_REDIRECT_URI }}
-
-  package-linux:
-    name: build-linux(${{ matrix.arch }})
-    if: inputs.platform == 'all' || inputs.platform == 'linux'
-    permissions:
-      contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        arch: [x64, arm64]
-    uses: ./.github/workflows/_package-linux.yml
     with:
       source-sha: ${{ github.sha }}
       arch: ${{ matrix.arch }}

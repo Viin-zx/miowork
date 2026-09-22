@@ -421,19 +421,6 @@ function mergeArchitectureMetadata(packages, version) {
   return metadata
 }
 
-function normalizeSingleArchitectureMetadata(packageEntry, version) {
-  const file = packageEntry.rawMetadata.files[0]
-  const metadata = {
-    version,
-    files: [file],
-    path: file.url,
-    sha512: file.sha512,
-    releaseDate: selectReleaseDate([packageEntry]),
-    ...selectSharedUpdateFields([packageEntry])
-  }
-  return metadata
-}
-
 async function writeMetadata(outputDirectory, name, metadata) {
   const outputPath = path.join(outputDirectory, name)
   // electron-updater parses updater yml with js-yaml, which turns an unquoted ISO
@@ -485,8 +472,7 @@ async function validateFinalMetadata(
   ) {
     throw new Error(`${name} releaseDate must be a canonical ISO string`)
   }
-  const expectedEntries =
-    name === 'latest-linux.yml' || name === 'latest-linux-arm64.yml' ? 1 : 2
+  const expectedEntries = 2
   if (!Array.isArray(metadata.files) || metadata.files.length !== expectedEntries) {
     throw new Error(`${name} must contain ${expectedEntries} updater files`)
   }
@@ -563,7 +549,9 @@ export async function assembleRelease({
         entry.isSymbolicLink()
     )
   ) {
-    throw new Error('Release input must contain exactly the six package artifacts')
+    throw new Error(
+      `Release input must contain exactly the ${TARGET_DEFINITIONS.length} package artifacts`
+    )
   }
   const expected = { sourceSha, version, workflowRunId, workflowRunAttempt }
   const packages = []
@@ -611,8 +599,6 @@ export async function assembleRelease({
 
   const windows = packages.filter(({ definition }) => definition.platform === 'win32')
   const macOS = packages.filter(({ definition }) => definition.platform === 'darwin')
-  const linuxX64 = packages.find(({ definition }) => definition.id === 'linux-x64')
-  const linuxArm64 = packages.find(({ definition }) => definition.id === 'linux-arm64')
   const metadataDefinitions = [
     {
       name: 'latest.yml',
@@ -621,14 +607,6 @@ export async function assembleRelease({
     {
       name: 'latest-mac.yml',
       metadata: mergeArchitectureMetadata(macOS, version)
-    },
-    {
-      name: 'latest-linux.yml',
-      metadata: normalizeSingleArchitectureMetadata(linuxX64, version)
-    },
-    {
-      name: 'latest-linux-arm64.yml',
-      metadata: normalizeSingleArchitectureMetadata(linuxArm64, version)
     }
   ]
   const metadataAssets = await Promise.all(

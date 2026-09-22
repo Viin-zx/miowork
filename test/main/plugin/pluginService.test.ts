@@ -2087,7 +2087,6 @@ describe('PluginService', () => {
   it('wires CUA plugin release gates for supported targets', async () => {
     const packageJson = JSON.parse(await readFile('package.json', 'utf8'))
     const windowsPackageWorkflow = await readFile('.github/workflows/_package-windows.yml', 'utf8')
-    const linuxPackageWorkflow = await readFile('.github/workflows/_package-linux.yml', 'utf8')
     const macosPackageWorkflow = await readFile('.github/workflows/_package-macos.yml', 'utf8')
     const pluginScript = await readFile('scripts/plugin.mjs', 'utf8')
 
@@ -2130,13 +2129,9 @@ describe('PluginService', () => {
     expect(windowsPackageWorkflow).toContain(
       'pnpm run plugin:bundle -- --name cua --platform win32 --arch "${TARGET_ARCH}"'
     )
-    expect(linuxPackageWorkflow).toContain(
-      'pnpm run plugin:bundle -- --name cua --platform linux --arch ${{ inputs.arch }}'
-    )
     for (const [workflow, platform] of [
       [macosPackageWorkflow, 'darwin'],
-      [windowsPackageWorkflow, 'win32'],
-      [linuxPackageWorkflow, 'linux']
+      [windowsPackageWorkflow, 'win32']
     ]) {
       expect(workflow).toContain(
         `pnpm run installRuntime:duckdb:vss -- --platform ${platform} --arch`
@@ -2147,9 +2142,6 @@ describe('PluginService', () => {
     expect(macosPackageWorkflow).toContain('macos-15-intel')
     expect(macosPackageWorkflow).toContain('macos-15')
     expect(windowsPackageWorkflow).toContain(
-      'dist/${UNPACKED_DIRECTORY}/resources/app.asar.unpacked/runtime/duckdb/extensions/vss.duckdb_extension'
-    )
-    expect(linuxPackageWorkflow).toContain(
       'dist/${UNPACKED_DIRECTORY}/resources/app.asar.unpacked/runtime/duckdb/extensions/vss.duckdb_extension'
     )
     expect(macosPackageWorkflow).toContain(

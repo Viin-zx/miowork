@@ -51,12 +51,6 @@ const windowsPackagePaths = new Set([
   'resources/win_tray.ico'
 ])
 
-const linuxPackagePaths = new Set([
-  '.github/workflows/_package-linux.yml',
-  'build/icon.png',
-  'resources/linux_tray.png'
-])
-
 const macosPackagePaths = new Set([
   '.github/workflows/_package-macos.yml',
   'build/dmg-background.png',
@@ -86,11 +80,6 @@ const packageImpactRules = Object.freeze([
     id: 'windows-package-input',
     platforms: ['windows'],
     matches: (changedPath) => windowsPackagePaths.has(changedPath)
-  },
-  {
-    id: 'linux-package-input',
-    platforms: ['linux'],
-    matches: (changedPath) => linuxPackagePaths.has(changedPath)
   },
   {
     id: 'macos-package-input',

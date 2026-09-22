@@ -53,7 +53,7 @@ interface BuildWorkflow {
   jobs: Record<string, BuildWorkflowJob>
 }
 
-type PackageJobName = 'package-windows' | 'package-linux' | 'package-macos'
+type PackageJobName = 'package-windows' | 'package-macos'
 
 interface RegressionStatusJob {
   name: string
@@ -133,11 +133,6 @@ const reusableWorkflows = {
     runner: "${{ inputs.arch == 'arm64' && 'windows-11-arm' || 'windows-2025-vs2026' }}",
     artifact: 'miowork-package-win32-${{ inputs.arch }}'
   },
-  linux: {
-    name: '_package-linux.yml',
-    runner: "${{ inputs.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}",
-    artifact: 'miowork-package-linux-${{ inputs.arch }}'
-  },
   macos: {
     name: '_package-macos.yml',
     runner: "${{ inputs.arch == 'arm64' && 'macos-15' || 'macos-15-intel' }}",
@@ -188,10 +183,8 @@ describe('native package reusable workflows', () => {
 
   it('passes only explicit platform secrets and never inherits caller secrets', () => {
     const windows = readWorkflow<ReusableWorkflow>(reusableWorkflows.windows.name)
-    const linux = readWorkflow<ReusableWorkflow>(reusableWorkflows.linux.name)
     const macos = readWorkflow<ReusableWorkflow>(reusableWorkflows.macos.name)
     expect(windows.on.workflow_call.secrets).toEqual(commonSecrets)
-    expect(linux.on.workflow_call.secrets).toEqual(commonSecrets)
     expect(macos.on.workflow_call.secrets).toEqual({
       ...commonSecrets,
       DEEPCHAT_CSC_LINK: { required: false },
@@ -204,9 +197,6 @@ describe('native package reusable workflows', () => {
       expect(readWorkflowSource(definition.name)).not.toContain('secrets: inherit')
     }
     expect(readWorkflowSource(reusableWorkflows.windows.name)).not.toContain(
-      'DEEPCHAT_APPLE_NOTARY_'
-    )
-    expect(readWorkflowSource(reusableWorkflows.linux.name)).not.toContain(
       'DEEPCHAT_APPLE_NOTARY_'
     )
   })
@@ -425,12 +415,10 @@ describe('Build Application caller', () => {
     expect(workflow.permissions).toEqual({ contents: 'read' })
     expect(Object.keys(workflow.jobs)).toEqual([
       'package-windows',
-      'package-linux',
       'package-macos'
     ])
     const expectedUses = {
       'package-windows': './.github/workflows/_package-windows.yml',
-      'package-linux': './.github/workflows/_package-linux.yml',
       'package-macos': './.github/workflows/_package-macos.yml'
     }
     for (const [name, job] of Object.entries(workflow.jobs)) {
@@ -452,10 +440,8 @@ describe('Build Application caller', () => {
 
   it('passes Apple credentials only to the macOS distribution caller', () => {
     const windowsSecrets = Object.keys(workflow.jobs['package-windows'].secrets)
-    const linuxSecrets = Object.keys(workflow.jobs['package-linux'].secrets)
     const macSecrets = Object.keys(workflow.jobs['package-macos'].secrets)
     expect(windowsSecrets).toEqual(Object.keys(commonSecrets))
-    expect(linuxSecrets).toEqual(Object.keys(commonSecrets))
     expect(macSecrets).toEqual([
       ...Object.keys(commonSecrets),
       'DEEPCHAT_CSC_LINK',
@@ -472,11 +458,10 @@ describe('Package Regression caller', () => {
   const source = readWorkflowSource('package-regression.yml')
   const packageJobNames: PackageJobName[] = [
     'package-windows',
-    'package-linux',
     'package-macos'
   ]
 
-  it('supports reusable, manual, and daily six-target verification', () => {
+  it('supports reusable, manual, and daily four-target verification', () => {
     expect(workflow.on.workflow_call.inputs).toMatchObject({
       'source-sha': { required: true, type: 'string' }
     })
@@ -490,7 +475,6 @@ describe('Package Regression caller', () => {
 
     const expectedUses: Record<PackageJobName, string> = {
       'package-windows': './.github/workflows/_package-windows.yml',
-      'package-linux': './.github/workflows/_package-linux.yml',
       'package-macos': './.github/workflows/_package-macos.yml'
     }
     for (const name of packageJobNames) {
@@ -533,7 +517,6 @@ describe('Package Regression caller', () => {
       env: {
         GH_TOKEN: '${{ github.token }}',
         WINDOWS_RESULT: '${{ needs.package-windows.result }}',
-        LINUX_RESULT: '${{ needs.package-linux.result }}',
         MACOS_RESULT: '${{ needs.package-macos.result }}'
       }
     })
@@ -583,7 +566,6 @@ done
     const runStatus = (
       results: {
         windows: string
-        linux: string
         macos: string
       },
       openIssues: string
@@ -602,7 +584,6 @@ done
         RUNNER_TEMP: temporaryDirectory,
         RUN_URL: 'https://github.com/ThinkInAIXYZ/deepchat/actions/runs/123',
         WINDOWS_RESULT: results.windows,
-        LINUX_RESULT: results.linux,
         MACOS_RESULT: results.macos
       })
       return {
@@ -613,7 +594,7 @@ done
 
     try {
       const firstFailure = runStatus(
-        { windows: 'failure', linux: 'success', macos: 'success' },
+        { windows: 'failure', macos: 'success' },
         ''
       )
       expect(firstFailure.result.status, firstFailure.result.stderr).toBe(0)
@@ -633,7 +614,7 @@ done
       )
 
       const repeatedFailure = runStatus(
-        { windows: 'success', linux: 'success', macos: 'failure' },
+        { windows: 'success', macos: 'failure' },
         '42'
       )
       expect(repeatedFailure.result.status, repeatedFailure.result.stderr).toBe(0)
@@ -641,7 +622,7 @@ done
       expect(repeatedFailure.calls).not.toContain('ARG:issue\nARG:create\n')
 
       const recovery = runStatus(
-        { windows: 'success', linux: 'success', macos: 'success' },
+        { windows: 'success', macos: 'success' },
         '42'
       )
       expect(recovery.result.status, recovery.result.stderr).toBe(0)
@@ -657,13 +638,12 @@ describe('Release caller and publication boundary', () => {
   const workflow = readWorkflow<ReleaseWorkflow>('release.yml')
   const source = readWorkflowSource('release.yml')
 
-  it('runs preflight before six distribution packages and keeps write access isolated', () => {
+  it('runs preflight before four distribution packages and keeps write access isolated', () => {
     expect(workflow.permissions).toEqual({ contents: 'read' })
     expect(workflow.concurrency).toMatchObject({ 'cancel-in-progress': false })
     expect(Object.keys(workflow.jobs)).toEqual([
       'preflight',
       'package-windows',
-      'package-linux',
       'package-macos',
       'assemble',
       'publish'
@@ -676,7 +656,6 @@ describe('Release caller and publication boundary', () => {
 
     const expectedUses = {
       'package-windows': './.github/workflows/_package-windows.yml',
-      'package-linux': './.github/workflows/_package-linux.yml',
       'package-macos': './.github/workflows/_package-macos.yml'
     }
     for (const [name, reusable] of Object.entries(expectedUses)) {
@@ -697,9 +676,6 @@ describe('Release caller and publication boundary', () => {
     expect(Object.keys(workflow.jobs['package-windows'].secrets!)).toEqual(
       Object.keys(commonSecrets)
     )
-    expect(Object.keys(workflow.jobs['package-linux'].secrets!)).toEqual(
-      Object.keys(commonSecrets)
-    )
     expect(Object.keys(workflow.jobs['package-macos'].secrets!)).toEqual([
       ...Object.keys(commonSecrets),
       'DEEPCHAT_CSC_LINK',
@@ -710,12 +686,11 @@ describe('Release caller and publication boundary', () => {
     ])
   })
 
-  it('downloads exactly six named package artifacts before fail-closed assembly', () => {
+  it('downloads exactly four named package artifacts before fail-closed assembly', () => {
     const assemble = workflow.jobs.assemble
     expect(assemble.needs).toEqual([
       'preflight',
       'package-windows',
-      'package-linux',
       'package-macos'
     ])
     const downloads = assemble.steps!.filter((step) =>
@@ -724,8 +699,6 @@ describe('Release caller and publication boundary', () => {
     expect(downloads.map((step) => step.with?.name)).toEqual([
       'miowork-package-win32-x64',
       'miowork-package-win32-arm64',
-      'miowork-package-linux-x64',
-      'miowork-package-linux-arm64',
       'miowork-package-darwin-x64',
       'miowork-package-darwin-arm64'
     ])

@@ -23,7 +23,6 @@ jobs:
     outputs:
       required: ${{ steps.classify.outputs.required }}
       windows: ${{ steps.classify.outputs.windows }}
-      linux: ${{ steps.classify.outputs.linux }}
       macos: ${{ steps.classify.outputs.macos }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -77,7 +76,6 @@ jobs:
             {
               echo 'required=true'
               echo 'windows=true'
-              echo 'linux=true'
               echo 'macos=true'
             } >> "${GITHUB_OUTPUT}"
             exit 0
@@ -106,22 +104,6 @@ jobs:
       artifact-purpose: verification
       enforce-installer-size: true
 
-  package-linux:
-    needs: package-impact
-    if: needs.package-impact.outputs.linux == 'true'
-    permissions:
-      contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        arch: [x64, arm64]
-    uses: ./.github/workflows/_package-linux.yml
-    with:
-      source-sha: ${{ github.sha }}
-      arch: ${{ matrix.arch }}
-      artifact-purpose: verification
-      enforce-installer-size: true
-
   package-macos:
     needs: package-impact
     if: needs.package-impact.outputs.macos == 'true'
@@ -143,7 +125,6 @@ jobs:
     needs:
       - package-impact
       - package-windows
-      - package-linux
       - package-macos
     runs-on: ubuntu-24.04
     timeout-minutes: 2
@@ -154,8 +135,6 @@ jobs:
           PACKAGE_IMPACT_RESULT: ${{ needs.package-impact.result }}
           WINDOWS_REQUIRED: ${{ needs.package-impact.outputs.windows }}
           WINDOWS_RESULT: ${{ needs.package-windows.result }}
-          LINUX_REQUIRED: ${{ needs.package-impact.outputs.linux }}
-          LINUX_RESULT: ${{ needs.package-linux.result }}
           MACOS_REQUIRED: ${{ needs.package-impact.outputs.macos }}
           MACOS_RESULT: ${{ needs.package-macos.result }}
         run: |
@@ -192,7 +171,6 @@ jobs:
 
           require_success "package-impact" "${PACKAGE_IMPACT_RESULT}"
           require_platform_result "windows" "${WINDOWS_REQUIRED}" "${WINDOWS_RESULT}"
-          require_platform_result "linux" "${LINUX_REQUIRED}" "${LINUX_RESULT}"
           require_platform_result "macos" "${MACOS_REQUIRED}" "${MACOS_RESULT}"
 
           if (( ${#failures[@]} > 0 )); then

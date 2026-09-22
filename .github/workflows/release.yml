@@ -126,27 +126,6 @@ jobs:
       DC_GITHUB_CLIENT_SECRET: ${{ secrets.DC_GITHUB_CLIENT_SECRET }}
       DC_GITHUB_REDIRECT_URI: ${{ secrets.DC_GITHUB_REDIRECT_URI }}
 
-  package-linux:
-    name: release-linux(${{ matrix.arch }})
-    needs: preflight
-    permissions:
-      contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        arch: [x64, arm64]
-    uses: ./.github/workflows/_package-linux.yml
-    with:
-      source-sha: ${{ needs.preflight.outputs.sha }}
-      arch: ${{ matrix.arch }}
-      artifact-purpose: distribution
-      enforce-installer-size: true
-    secrets:
-      RTK_GITHUB_TOKEN: ${{ secrets.RTK_GITHUB_TOKEN }}
-      DC_GITHUB_CLIENT_ID: ${{ secrets.DC_GITHUB_CLIENT_ID }}
-      DC_GITHUB_CLIENT_SECRET: ${{ secrets.DC_GITHUB_CLIENT_SECRET }}
-      DC_GITHUB_REDIRECT_URI: ${{ secrets.DC_GITHUB_REDIRECT_URI }}
-
   package-macos:
     name: release-macos(${{ matrix.arch }})
     needs: preflight
@@ -175,7 +154,7 @@ jobs:
 
   assemble:
     name: assemble-release
-    needs: [preflight, package-windows, package-linux, package-macos]
+    needs: [preflight, package-windows, package-macos]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
@@ -211,20 +190,6 @@ jobs:
         with:
           name: miowork-package-win32-arm64
           path: artifacts/miowork-package-win32-arm64
-          digest-mismatch: error
-
-      - name: Download Linux x64 package
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: miowork-package-linux-x64
-          path: artifacts/miowork-package-linux-x64
-          digest-mismatch: error
-
-      - name: Download Linux ARM64 package
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: miowork-package-linux-arm64
-          path: artifacts/miowork-package-linux-arm64
           digest-mismatch: error
 
       - name: Download macOS x64 package

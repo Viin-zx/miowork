@@ -149,12 +149,12 @@ describe('fail-closed release assembly', () => {
     ) as FinalUpdaterMetadata
   }
 
-  it('assembles six manifests into exactly 19 public release assets', async () => {
+  it('assembles four manifests into exactly 13 public release assets', async () => {
     const releaseIndex = await assemble()
     const entries = (await readdir(outputDirectory)).sort()
-    expect(entries).toHaveLength(19)
+    expect(entries).toHaveLength(13)
     expect(entries).toContain('release-index.json')
-    expect(releaseIndex.assets).toHaveLength(18)
+    expect(releaseIndex.assets).toHaveLength(12)
     expect(releaseIndex).toMatchObject({
       version,
       sourceCommit: sourceSha,
@@ -163,13 +163,11 @@ describe('fail-closed release assembly', () => {
     })
     expect(releaseIndex.assets.every((asset) => !('sha512' in asset))).toBe(true)
 
-    const [windows, macOS, linuxX64, linuxArm64] = await Promise.all([
+    const [windows, macOS] = await Promise.all([
       readFinalMetadata('latest.yml'),
-      readFinalMetadata('latest-mac.yml'),
-      readFinalMetadata('latest-linux.yml'),
-      readFinalMetadata('latest-linux-arm64.yml')
+      readFinalMetadata('latest-mac.yml')
     ])
-    for (const metadata of [windows, macOS, linuxX64, linuxArm64]) {
+    for (const metadata of [windows, macOS]) {
       expect(typeof metadata.releaseDate).toBe('string')
       expect(metadata.releaseDate).toBe(generatedAt)
     }
@@ -186,13 +184,6 @@ describe('fail-closed release assembly', () => {
     ])
     expect(macOS.files.every(({ url }) => !url.endsWith('.dmg'))).toBe(true)
     expect(macOS.path).toBe(macOS.files[0].url)
-
-    expect(linuxX64.files).toHaveLength(1)
-    expect(linuxX64.files[0].url).toMatch(/-linux-x64\.AppImage$/)
-    expect(linuxX64.files[0]).toHaveProperty('blockMapSize')
-    expect(linuxArm64.files).toHaveLength(1)
-    expect(linuxArm64.files[0].url).toMatch(/-linux-arm64\.AppImage$/)
-    expect(linuxArm64.files[0]).toHaveProperty('blockMapSize')
 
     const windowsTarget = releaseIndex.targets.find(({ id }) => id === 'win32-x64')
     const macTarget = releaseIndex.targets.find(({ id }) => id === 'darwin-x64')
@@ -263,7 +254,7 @@ describe('fail-closed release assembly', () => {
       workflowRunId,
       workflowRunAttempt
     })
-    expect(verified.files).toHaveLength(19)
+    expect(verified.files).toHaveLength(13)
 
     const releaseIndexPath = path.join(outputDirectory, 'release-index.json')
     const originalReleaseIndex = await readFile(releaseIndexPath, 'utf8')
@@ -371,15 +362,23 @@ describe('fail-closed release assembly', () => {
   })
 
   it('rejects a missing target or an unexpected artifact', async () => {
-    await rm(artifactRoot('linux-arm64'), { recursive: true })
-    await expect(assemble()).rejects.toThrow(/exactly the six package artifacts/)
+    await rm(artifactRoot('darwin-arm64'), { recursive: true })
+    await expect(assemble()).rejects.toThrow(
+      new RegExp(
+        `exactly the ${TARGET_DEFINITIONS.length} package artifacts`
+      )
+    )
 
     await createOnePackageArtifact(
       artifactsDirectory,
-      TARGET_DEFINITIONS.find(({ id }) => id === 'linux-arm64')!
+      TARGET_DEFINITIONS.find(({ id }) => id === 'darwin-arm64')!
     )
     await mkdir(path.join(artifactsDirectory, 'unexpected-artifact'))
-    await expect(assemble()).rejects.toThrow(/exactly the six package artifacts/)
+    await expect(assemble()).rejects.toThrow(
+      new RegExp(
+        `exactly the ${TARGET_DEFINITIONS.length} package artifacts`
+      )
+    )
   })
 
   it('rejects missing, unknown, symlinked, and path-escaping package files', async () => {
@@ -429,14 +428,14 @@ describe('fail-closed release assembly', () => {
     await expect(assemble()).rejects.toThrow(/unexpected fields: signed/)
 
     await resetFixtures()
-    await updateManifest('linux-x64', (manifest) => {
+    await updateManifest('darwin-x64', (manifest) => {
       manifest.build.purpose = 'verification'
     })
     await expect(assemble()).rejects.toThrow(/requires a distribution manifest/)
   })
 
   it('recomputes package and updater digests', async () => {
-    const root = artifactRoot('linux-x64')
+    const root = artifactRoot('darwin-x64')
     const manifest = JSON.parse(
       await readFile(path.join(root, 'manifest.json'), 'utf8')
     ) as PackageManifest
@@ -461,14 +460,7 @@ describe('fail-closed release assembly', () => {
     await expect(assemble()).rejects.toThrow(/URL mismatch|must not contain a DMG/)
 
     await resetFixtures()
-    await updateRawMetadata('linux-x64', (metadata) => {
-      const files = metadata.files as Array<Record<string, unknown>>
-      delete files[0].blockMapSize
-    })
-    await expect(assemble()).rejects.toThrow(/missing blockMapSize/)
-
-    await resetFixtures()
-    await updateRawMetadata('linux-arm64', (metadata) => {
+    await updateRawMetadata('win32-x64', (metadata) => {
       const files = metadata.files as Array<Record<string, unknown>>
       metadata.files = [files[0], { ...files[0] }]
     })
