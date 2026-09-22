@@ -77,6 +77,28 @@ describe('sign-cua-helper', () => {
     expect(signingCall?.[1]).not.toContain('--deep')
   })
 
+  it('uses an ad-hoc signature for unsigned distribution builds', async () => {
+    const { signMacHelper } = await loadSigner()
+
+    await expect(
+      signMacHelper({
+        appPath: path.join(tmpDir, 'DeepChat Computer Use.app'),
+        entitlementsPath: path.join(tmpDir, 'entitlements.plist'),
+        purpose: 'distribution',
+        cwd: tmpDir,
+        env: {}
+      })
+    ).resolves.toEqual({
+      purpose: 'distribution',
+      signature: 'ad-hoc'
+    })
+    const signingCall = childProcessMocks.execFileAsync.mock.calls.find(
+      ([command, args]) => command === '/usr/bin/codesign' && args.includes('--sign')
+    )
+    expect(signingCall?.[1]).toContain('-')
+    expect(signingCall?.[1]).toContain('--timestamp=none')
+  })
+
   it('imports the release certificate and signs the helper before plugin packaging', async () => {
     const { signMacHelper } = await loadSigner()
     const appPath = path.join(tmpDir, 'DeepChat Computer Use.app')
@@ -149,10 +171,16 @@ describe('sign-cua-helper', () => {
   it('rejects contradictory package purpose and release mode combinations', async () => {
     const { validateCuaSigningContext } = await loadSigner()
 
-    expect(() =>
+    expect(
       validateCuaSigningContext({
         purpose: 'distribution',
         env: {}
+      })
+    ).toBe('distribution')
+    expect(() =>
+      validateCuaSigningContext({
+        purpose: 'distribution',
+        env: { CSC_LINK: 'notarization-disabled-certificate' }
       })
     ).toThrow(/requires build_for_release to enable release notarization/)
     expect(
