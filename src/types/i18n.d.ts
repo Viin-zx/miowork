@@ -47,6 +47,9 @@ declare module 'vue-i18n' {
     subStartTime: string
     subEndTime: string
     subStatus: string
+    subStatusActive: string
+    subStatusExpired: string
+    subStatusCancelled: string
     subDataDelayed: string
     switchAccount: string
     logout: string

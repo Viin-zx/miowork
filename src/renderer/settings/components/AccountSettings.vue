@@ -90,7 +90,10 @@
             <div
               v-for="sub in sortedSubscriptions"
               :key="sub.subscriptionId"
-              class="rounded-lg border border-border/60 bg-background/40 p-4"
+              :class="[
+                'rounded-lg border border-border/60 p-4',
+                sub.status === 'active' ? 'bg-background/40' : 'bg-muted/30'
+              ]"
             >
               <div class="flex items-center gap-2">
                 <span class="truncate text-sm font-medium">{{ sub.planName }}</span>
@@ -100,7 +103,9 @@
                     sub.status === 'active' ? 'bg-green-500' : 'bg-muted-foreground'
                   ]"
                 />
-                <span class="shrink-0 text-xs text-muted-foreground">{{ sub.status }}</span>
+                <span class="shrink-0 text-xs text-muted-foreground">{{
+                  subscriptionStatusLabel(sub.status)
+                }}</span>
                 <span class="ml-auto shrink-0 font-mono text-xs text-muted-foreground">
                   #{{ sub.subscriptionId }}
                 </span>
@@ -579,6 +584,20 @@ async function loadSubscriptionAgreement(): Promise<void> {
 /** 发起购买前重置协议勾选 */
 function resetAgreementState(): void {
   agreeSubscription.value = false
+}
+
+/** 订阅状态文案映射：服务端返回英文状态码，界面展示本地化文案 */
+function subscriptionStatusLabel(status: string): string {
+  switch (status) {
+    case 'active':
+      return t('account.subStatusActive')
+    case 'expired':
+      return t('account.subStatusExpired')
+    case 'cancelled':
+      return t('account.subStatusCancelled')
+    default:
+      return status
+  }
 }
 
 /** 全部订阅：生效中的优先，其次按到期时间倒序 */
