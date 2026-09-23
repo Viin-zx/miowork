@@ -114,13 +114,14 @@ describe('AgentSettings ACP registry uninstall', () => {
 })
 
 describe('AgentSettings migrations', () => {
-  it('repairs legacy selections before materializing version 3 configs', () => {
+  it('repairs legacy selections and memory defaults before materializing version 5 configs', () => {
     const sequence: string[] = []
     const settings = Object.assign(Object.create(AgentSettings.prototype), {
       initializeUnifiedAgents: vi.fn(() => sequence.push('initialize-v1-v2')),
       reconcileLegacyBuiltinAgentSelections: vi.fn(() => sequence.push('reconcile-legacy')),
+      migrateBuiltinMemoryDefault: vi.fn(() => sequence.push('migrate-memory-default')),
       cleanupDeprecatedBuiltinAgentSelections: vi.fn(() => sequence.push('cleanup-deprecated')),
-      materializeIndependentDeepChatAgentConfigs: vi.fn(() => sequence.push('materialize-v3')),
+      materializeIndependentDeepChatAgentConfigs: vi.fn(() => sequence.push('materialize-v5')),
       settings: { get: vi.fn(() => 2) },
       provider: { setAcpProviderEnabled: vi.fn() },
       acpCatalog: { getGlobalEnabled: vi.fn(() => false) },
@@ -135,21 +136,24 @@ describe('AgentSettings migrations', () => {
     expect(sequence).toEqual([
       'initialize-v1-v2',
       'reconcile-legacy',
+      'migrate-memory-default',
       'cleanup-deprecated',
-      'materialize-v3'
+      'materialize-v5'
     ])
   })
 
-  it('does not rerun legacy config materialization at version 3', () => {
+  it('does not rerun legacy config materialization at version 5', () => {
     const reconcileLegacyBuiltinAgentSelections = vi.fn()
     const materializeIndependentDeepChatAgentConfigs = vi.fn()
     const cleanupDeprecatedBuiltinAgentSelections = vi.fn()
+    const migrateBuiltinMemoryDefault = vi.fn()
     const settings = Object.assign(Object.create(AgentSettings.prototype), {
       initializeUnifiedAgents: vi.fn(),
       reconcileLegacyBuiltinAgentSelections,
       cleanupDeprecatedBuiltinAgentSelections,
+      migrateBuiltinMemoryDefault,
       materializeIndependentDeepChatAgentConfigs,
-      settings: { get: vi.fn(() => 3) },
+      settings: { get: vi.fn(() => 5) },
       provider: { setAcpProviderEnabled: vi.fn() },
       acpCatalog: { getGlobalEnabled: vi.fn(() => false) },
       registry: {
@@ -162,14 +166,15 @@ describe('AgentSettings migrations', () => {
 
     expect(cleanupDeprecatedBuiltinAgentSelections).toHaveBeenCalledOnce()
     expect(reconcileLegacyBuiltinAgentSelections).not.toHaveBeenCalled()
+    expect(migrateBuiltinMemoryDefault).not.toHaveBeenCalled()
     expect(materializeIndependentDeepChatAgentConfigs).not.toHaveBeenCalled()
   })
 
-  it('freezes legacy Skill targets before marking version 3', () => {
+  it('freezes legacy Skill targets before marking version 5', () => {
     const sequence: string[] = []
     const store = {
       set: vi.fn((key: string | Record<string, unknown>) =>
-        sequence.push(typeof key === 'string' ? 'mark-v3' : 'migrate-app-defaults')
+        sequence.push(typeof key === 'string' ? 'mark-v5' : 'migrate-app-defaults')
       )
     }
     const repository = {
@@ -208,7 +213,7 @@ describe('AgentSettings migrations', () => {
       'materialize',
       'freeze-skill-targets',
       'migrate-app-defaults',
-      'mark-v3'
+      'mark-v5'
     ])
     expect(store.set).toHaveBeenNthCalledWith(1, {
       defaultModel: createModelSelection('anthropic', 'claude-sonnet'),
@@ -216,7 +221,7 @@ describe('AgentSettings migrations', () => {
       autoCompactionTriggerThreshold: 65,
       autoCompactionRetainRecentPairs: 4
     })
-    expect(store.set).toHaveBeenCalledWith('unifiedAgentsMigrationVersion', 3)
+    expect(store.set).toHaveBeenCalledWith('unifiedAgentsMigrationVersion', 5)
   })
 
   it('leaves the version marker unset when config materialization fails', () => {
@@ -237,7 +242,7 @@ describe('AgentSettings migrations', () => {
     expect(store.set).not.toHaveBeenCalled()
   })
 
-  it('leaves version 3 unset when app default migration fails', () => {
+  it('leaves version 5 unset when app default migration fails', () => {
     const store = {
       set: vi.fn((key: string | Record<string, unknown>) => {
         if (typeof key !== 'string') throw new Error('settings write failed')
@@ -262,14 +267,14 @@ describe('AgentSettings migrations', () => {
     expect(() => (settings as any).materializeIndependentDeepChatAgentConfigs()).toThrow(
       'settings write failed'
     )
-    expect(store.set).not.toHaveBeenCalledWith('unifiedAgentsMigrationVersion', 3)
+    expect(store.set).not.toHaveBeenCalledWith('unifiedAgentsMigrationVersion', 5)
   })
 
   it('clears a stale app default model when the legacy builtin Agent has none', () => {
     const sequence: string[] = []
     const store = {
       set: vi.fn((key: string | Record<string, unknown>) =>
-        sequence.push(typeof key === 'string' ? 'mark-v3' : 'migrate-app-defaults')
+        sequence.push(typeof key === 'string' ? 'mark-v5' : 'migrate-app-defaults')
       ),
       delete: vi.fn(() => sequence.push('clear-default-model'))
     }
@@ -294,7 +299,7 @@ describe('AgentSettings migrations', () => {
       'freeze-skill-targets',
       'migrate-app-defaults',
       'clear-default-model',
-      'mark-v3'
+      'mark-v5'
     ])
     expect(store.delete).toHaveBeenCalledWith('defaultModel')
   })
@@ -384,6 +389,76 @@ describe('AgentSettings migrations', () => {
       visionModel: createModelSelection('google', 'gemini-2.5-flash')
     })
     expect(store.delete).toHaveBeenCalledWith('defaultVisionModel')
+  })
+
+  it('enables builtin memory with the default embedding when the builtin config has none', () => {
+    const updateBuiltinDeepChatConfig = vi.fn()
+    const settings = Object.assign(Object.create(AgentSettings.prototype), {
+      repository: {
+        getDeepChatAgentConfig: vi.fn(() => ({ defaultModelPreset: null }))
+      },
+      updateBuiltinDeepChatConfig
+    }) as AgentSettings
+
+    ;(settings as any).migrateBuiltinMemoryDefault()
+
+    expect(updateBuiltinDeepChatConfig).toHaveBeenCalledOnce()
+    expect(updateBuiltinDeepChatConfig).toHaveBeenCalledWith({
+      memoryEnabled: true,
+      memoryEmbedding: { providerId: 'aihubmix', modelId: 'text-embedding-v4' }
+    })
+  })
+
+  it('turns on builtin memory once without clobbering an existing embedding choice', () => {
+    const updateBuiltinDeepChatConfig = vi.fn()
+    const settings = Object.assign(Object.create(AgentSettings.prototype), {
+      repository: {
+        getDeepChatAgentConfig: vi.fn(() => ({
+          memoryEnabled: false,
+          memoryEmbedding: { providerId: 'zr-mioagent', modelId: 'text-embedding-v4' }
+        }))
+      },
+      updateBuiltinDeepChatConfig
+    }) as AgentSettings
+
+    ;(settings as any).migrateBuiltinMemoryDefault()
+
+    expect(updateBuiltinDeepChatConfig).toHaveBeenCalledOnce()
+    expect(updateBuiltinDeepChatConfig).toHaveBeenCalledWith({ memoryEnabled: true })
+  })
+
+  it('fills the default embedding when only builtin memory is enabled', () => {
+    const updateBuiltinDeepChatConfig = vi.fn()
+    const settings = Object.assign(Object.create(AgentSettings.prototype), {
+      repository: {
+        getDeepChatAgentConfig: vi.fn(() => ({ memoryEnabled: true }))
+      },
+      updateBuiltinDeepChatConfig
+    }) as AgentSettings
+
+    ;(settings as any).migrateBuiltinMemoryDefault()
+
+    expect(updateBuiltinDeepChatConfig).toHaveBeenCalledOnce()
+    expect(updateBuiltinDeepChatConfig).toHaveBeenCalledWith({
+      memoryEmbedding: { providerId: 'aihubmix', modelId: 'text-embedding-v4' }
+    })
+  })
+
+  it('leaves an already migrated builtin memory config untouched', () => {
+    const updateBuiltinDeepChatConfig = vi.fn()
+    const settings = Object.assign(Object.create(AgentSettings.prototype), {
+      repository: {
+        getDeepChatAgentConfig: vi.fn(() => ({
+          memoryEnabled: true,
+          memoryEmbedding: { providerId: 'openai', modelId: 'text-embedding-3-small' }
+        }))
+      },
+      updateBuiltinDeepChatConfig
+    }) as AgentSettings
+
+    ;(settings as any).migrateBuiltinMemoryDefault()
+
+    expect(updateBuiltinDeepChatConfig).not.toHaveBeenCalled()
   })
 })
 

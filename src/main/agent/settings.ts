@@ -31,7 +31,7 @@ import {
 import { AgentRepository, BUILTIN_DEEPCHAT_AGENT_ID } from '@/agent/repository'
 import type { AgentLifecycleGatePort } from '@/agent/lifecycleGate'
 
-const UNIFIED_AGENTS_MIGRATION_VERSION = 3
+const UNIFIED_AGENTS_MIGRATION_VERSION = 5
 const PENDING_AGENT_SKILL_CLEANUP_KEY = 'pendingAgentSkillCleanupIds'
 const DEPRECATED_BUILTIN_PROVIDER_IDS = ['qwenlm', 'laoshi'] as const
 const MEMORY_MAINTENANCE_TRIGGER_CONFIG_KEYS: readonly (keyof DeepChatAgentConfig)[] = [
@@ -42,6 +42,10 @@ const MEMORY_MAINTENANCE_TRIGGER_CONFIG_KEYS: readonly (keyof DeepChatAgentConfi
   'assistantModel',
   'defaultModelPreset'
 ]
+const BUILTIN_MEMORY_EMBEDDING_DEFAULT = {
+  providerId: 'aihubmix',
+  modelId: 'text-embedding-v4'
+} as const
 
 type ModelSelection = { providerId: string; modelId: string }
 type DeleteDeepChatAgentResult = { removed: boolean; cleanupPendingRestart: boolean }
@@ -208,6 +212,13 @@ export class AgentSettings implements AgentSettingsPort {
         this.reconcileLegacyBuiltinAgentSelections()
       } catch (error) {
         logger.warn('[AgentSettings] Failed to reconcile legacy Agent selections.', { error })
+      }
+      try {
+        this.migrateBuiltinMemoryDefault()
+      } catch (error) {
+        logger.warn('[AgentSettings] Failed to migrate the builtin Agent memory default.', {
+          error
+        })
       }
     }
     this.cleanupDeprecatedBuiltinAgentSelections()
@@ -811,7 +822,9 @@ export class AgentSettings implements AgentSettingsPort {
       autoCompactionTriggerThreshold:
         typeof autoCompactionTriggerThreshold === 'number' ? autoCompactionTriggerThreshold : 80,
       autoCompactionRetainRecentPairs:
-        typeof autoCompactionRetainRecentPairs === 'number' ? autoCompactionRetainRecentPairs : 2
+        typeof autoCompactionRetainRecentPairs === 'number' ? autoCompactionRetainRecentPairs : 2,
+      memoryEnabled: true,
+      memoryEmbedding: { ...BUILTIN_MEMORY_EMBEDDING_DEFAULT }
     })
   }
 
@@ -852,6 +865,18 @@ export class AgentSettings implements AgentSettingsPort {
     if (isDeprecatedBuiltinModelSelection(config.visionModel)) updates.visionModel = null
     if (isDeprecatedBuiltinModelSelection(config.imageGenerationModel)) {
       updates.imageGenerationModel = null
+    }
+    if (Object.keys(updates).length > 0) this.updateBuiltinDeepChatConfig(updates)
+  }
+
+  private migrateBuiltinMemoryDefault(): void {
+    const config = this.repository.getDeepChatAgentConfig(BUILTIN_DEEPCHAT_AGENT_ID)
+    const updates: Partial<DeepChatAgentConfig> = {}
+    if (!config || config.memoryEnabled !== true) {
+      updates.memoryEnabled = true
+    }
+    if (!config || config.memoryEmbedding === undefined) {
+      updates.memoryEmbedding = { ...BUILTIN_MEMORY_EMBEDDING_DEFAULT }
     }
     if (Object.keys(updates).length > 0) this.updateBuiltinDeepChatConfig(updates)
   }
