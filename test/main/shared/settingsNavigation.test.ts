@@ -69,6 +69,21 @@ describe('settings navigation helpers', () => {
     )
   })
 
+  it('keeps the provider settings route available but hidden from the sidebar', () => {
+    expect(getSettingsRouteItems().some((item) => item.routeName === 'settings-provider')).toBe(
+      true
+    )
+    expect(
+      getSettingsNavigationItems().some((item) => item.routeName === 'settings-provider')
+    ).toBe(false)
+    expect(resolveSettingsNavigationPath('settings-provider')).toBe('/provider')
+    expect(
+      resolveSettingsNavigationPath('settings-provider', {
+        providerId: 'openai'
+      })
+    ).toBe('/provider/openai')
+  })
+
   it('hides plugin settings navigation on CUA-unsupported targets', () => {
     expect(
       getSettingsNavigationItems('linux', 'arm64').some(

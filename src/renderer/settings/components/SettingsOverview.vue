@@ -34,14 +34,6 @@
 
     <section class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
       <StatusMetricCard
-        :label="t('settings.controlCenter.overview.providers')"
-        :value="t('settings.controlCenter.overview.enabledCount', { count: enabledProvidersCount })"
-        icon="lucide:cloud-cog"
-        :description="t('settings.controlCenter.overview.providersDescription')"
-        interactive
-        @select="openRoute('settings-provider')"
-      />
-      <StatusMetricCard
         :label="t('settings.controlCenter.overview.deepchatAgents')"
         :value="
           t('settings.controlCenter.overview.enabledAgentCount', {
@@ -109,7 +101,7 @@
           <TableRow
             v-for="activity in activities"
             :key="activity.id"
-            class="cursor-pointer"
+            :class="activity.routeName === 'settings-provider' ? '' : 'cursor-pointer'"
             @click="openActivity(activity)"
           >
             <TableCell class="whitespace-nowrap text-xs text-muted-foreground">
@@ -193,15 +185,6 @@ const runtimeArch = getRuntimeArch()
 const settingsItems = getSettingsNavigationItems(runtimePlatform, runtimeArch)
 type SettingsRouteName = SettingsNavigationItem['routeName']
 
-const enabledProvidersCount = computed(
-  () =>
-    providerStore.providers.filter((provider) => provider.id !== 'acp' && provider.enable).length
-)
-
-const enabledModelsCount = computed(() =>
-  modelStore.enabledModels.reduce((count, group) => count + group.models.length, 0)
-)
-
 const enabledDeepChatAgentsCount = computed(
   () =>
     agentStore.enabledAgents.filter((agent) => (agent.agentType ?? agent.type) === 'deepchat')
@@ -218,22 +201,6 @@ const quickTasks = computed<
     done: boolean
   }>
 >(() => [
-  {
-    key: 'api-key',
-    labelKey: 'settings.controlCenter.quickStart.addApiKey',
-    descriptionKey: 'settings.controlCenter.quickStart.addApiKeyDesc',
-    routeName: 'settings-provider',
-    icon: 'lucide:key-round',
-    done: providerStore.providers.some((provider) => provider.id !== 'acp' && provider.apiKey)
-  },
-  {
-    key: 'enable-model',
-    labelKey: 'settings.controlCenter.quickStart.enableModel',
-    descriptionKey: 'settings.controlCenter.quickStart.enableModelDesc',
-    routeName: 'settings-provider',
-    icon: 'lucide:box',
-    done: enabledModelsCount.value > 0
-  },
   {
     key: 'backup',
     labelKey: 'settings.controlCenter.quickStart.backupNow',
@@ -268,7 +235,11 @@ const openRoute = (routeName: SettingsRouteName) => {
 }
 
 const openActivity = (activity: SettingsActivityRecord) => {
-  if (!activity.routeName || !router.hasRoute(activity.routeName)) {
+  if (
+    activity.routeName === 'settings-provider' ||
+    !activity.routeName ||
+    !router.hasRoute(activity.routeName)
+  ) {
     return
   }
 
