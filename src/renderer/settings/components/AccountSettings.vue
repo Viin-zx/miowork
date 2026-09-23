@@ -92,7 +92,7 @@
               :key="sub.subscriptionId"
               :class="[
                 'rounded-lg border border-border/60 p-4',
-                sub.status === 'active' ? 'bg-background/40' : 'bg-muted/30'
+                sub.status === 'active' ? 'bg-background/40' : 'bg-gray-200 dark:bg-gray-800'
               ]"
             >
               <div class="flex items-center gap-2">
@@ -110,20 +110,22 @@
                   #{{ sub.subscriptionId }}
                 </span>
               </div>
-              <div class="mt-3 flex items-baseline gap-2">
-                <span class="text-xs text-muted-foreground">{{ t('account.subRemaining') }}</span>
-                <span class="text-xl font-semibold text-primary">
-                  {{ formatQuota(sub.amountTotal - sub.amountUsed) }}
-                </span>
-                <span class="ml-auto text-xs text-muted-foreground">
-                  / {{ formatQuota(sub.amountTotal, true) }}
-                </span>
-              </div>
-              <div class="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                <span>{{ t('account.subQuotaUsed') }} {{ formatQuota(sub.amountUsed) }}</span>
-                <span
-                  >{{ formatShortDate(sub.startTime) }} ~ {{ formatShortDate(sub.endTime) }}</span
-                >
+              <div :class="sub.status === 'active' ? '' : 'opacity-60'">
+                <div class="mt-3 flex items-baseline gap-2">
+                  <span class="text-xs text-muted-foreground">{{ t('account.subRemaining') }}</span>
+                  <span class="text-xl font-semibold text-primary">
+                    {{ formatQuota(sub.amountTotal - sub.amountUsed) }}
+                  </span>
+                  <span class="ml-auto text-xs text-muted-foreground">
+                    / {{ formatQuota(sub.amountTotal, true) }}
+                  </span>
+                </div>
+                <div class="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{{ t('account.subQuotaUsed') }} {{ formatQuota(sub.amountUsed) }}</span>
+                  <span
+                    >{{ formatShortDate(sub.startTime) }} ~ {{ formatShortDate(sub.endTime) }}</span
+                  >
+                </div>
               </div>
             </div>
           </div>
