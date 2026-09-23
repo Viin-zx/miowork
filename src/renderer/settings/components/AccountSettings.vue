@@ -289,11 +289,8 @@
         <div v-if="purchaseResult" class="space-y-3">
           <!-- 购买失败 -->
           <div v-if="!purchaseResult.ok" class="rounded-lg border border-border/60 p-4">
-            <p class="text-sm text-destructive">
-              {{ purchaseResult.msg || t('account.purchaseFailed') }}
-            </p>
-            <p v-if="purchaseErrorHint" class="mt-1 text-xs text-muted-foreground">
-              {{ purchaseErrorHint }}
+            <p class="text-base text-destructive">
+              {{ purchaseResult.msg || purchaseErrorHint || t('account.purchaseFailed') }}
             </p>
           </div>
 
