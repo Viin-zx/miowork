@@ -3044,7 +3044,7 @@ export class SkillService implements SkillServicePort {
   ): string {
     const scripts = scriptInventory.filter((script) => script.enabled)
     const lines = [
-      '## DeepChat Runtime Context',
+      '## MioWork Runtime Context',
       `- Skill root: \`${metadata.skillRoot}\`.`,
       '- Relative paths mentioned by this skill are relative to the skill root unless stated otherwise.',
       '- When this skill needs script execution, prefer `skill_run` over `exec`.'
@@ -4632,7 +4632,7 @@ export class SkillService implements SkillServicePort {
     if (!fs.existsSync(readmePath)) {
       fs.writeFileSync(
         readmePath,
-        '# DeepChat Skills\n\nThis directory stores portable DeepChat skills under `skills/`.\n',
+        '# MioWork Skills\n\nThis directory stores portable MioWork skills under `skills/`.\n',
         'utf-8'
       )
     }

@@ -81,7 +81,7 @@ import { CODE_MODE_TOOL_SERVER_NAME } from '@shared/codeModeProtocol'
 
 const publishDeepchatEventMock = vi.hoisted(() => vi.fn())
 const PROGRAMMATIC_EXEC_ARGUMENTS = JSON.stringify({
-  command: 'deepchat tool call',
+  command: 'miowork tool call',
   stdin: JSON.stringify({ target: 'remote_search', arguments: {} })
 })
 
@@ -1652,7 +1652,7 @@ describe('dispatch', () => {
       })
       const commitToolOutcome = vi.fn()
       const argumentsJson = JSON.stringify({
-        command: 'deepchat tool search --query calendar --limit 4'
+        command: 'miowork tool search --query calendar --limit 4'
       })
       vi.mocked(toolService.callTool).mockImplementation(async (request, options) => {
         order.push('tool-service')
@@ -1738,7 +1738,7 @@ describe('dispatch', () => {
       })
       const commitDispatch = vi.fn(() => ({ sessionId: 's1', entryId: 1, created: true }))
       const argumentsJson = JSON.stringify({
-        command: 'deepchat tool search --query calendar'
+        command: 'miowork tool search --query calendar'
       })
       vi.mocked(toolService.callTool).mockImplementation(async (request, options) => {
         options?.commitDispatch?.({
@@ -1812,7 +1812,7 @@ describe('dispatch', () => {
         settleError: journalError
       })
       const argumentsJson = JSON.stringify({
-        command: 'deepchat tool search --query calendar'
+        command: 'miowork tool search --query calendar'
       })
       vi.mocked(toolService.callTool).mockImplementation(async (request, options) => {
         options?.commitDispatch?.({
@@ -1888,7 +1888,7 @@ describe('dispatch', () => {
       })
       const commitToolOutcome = vi.fn()
       const argumentsJson = JSON.stringify({
-        command: 'deepchat tool describe --target unavailable_tool'
+        command: 'miowork tool describe --target unavailable_tool'
       })
       vi.mocked(toolService.callTool).mockImplementation(async (request, options) => {
         options?.commitDispatch?.({
@@ -1975,7 +1975,7 @@ describe('dispatch', () => {
         }
       })
       const argumentsJson = JSON.stringify({
-        command: 'deepchat tool search --query calendar'
+        command: 'miowork tool search --query calendar'
       })
       state.blocks.push({
         type: 'tool_call',

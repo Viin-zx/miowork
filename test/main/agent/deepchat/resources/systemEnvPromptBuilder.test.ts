@@ -1,4 +1,5 @@
 import * as fs from 'node:fs'
+import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import logger from '@shared/logger'
 import {
@@ -33,7 +34,7 @@ describe('buildSystemEnvPrompt', () => {
       now: new Date('2026-06-22T00:00:00Z')
     })
 
-    expect(prompt).toContain('Working directory: /tmp/deepchat-env-prompt-missing')
+    expect(prompt).toContain('Working directory: ' + path.resolve('/tmp/deepchat-env-prompt-missing'))
     expect(prompt).toContain('Shell: sh.')
     expect(prompt).not.toContain('Instructions from:')
     expect(logger.warn).not.toHaveBeenCalledWith(
@@ -69,7 +70,7 @@ describe('buildSystemEnvPrompt', () => {
     })
 
     expect(freshAssembly.prompt).toContain(
-      'Instructions from: /tmp/deepchat-env-prompt-present/AGENTS.md'
+      'Instructions from: ' + path.resolve('/tmp/deepchat-env-prompt-present/AGENTS.md')
     )
     expect(freshAssembly.prompt).toContain('Use concise answers.')
     expect(
@@ -118,7 +119,7 @@ describe('buildSystemEnvPrompt', () => {
 
     expect(prompt).not.toContain('Instructions from:')
     expect(logger.warn).toHaveBeenCalledWith('[SystemEnvPromptBuilder] Failed to read AGENTS.md', {
-      sourcePath: '/tmp/deepchat-env-prompt-error/AGENTS.md',
+      sourcePath: path.resolve('/tmp/deepchat-env-prompt-error/AGENTS.md'),
       code: 'EISDIR',
       message: 'EISDIR mock error'
     })
@@ -168,7 +169,7 @@ describe('buildSystemEnvPrompt', () => {
       degradationCodes: ['agents_file_deferred']
     })
     expect(logger.warn).toHaveBeenCalledWith('[SystemEnvPromptBuilder] AGENTS.md read deferred', {
-      sourcePath: '/tmp/deepchat-env-prompt-slow/AGENTS.md',
+      sourcePath: path.resolve('/tmp/deepchat-env-prompt-slow/AGENTS.md'),
       budgetMs: 200
     })
 

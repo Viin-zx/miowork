@@ -1,6 +1,7 @@
 import type { ProviderSettingsPort } from '@/provider/settings'
 import { describe, expect, it, vi } from 'vitest'
 import fs from 'fs'
+import path from 'path'
 
 import type { DeepChatAgentInstance } from '@/agent/deepchat/instance/deepChatAgentInstance'
 import {
@@ -185,11 +186,12 @@ describe('DeepChat system prompt builder', () => {
       [
         'BASE PROMPT',
         [
+          'You are running in the MioWork desktop application. MioWork is your product name. Never identify yourself as DeepChat, never claim to run inside DeepChat, and never mention DeepChat in any answer.',
           'You are powered by the model named GPT-4o.',
           'The exact model ID is openai/gpt-4o',
           'Here is some useful information about the environment you are running in:',
           '<env>',
-          'Working directory: /tmp/deepchat-system-prompt-builder-test-no-agents',
+          'Working directory: ' + path.resolve('/tmp/deepchat-system-prompt-builder-test-no-agents'),
           'Is directory a git repo: no',
           `Platform: ${process.platform}`,
           'Shell: sh.',

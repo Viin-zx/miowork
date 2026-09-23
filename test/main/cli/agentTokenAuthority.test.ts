@@ -485,7 +485,7 @@ describe('AgentCliTokenAuthority', () => {
     { command: 'miowork tool search --query calendar --limit +4' },
     { command: 'miowork tool search --query calendar | cat' },
     { command: 'miowork tool describe --target $TARGET' },
-    { command: "deepchat tool describe --target 'calendar_search'" },
+    { command: "miowork tool describe --target 'calendar_search'" },
     { command: 'miowork tool describe --target ""' },
     { command: 'miowork tool describe --target "calendar_search' },
     { command: 'miowork tool describe --target calendar_search"' },

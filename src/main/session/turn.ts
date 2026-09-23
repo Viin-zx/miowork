@@ -439,7 +439,7 @@ export class SessionTurn implements SessionTurnPort, SessionInitialTurnPort {
       throw new Error(`Agent ${session.agentId} does not support manual compaction.`)
     }
     if ((await runtime.snapshot())?.providerId === 'acp') {
-      throw new Error('Manual compaction is only available for DeepChat agent sessions.')
+      throw new Error('Manual compaction is only available for MioWork agent sessions.')
     }
     return await runtime.compaction.compact()
   }

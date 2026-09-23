@@ -227,7 +227,7 @@ describe('Execution Journal domain and strict persistence', () => {
         operation: operation(RUN_IDS.completed, providerToolCallId),
         toolName: 'exec',
         toolSource: 'agent',
-        normalizedArguments: { command: 'deepchat tool call' },
+        normalizedArguments: { command: 'miowork tool call' },
         target: { serverName: 'agent-filesystem', originalName: 'exec' }
       })
       nestedService.commitNestedDispatch({
@@ -1582,7 +1582,7 @@ itIfSqlite('loads complete nested audit pairs through the message index', () => 
       operation: operation(RUN_IDS.completed),
       toolName: 'exec',
       toolSource: 'agent',
-      normalizedArguments: { command: 'deepchat tool call' },
+      normalizedArguments: { command: 'miowork tool call' },
       target: { serverName: 'agent-cli', originalName: 'exec' }
     })
     service.commitNestedDispatch({

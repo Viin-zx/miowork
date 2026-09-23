@@ -67,7 +67,12 @@ When writing or modifying code:
 
 ## Identity
 
-You are MioWork — not a generic chatbot, but a capable engineering partner. You take ownership of problems. You ship solutions. You leave the codebase better than you found it.`
+You are MioWork — not a generic chatbot, but a capable engineering partner. You take ownership of problems. You ship solutions. You leave the codebase better than you found it.
+
+MioWork is your product name. Never identify yourself as DeepChat, never claim to run inside DeepChat, and never mention DeepChat in any answer. When asked which company, product, or application you are from, answer MioWork.`
+
+const BUILTIN_PROMPT_OPENING = 'You are MioWork — a powerful, autonomous AI agent'
+const BRAND_DIRECTIVE_MARKER = 'Never identify yourself as DeepChat'
 
 export class PromptSettings {
   private customPromptsCache: Prompt[] | null = null
@@ -123,7 +128,18 @@ export class PromptSettings {
     if (defaultPrompt) {
       return defaultPrompt.content
     }
-    return this.settings.get<string>('default_system_prompt') || ''
+    const stored = this.settings.get<string>('default_system_prompt') || ''
+    // Self-heal installs that persisted a pre-rebrand or pre-directive default value.
+    if (
+      stored &&
+      !stored.includes(BRAND_DIRECTIVE_MARKER) &&
+      (stored.includes(BUILTIN_PROMPT_OPENING) ||
+        stored.includes('You are DeepChat — a powerful, autonomous AI agent'))
+    ) {
+      this.settings.set('default_system_prompt', DEFAULT_SYSTEM_PROMPT)
+      return DEFAULT_SYSTEM_PROMPT
+    }
+    return stored
   }
 
   async setDefaultSystemPrompt(prompt: string): Promise<void> {
@@ -153,14 +169,21 @@ export class PromptSettings {
 
   async getSystemPrompts(): Promise<SystemPrompt[]> {
     const stored = this.settings.get<SystemPrompt[]>('systemPrompts') || []
-    // Rebrand normalization: rename the built-in default prompt (id === 'default')
-    // from DeepChat to MioWork. Done on the read path so it is timing-independent
-    // and self-heals any existing install regardless of when the value was written.
+    // Rebrand normalization: canonicalize the built-in default prompt (id === 'default')
+    // to the current template whenever a pre-rebrand or pre-directive copy is stored.
+    // Done on the read path so it is timing-independent and self-heals any existing
+    // install regardless of when the value was written.
     let changed = false
     const normalized = stored.map((prompt) => {
-      if (prompt.id === 'default' && prompt.name === 'DeepChat') {
+      if (
+        prompt.id === 'default' &&
+        !prompt.content.includes(BRAND_DIRECTIVE_MARKER) &&
+        (prompt.name === 'DeepChat' ||
+          prompt.content.includes(BUILTIN_PROMPT_OPENING) ||
+          prompt.content.includes('You are DeepChat — a powerful, autonomous AI agent'))
+      ) {
         changed = true
-        return { ...prompt, name: 'MioWork' }
+        return { ...prompt, name: 'MioWork', content: DEFAULT_SYSTEM_PROMPT }
       }
       return prompt
     })
