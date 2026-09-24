@@ -443,9 +443,15 @@ jobs:
                   raise
 
           def abort_incomplete():
-              uploads = s3.list_multipart_uploads(
-                  Bucket=bucket, Prefix=f'{prefix}/'
-              ).get('Uploads', [])
+              # 可选优化：清理上次失败遗留的未完成分片。RAM 子账号若没有
+              # oss:ListMultipartUploads 权限会抛 AccessDenied，此时跳过即可。
+              try:
+                  uploads = s3.list_multipart_uploads(
+                      Bucket=bucket, Prefix=f'{prefix}/'
+                  ).get('Uploads', [])
+              except ClientError as error:
+                  print(f'warning: cannot list multipart uploads ({error}); skipping cleanup', flush=True)
+                  return
               for upload in uploads:
                   s3.abort_multipart_upload(
                       Bucket=bucket,
