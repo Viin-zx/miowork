@@ -35,7 +35,7 @@ args.forEach((arg) => {
 if (!params.version) {
   console.error('错误: 缺少版本号参数 (--version=X.Y.Z)')
   console.log(
-    '使用方法: node update-version.js --version=0.0.6 [--notes="版本更新说明"] [--date="2023-06-15"]'
+    '使用方法: node update-version.js --version=0.0.6 [--notes="版本更新说明"] [--date="2023-06-15"] [--tag=zr-1.1.3]'
   )
   process.exit(1)
 }
@@ -46,11 +46,14 @@ if (!versionRegex.test(params.version)) {
   process.exit(1)
 }
 
+// 发布标签：默认 v 前缀，兼容 zr- 前缀（如 --tag=zr-1.1.3）
+const releaseTag = params.tag || `v${params.version}`
+
 const template = {
   version: params.version,
   releaseDate: params.date || new Date().toISOString().split('T')[0],
   releaseNotes: params.notes || '测试版本',
-  githubUrl: `https://github.com/Viin-zx/miowork/releases/tag/v${params.version}`,
+  githubUrl: `https://github.com/Viin-zx/miowork/releases/tag/${releaseTag}`,
   downloadUrl: `https://github.com/Viin-zx/miowork/releases`
 }
 
@@ -70,11 +73,11 @@ platforms.forEach((platform) => {
   }
   // Start of Selection
   if (os === 'windows') {
-    platformData.githubUrl = `https://github.com/Viin-zx/miowork/releases/download/v${params.version}/MioWork-${params.version}-windows-${arch}.exe`
+    platformData.githubUrl = `https://github.com/Viin-zx/miowork/releases/download/${releaseTag}/MioWork-${params.version}-windows-${arch}.exe`
   } else if (os === 'mac') {
-    platformData.githubUrl = `https://github.com/Viin-zx/miowork/releases/download/v${params.version}/MioWork-${params.version}-mac-${arch}.dmg`
+    platformData.githubUrl = `https://github.com/Viin-zx/miowork/releases/download/${releaseTag}/MioWork-${params.version}-mac-${arch}.dmg`
   } else if (os === 'linux') {
-    platformData.githubUrl = `https://github.com/Viin-zx/miowork/releases/download/v${params.version}/MioWork-${params.version}-linux-${arch}.tar.gz`
+    platformData.githubUrl = `https://github.com/Viin-zx/miowork/releases/download/${releaseTag}/MioWork-${params.version}-linux-${arch}.tar.gz`
   }
   // 写入文件
   const outputPath = path.join(process.cwd(), `${platform}.json`)

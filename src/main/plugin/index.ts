@@ -2259,8 +2259,7 @@ export class PluginService implements PluginServicePort {
   }
 
   private getReleaseTag(): string {
-    const version = app.getVersion()
-    return version.startsWith('v') ? version : `v${version}`
+    return `zr-${app.getVersion()}`
   }
 
   private assertSafeRelativePath(relativePath: string, label: string): string {
