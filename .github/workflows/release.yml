@@ -390,6 +390,9 @@ jobs:
         env:
           OSS_ACCESS_KEY_ID: ${{ secrets.OSS_ACCESS_KEY_ID }}
           OSS_ACCESS_KEY_SECRET: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
+          # 可选：在 OSS 控制台开启传输加速后，把仓库变量 OSS_ENDPOINT 设为
+          # https://oss-accelerate.aliyuncs.com 可显著加快海外 runner 的上传。
+          OSS_ENDPOINT: ${{ vars.OSS_ENDPOINT }}
         run: |
           # aws-cli 对自定义 endpoint 强制 path-style，而新 OSS bucket 拒绝 path-style
           # （SecondLevelDomainForbidden）。改用官方文档验证过的 boto3 + virtual addressing：
@@ -397,31 +400,99 @@ jobs:
           python3 -m pip install --user boto3 >/dev/null 2>&1
           python3 - <<'PYEOF'
           import os
+          import time
+          from concurrent.futures import ThreadPoolExecutor, as_completed
+
           import boto3
           from botocore.config import Config
+          from botocore.exceptions import ClientError
           from boto3.s3.transfer import TransferConfig
+
+          endpoint = os.environ.get('OSS_ENDPOINT', '').strip() or 'https://oss-cn-hangzhou.aliyuncs.com'
+          bucket = 'miowork-releases'
+          prefix = 'updates'
 
           s3 = boto3.client(
               's3',
-              endpoint_url='https://oss-cn-hangzhou.aliyuncs.com',
+              endpoint_url=endpoint,
               region_name='cn-hangzhou',
               aws_access_key_id=os.environ['OSS_ACCESS_KEY_ID'],
               aws_secret_access_key=os.environ['OSS_ACCESS_KEY_SECRET'],
-              config=Config(signature_version='s3', s3={'addressing_style': 'virtual'}),
+              config=Config(
+                  signature_version='s3',
+                  s3={'addressing_style': 'virtual'},
+                  retries={'max_attempts': 10, 'mode': 'adaptive'},
+                  connect_timeout=10,
+                  read_timeout=60,
+                  max_pool_connections=128,
+              ),
           )
           transfer = TransferConfig(
               max_concurrency=32,
               multipart_threshold=64 * 1024 * 1024,
               multipart_chunksize=16 * 1024 * 1024,
           )
-          bucket = 'miowork-releases'
-          prefix = 'updates'
-          for name in sorted(os.listdir('release-assets')):
+
+          def head_size(key):
+              try:
+                  return s3.head_object(Bucket=bucket, Key=key).get('ContentLength')
+              except ClientError as error:
+                  code = error.response.get('Error', {}).get('Code', '')
+                  if code in ('404', 'NotFound', 'NoSuchKey', 'NoSuchBucket'):
+                      return None
+                  raise
+
+          def abort_incomplete():
+              uploads = s3.list_multipart_uploads(
+                  Bucket=bucket, Prefix=f'{prefix}/'
+              ).get('Uploads', [])
+              for upload in uploads:
+                  s3.abort_multipart_upload(
+                      Bucket=bucket,
+                      Key=upload['Key'],
+                      UploadId=upload['UploadId'],
+                  )
+              if uploads:
+                  print(f'aborted {len(uploads)} incomplete multipart uploads', flush=True)
+
+          def upload_one(name):
               path = os.path.join('release-assets', name)
-              if not os.path.isfile(path):
-                  continue
-              size_mib = os.path.getsize(path) / 1024 / 1024
-              print(f'uploading {name} ({size_mib:.1f} MiB)...', flush=True)
-              s3.upload_file(path, bucket, f'{prefix}/{name}', Config=transfer)
-          print('all files uploaded', flush=True)
+              key = f'{prefix}/{name}'
+              size = os.path.getsize(path)
+              if head_size(key) == size:
+                  return name, 'skip', size, 0.0
+              started = time.monotonic()
+              s3.upload_file(path, bucket, key, Config=transfer)
+              return name, 'upload', size, time.monotonic() - started
+
+          abort_incomplete()
+          names = sorted(os.listdir('release-assets'))
+          metadata = ('latest.yml', 'latest-mac.yml')
+          payload = [name for name in names if name not in metadata]
+          # 先上传安装包/blockmap，最后再传 latest.yml/latest-mac.yml，
+          # 避免客户端读到引用尚未上传文件的版本信息。
+          started = time.monotonic()
+          with ThreadPoolExecutor(max_workers=4) as pool:
+              futures = [pool.submit(upload_one, name) for name in payload]
+              for future in as_completed(futures):
+                  name, action, size, elapsed = future.result()
+                  if action == 'upload':
+                      print(
+                          f'uploaded {name} ({size / 1024 / 1024:.1f} MiB in {elapsed:.0f}s, '
+                          f'{size / 1024 / 1024 / elapsed:.1f} MiB/s)',
+                          flush=True,
+                      )
+                  else:
+                      print(f'skipped {name} (already on OSS)', flush=True)
+          for name in metadata:
+              upload_one(name)
+          total_elapsed = time.monotonic() - started
+          listed = s3.list_objects_v2(Bucket=bucket, Prefix=f'{prefix}/').get(
+              'Contents', []
+          )
+          print(
+              f'mirrored {len(names)} files in {total_elapsed:.0f}s; '
+              f'OSS now holds {len(listed)} objects under {prefix}/',
+              flush=True,
+          )
           PYEOF
