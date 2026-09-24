@@ -388,12 +388,33 @@ jobs:
 
       - name: Sync release assets to Aliyun OSS
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.OSS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
-          AWS_EC2_METADATA_DISABLED: 'true'
+          OSS_ACCESS_KEY_ID: ${{ secrets.OSS_ACCESS_KEY_ID }}
+          OSS_ACCESS_KEY_SECRET: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
         run: |
-          # OSS 新 bucket 拒绝 path-style 访问（SecondLevelDomainForbidden），
-          # 必须用 virtual-hosted style：endpoint 域名直接带 bucket 前缀。
-          aws s3 sync release-assets/ s3://miowork-releases/updates/ \
-            --endpoint-url https://miowork-releases.oss-cn-hangzhou.aliyuncs.com \
-            --region cn-hangzhou
+          # aws-cli 对自定义 endpoint 强制 path-style，而新 OSS bucket 拒绝 path-style
+          # （SecondLevelDomainForbidden）。改用官方文档验证过的 boto3 + virtual addressing：
+          # 请求落到 miowork-releases.oss-cn-hangzhou.aliyuncs.com/updates/...。
+          python3 -m pip install --user boto3 >/dev/null 2>&1
+          python3 - <<'PYEOF'
+          import os
+          import boto3
+          from botocore.config import Config
+
+          s3 = boto3.client(
+              's3',
+              endpoint_url='https://oss-cn-hangzhou.aliyuncs.com',
+              region_name='cn-hangzhou',
+              aws_access_key_id=os.environ['OSS_ACCESS_KEY_ID'],
+              aws_secret_access_key=os.environ['OSS_ACCESS_KEY_SECRET'],
+              config=Config(signature_version='s3', s3={'addressing_style': 'virtual'}),
+          )
+          bucket = 'miowork-releases'
+          prefix = 'updates'
+          count = 0
+          for name in os.listdir('release-assets'):
+              path = os.path.join('release-assets', name)
+              if os.path.isfile(path):
+                  s3.upload_file(path, bucket, f'{prefix}/{name}')
+                  count += 1
+          print(f'uploaded {count} files to oss://{bucket}/{prefix}/')
+          PYEOF
