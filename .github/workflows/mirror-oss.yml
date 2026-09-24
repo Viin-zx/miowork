@@ -1,0 +1,94 @@
+name: Mirror OSS
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Release workflow run id to mirror (default: latest zr release run)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: mirror-oss
+  cancel-in-progress: false
+
+env:
+  CI: 'true'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  mirror:
+    name: mirror-to-aliyun-oss
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Resolve release run id
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id="${{ inputs.run_id }}"
+          if [[ -z "${run_id}" ]]; then
+            run_id="$(
+              gh run list --repo "${GITHUB_REPOSITORY}" --workflow release.yml \
+                --json databaseId,conclusion --jq \
+                '[.[] | select(.conclusion == "success" or .conclusion == "failure" or .conclusion == "cancelled")][0].databaseId'
+            )"
+          fi
+          if [[ -z "${run_id}" ]]; then
+            echo 'No release workflow run found.' >&2
+            exit 1
+          fi
+          echo "run_id=${run_id}" >> "${GITHUB_OUTPUT}"
+
+      - name: Download verified release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.resolve.outputs.run_id }}
+        run: |
+          gh run download "${RUN_ID}" --repo "${GITHUB_REPOSITORY}" \
+            -n deepchat-release-assets -D release-assets
+
+      - name: Sync release assets to Aliyun OSS
+        env:
+          OSS_ACCESS_KEY_ID: ${{ secrets.OSS_ACCESS_KEY_ID }}
+          OSS_ACCESS_KEY_SECRET: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
+        run: |
+          # aws-cli 对自定义 endpoint 强制 path-style，而新 OSS bucket 拒绝 path-style
+          # （SecondLevelDomainForbidden）。改用官方文档验证过的 boto3 + virtual addressing：
+          # 请求落到 miowork-releases.oss-cn-hangzhou.aliyuncs.com/updates/...。
+          python3 -m pip install --user boto3 >/dev/null 2>&1
+          python3 - <<'PYEOF'
+          import os
+          import boto3
+          from botocore.config import Config
+          from boto3.s3.transfer import TransferConfig
+
+          s3 = boto3.client(
+              's3',
+              endpoint_url='https://oss-cn-hangzhou.aliyuncs.com',
+              region_name='cn-hangzhou',
+              aws_access_key_id=os.environ['OSS_ACCESS_KEY_ID'],
+              aws_secret_access_key=os.environ['OSS_ACCESS_KEY_SECRET'],
+              config=Config(signature_version='s3', s3={'addressing_style': 'virtual'}),
+          )
+          transfer = TransferConfig(
+              max_concurrency=32,
+              multipart_threshold=64 * 1024 * 1024,
+              multipart_chunksize=16 * 1024 * 1024,
+          )
+          bucket = 'miowork-releases'
+          prefix = 'updates'
+          for name in sorted(os.listdir('release-assets')):
+              path = os.path.join('release-assets', name)
+              if not os.path.isfile(path):
+                  continue
+              size_mib = os.path.getsize(path) / 1024 / 1024
+              print(f'uploading {name} ({size_mib:.1f} MiB)...', flush=True)
+              s3.upload_file(path, bucket, f'{prefix}/{name}', Config=transfer)
+          print('all files uploaded', flush=True)
+          PYEOF

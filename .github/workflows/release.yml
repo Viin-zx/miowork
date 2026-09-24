@@ -376,7 +376,7 @@ jobs:
     name: mirror-to-aliyun-oss
     needs: [preflight, assemble]
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 90
     permissions:
       contents: read
     steps:
@@ -399,6 +399,7 @@ jobs:
           import os
           import boto3
           from botocore.config import Config
+          from boto3.s3.transfer import TransferConfig
 
           s3 = boto3.client(
               's3',
@@ -408,13 +409,19 @@ jobs:
               aws_secret_access_key=os.environ['OSS_ACCESS_KEY_SECRET'],
               config=Config(signature_version='s3', s3={'addressing_style': 'virtual'}),
           )
+          transfer = TransferConfig(
+              max_concurrency=32,
+              multipart_threshold=64 * 1024 * 1024,
+              multipart_chunksize=16 * 1024 * 1024,
+          )
           bucket = 'miowork-releases'
           prefix = 'updates'
-          count = 0
-          for name in os.listdir('release-assets'):
+          for name in sorted(os.listdir('release-assets')):
               path = os.path.join('release-assets', name)
-              if os.path.isfile(path):
-                  s3.upload_file(path, bucket, f'{prefix}/{name}')
-                  count += 1
-          print(f'uploaded {count} files to oss://{bucket}/{prefix}/')
+              if not os.path.isfile(path):
+                  continue
+              size_mib = os.path.getsize(path) / 1024 / 1024
+              print(f'uploading {name} ({size_mib:.1f} MiB)...', flush=True)
+              s3.upload_file(path, bucket, f'{prefix}/{name}', Config=transfer)
+          print('all files uploaded', flush=True)
           PYEOF
