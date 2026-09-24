@@ -134,3 +134,4 @@ publish:
   provider: github
   owner: Viin-zx
   repo: miowork
+  tagNamePrefix: zr-
