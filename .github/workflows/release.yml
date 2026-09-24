@@ -392,6 +392,8 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
           AWS_EC2_METADATA_DISABLED: 'true'
         run: |
+          # OSS 新 bucket 拒绝 path-style 访问（SecondLevelDomainForbidden），
+          # 必须用 virtual-hosted style：endpoint 域名直接带 bucket 前缀。
           aws s3 sync release-assets/ s3://miowork-releases/updates/ \
-            --endpoint-url https://oss-cn-hangzhou.aliyuncs.com \
+            --endpoint-url https://miowork-releases.oss-cn-hangzhou.aliyuncs.com \
             --region cn-hangzhou
