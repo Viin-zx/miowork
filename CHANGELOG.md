@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.1.3 (2026-09-24)
+- Test update
+
 ## v1.1.2 (2026-09-20)
 - Added an Open With picker for workspace files, with detected editors and terminals, remembered preferences, and system-default fallback
 - Added installation and management of Codex-compatible user plugin packages from Git repositories, ZIP archives, and local folders, including Skills, supported context hooks, and MCP configurations
