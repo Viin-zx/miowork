@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.1.5 (2026-09-24)
+- Test update for OSS auto-update verification
+
 ## v1.1.4 (2026-09-24)
 - Routed auto-update checks and downloads through an Aliyun OSS mirror, mirroring GitHub Release assets at publish time for fast, reliable updates in China
 - 自动更新检查与下载切换至阿里云 OSS 镜像，发布时同步 GitHub Release 产物，国内更新更快更稳定
